@@ -16,7 +16,6 @@ import {
 } from '../state.ts';
 import { groundClearance } from '../config.ts';
 import {
-    getTerrainHeight,
     getTerrainNormal,
     getHeightAboveTerrain,
     updateTerrainChunks,
@@ -159,11 +158,20 @@ function ensureGroundClearance() {
     }
 }
 
-function applySuspension(targetY: number, frameScale: number) {
-    const heightDelta = targetY - playerGroup.position.y;
+function applySuspension(frameScale: number) {
+    const { x, y, z } = playerGroup.position;
+    const heightAbove = getHeightAboveTerrain(x, y, z);
+    const heightDelta = groundClearance - heightAbove;
+    if (Math.abs(heightDelta) < 1e-6) return;
+
+    const normal = getTerrainNormal(x, z);
+    if (heightAbove < groundClearance || Math.abs(heightDelta) > 18) {
+        playerGroup.position.addScaledVector(normal, heightDelta);
+        return;
+    }
+
     const suspensionBlend = 1 - Math.pow(1 - physics.suspension, frameScale);
-    playerGroup.position.y += heightDelta * suspensionBlend;
-    if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
+    playerGroup.position.addScaledVector(normal, heightDelta * suspensionBlend);
 }
 
 function handlePhysics(dt: number) {
@@ -187,14 +195,13 @@ function handlePhysics(dt: number) {
     }
 
     const now = performance.now();
-    let targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
 
     if (physics.isGrounded) {
         if (wantsJump(now)) {
             ensureGroundClearance();
             applyJump();
         } else {
-            applySuspension(targetY, frameScale);
+            applySuspension(frameScale);
             physics.velocity.set(0, 0, 0);
         }
     } else {
@@ -230,8 +237,7 @@ function handlePhysics(dt: number) {
     playerGroup.position.addScaledVector(scratch.forwardVector, physics.speed * frameScale);
 
     if (physics.isGrounded) {
-        targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
-        applySuspension(targetY, frameScale);
+        applySuspension(frameScale);
         physics.velocity.set(0, 0, 0);
     }
 
