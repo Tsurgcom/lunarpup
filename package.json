@@ -10,6 +10,7 @@
     "build": "bun scripts/build.ts",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit",
+    "db:migrate": "bun scripts/migrate.ts",
     "preview": "bunx serve dist"
   },
   "dependencies": {
