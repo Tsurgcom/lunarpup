@@ -17,6 +17,7 @@ export interface CurrencyInventoryService {
     listOwnedItems(accountId: string): Promise<string[]> | string[];
     grantOwnedItem(accountId: string, cosmeticId: string, reason: string): Promise<void> | void;
 }
+export type CurrencyService = CurrencyInventoryService;
 
 export interface LedgerEvent<TType extends string = string, TPayload = unknown> {
     id?: number;
