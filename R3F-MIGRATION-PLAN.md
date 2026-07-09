@@ -19,7 +19,7 @@ Rule: every phase must preserve a runnable baseline. No redesign, new gameplay, 
 - [x] Run `bun run dev:server` and verify WebSocket server starts. Server reported `ws://localhost:3001`.
 - [ ] Test keyboard controls: accelerate, reverse, steer, jump, boost.
 - [ ] Test mouse camera drag and wheel zoom.
-- [ ] Test tuning sliders, copy, and reset interactions. Controls are present; interaction replay still pending.
+- [ ] Test tuning sliders, copy, and reset interactions. Full production controls are now present in the R3F shell; interaction replay still pending.
 - [ ] Test terrain chunk generation while travelling.
 - [ ] Test multiplayer join, remote player movement, leave, and reconnect behavior.
 - [ ] Capture baseline screenshots and a short gameplay recording.
