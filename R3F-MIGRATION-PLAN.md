@@ -7,6 +7,7 @@ Rule: every phase must preserve a runnable baseline. No redesign, new gameplay, 
 ## Current baseline
 
 - Baseline commit: `771226329a9f4508fb6e56d0f7c3bc3af53d717a` on `main`.
+- Branch sync: rebased onto upstream commit `65b413f` (`Add Netlify multiplayer, minimap, and in-game chat with /tp`).
 - Current working-tree change: this checklist only.
 
 - [ ] Record current commit SHA and branch.
@@ -42,10 +43,10 @@ Goal: create React infrastructure without using it to rewrite the game.
 - [x] Keep current Bun entrypoint working.
 - [x] Add separate `dev:r3f` and `build:r3f` entrypoints.
 - [x] Render a blank R3F `<Canvas>` through `index.r3f.html`.
-- [ ] Confirm vanilla game still runs unchanged in browser. Production build passes; browser smoke test remains pending.
+- [ ] Confirm vanilla game still runs unchanged in browser. Production build passes after upstream sync; browser smoke test remains pending.
 - [ ] Do not move terrain, player, physics, UI, or network code yet.
 
-Exit gate: vanilla mode screenshot, controls, multiplayer, and production build match baseline. Current status: build passes; browser/gameplay verification pending.
+Exit gate: vanilla mode screenshot, controls, multiplayer, and production build match baseline. Current status: both vanilla and R3F builds pass after upstream sync; browser/gameplay verification pending.
 
 ## Phase 2: R3F owns renderer only
 
