@@ -6,7 +6,7 @@ export async function bootstrap() {
     const container = document.getElementById('canvas-container');
     if (!container) throw new Error('Missing #canvas-container');
 
-    const mpConfig = getMultiplayerConfig();
+    const mpConfig = await getMultiplayerConfig();
 
     const [
         { initScene, onWindowResize },
@@ -59,9 +59,9 @@ export async function bootstrap() {
             );
         } else {
             const { initMultiplayer } = await import('./multiplayer.ts');
-            initMultiplayer(mpConfig);
+            await initMultiplayer(mpConfig);
             if (mpConfig.transport === 'http') {
-                updateMultiplayerHint('Multiplayer runs on Netlify (SSE + Blobs). Share this URL with friends.');
+                updateMultiplayerHint('🔒 End-to-end encrypted. Share this exact URL (it carries the room key) to play together — the server can’t read names, positions, or chat.');
             }
         }
     }

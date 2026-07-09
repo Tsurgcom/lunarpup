@@ -5,17 +5,25 @@ import {
     PLAYER_COLORS,
     parseClientMessage,
     type ClientMessage,
-    type PlayerSnapshot,
+    type EncryptedEnvelope,
+    type EncryptedPlayerSnapshot,
     type ServerMessage,
 } from './net/protocol.ts';
 
+/**
+ * Dev-only multiplayer relay (Bun WebSocket). Like the Netlify functions, this
+ * is a *blind relay*: it stores and forwards encrypted name/state/chat envelopes
+ * without ever holding the room key, so it cannot read player names, positions,
+ * or chat. It only assigns opaque player ids + colours and routes by room id.
+ */
 interface PlayerConnection {
     id: string;
-    name: string;
+    name: EncryptedEnvelope;
     color: number;
     room: string;
     ws: ServerWebSocket<PlayerConnection>;
-    state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>;
+    stateEnvelope: EncryptedEnvelope;
+    seq: number;
 }
 
 interface Room {
@@ -41,17 +49,8 @@ function pickColor(room: Room): number {
     return PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)]!;
 }
 
-function snapshotFrom(conn: PlayerConnection): PlayerSnapshot {
-    return { id: conn.id, name: conn.name, color: conn.color, ...conn.state };
-}
-
-function defaultState(): Omit<PlayerSnapshot, 'id' | 'name' | 'color'> {
-    return {
-        x: 0, y: 0, z: 0,
-        qx: 0, qy: 0, qz: 0, qw: 1,
-        heading: 0, speed: 0, isGrounded: true,
-        boardTiltX: 0, boardTiltZ: 0,
-    };
+function snapshotFrom(conn: PlayerConnection): EncryptedPlayerSnapshot {
+    return { id: conn.id, color: conn.color, name: conn.name, state: conn.stateEnvelope, seq: conn.seq };
 }
 
 function send(ws: ServerWebSocket<PlayerConnection>, msg: ServerMessage) {
@@ -82,15 +81,15 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMe
     const room = getRoom(roomId);
     const id = crypto.randomUUID();
     const color = pickColor(room);
-    const name = msg.name.trim().slice(0, 24) || `Pup${Math.floor(Math.random() * 900 + 100)}`;
 
     const conn: PlayerConnection = {
         id,
-        name,
+        name: msg.name,
         color,
         room: roomId,
         ws,
-        state: defaultState(),
+        stateEnvelope: msg.state,
+        seq: msg.seq,
     };
 
     ws.data = conn;
@@ -104,27 +103,27 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMe
     send(ws, { type: 'welcome', id, color, room: roomId, players: existing });
     broadcast(room, { type: 'player_joined', player: snapshotFrom(conn) }, id);
 
-    console.log(`[+] ${name} joined room "${roomId}" (${room.players.size} players)`);
+    // Name is encrypted, so we log only the opaque id — server logs carry no
+    // player names.
+    console.log(`[+] player ${id} joined room "${roomId}" (${room.players.size} players)`);
 }
 
 function handleState(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 'state' }>) {
-    conn.state = msg.state;
+    conn.stateEnvelope = msg.state;
+    conn.seq = msg.seq;
     const room = rooms.get(conn.room);
     if (!room) return;
-    broadcast(room, { type: 'state', id: conn.id, state: msg.state }, conn.id);
+    broadcast(room, { type: 'state', id: conn.id, seq: msg.seq, state: msg.state }, conn.id);
 }
 
 function handleChat(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 'chat' }>) {
-    const text = msg.text.trim().slice(0, 200);
-    if (!text) return;
     const room = rooms.get(conn.room);
     if (!room) return;
     broadcast(room, {
         type: 'chat',
         id: conn.id,
-        name: conn.name,
-        text,
         ts: Date.now(),
+        payload: msg.payload,
     });
 }
 
@@ -134,7 +133,7 @@ const server = Bun.serve<PlayerConnection>({
     port,
     fetch(req, server) {
         if (server.upgrade(req)) return undefined;
-        return new Response('Lunar Pup multiplayer WebSocket server', {
+        return new Response('Lunar Pup multiplayer relay (E2E encrypted)', {
             headers: { 'Content-Type': 'text/plain' },
         });
     },
@@ -142,11 +141,12 @@ const server = Bun.serve<PlayerConnection>({
         open(ws) {
             ws.data = {
                 id: '',
-                name: '',
-                color: PLAYER_COLORS[0],
+                name: { iv: '', data: '' },
+                color: PLAYER_COLORS[0]!,
                 room: '',
                 ws,
-                state: defaultState(),
+                stateEnvelope: { iv: '', data: '' },
+                seq: 0,
             };
         },
         message(ws, message) {
@@ -169,10 +169,10 @@ const server = Bun.serve<PlayerConnection>({
         },
         close(ws) {
             if (!ws.data.id) return;
-            console.log(`[-] ${ws.data.name} left room "${ws.data.room}"`);
+            console.log(`[-] player ${ws.data.id} left room "${ws.data.room}"`);
             removePlayer(ws.data);
         },
     },
 });
 
-console.log(`Lunar Pup multiplayer server listening on ws://localhost:${server.port}`);
+console.log(`Lunar Pup multiplayer relay listening on ws://localhost:${server.port}`);

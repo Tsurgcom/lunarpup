@@ -1,12 +1,16 @@
-import type { ClientMessage, MultiplayerTransport, PlayerSnapshot, ServerMessage } from './protocol.ts';
+import type { ClientMessage, EncryptedPlayerSnapshot, MultiplayerTransport, PlayerSnapshot, ServerMessage } from './protocol.ts';
 import { CONNECT_TIMEOUT_MS, STATE_SEND_INTERVAL_MS } from './protocol.ts';
+import { RoomCipher, stateFingerprint } from './crypto.ts';
 
 export type MultiplayerStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export interface MultiplayerClientOptions {
     transport: MultiplayerTransport;
+    /** E2E cipher shared by everyone in the room. The relay never holds this. */
+    cipher: RoomCipher;
     wsUrl?: string;
     apiBase?: string;
+    /** Server-side routing room id (derived from the room key). */
     room: string;
     name: string;
     reconnect?: boolean;
@@ -18,12 +22,23 @@ export interface MultiplayerClientOptions {
     onChat?: (id: string, name: string, text: string, ts: number) => void;
 }
 
+function defaultPlayerState(): Omit<PlayerSnapshot, 'id' | 'name' | 'color'> {
+    return {
+        x: 0, y: 0, z: 0,
+        qx: 0, qy: 0, qz: 0, qw: 1,
+        heading: 0, speed: 0, isGrounded: true,
+        boardTiltX: 0, boardTiltZ: 0,
+    };
+}
+
 export class MultiplayerClient {
     private ws: WebSocket | null = null;
     private eventSource: EventSource | null = null;
     private localId = '';
     private localColor = 0xffb703;
     private lastSend = 0;
+    private seq = 0;
+    private lastFingerprint = '';
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private connectTimeout: ReturnType<typeof setTimeout> | null = null;
     private closedByUser = false;
@@ -96,44 +111,66 @@ export class MultiplayerClient {
         if (!this.isConnected) return;
         const now = performance.now();
         if (now - this.lastSend < STATE_SEND_INTERVAL_MS) return;
+        // Only emit + bump seq when the plaintext state actually changed, so the
+        // relay can dedupe on an opaque counter without ever seeing the state.
+        const fp = stateFingerprint(state);
+        if (fp === this.lastFingerprint) return;
+        this.lastFingerprint = fp;
         this.lastSend = now;
+        this.seq++;
+        void this.sendStateEncrypted(state, this.seq);
+    }
 
-        if (this.options.transport === 'http') {
-            void fetch(this.apiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'state',
-                    room: this.options.room,
-                    id: this.localId,
-                    state,
-                } satisfies ClientMessage),
-            });
-            return;
+    private async sendStateEncrypted(state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>, seq: number) {
+        try {
+            const envelope = await this.options.cipher.encrypt(state);
+            if (this.options.transport === 'http') {
+                void fetch(this.apiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'state',
+                        room: this.options.room,
+                        id: this.localId,
+                        seq,
+                        state: envelope,
+                    } satisfies ClientMessage),
+                });
+                return;
+            }
+            this.sendWs({ type: 'state', seq, state: envelope });
+        } catch {
+            /* ignore transient crypto/send failures */
         }
-
-        this.sendWs({ type: 'state', state });
     }
 
     sendChat(text: string) {
         const trimmed = text.trim().slice(0, 200);
         if (!trimmed || !this.isConnected) return;
+        void this.sendChatEncrypted(trimmed);
+    }
 
-        if (this.options.transport === 'http') {
-            void fetch(this.apiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'chat',
-                    room: this.options.room,
-                    id: this.localId,
-                    text: trimmed,
-                } satisfies ClientMessage),
-            });
-            return;
+    private async sendChatEncrypted(text: string) {
+        try {
+            // Name travels inside the encrypted payload so the relay never learns it.
+            const payload = await this.options.cipher.encrypt({ name: this.options.name, text });
+            if (this.options.transport === 'http') {
+                void fetch(this.apiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'chat',
+                        room: this.options.room,
+                        id: this.localId,
+                        payload,
+                    } satisfies ClientMessage),
+                });
+                return;
+            }
+            this.sendWs({ type: 'chat', payload });
+        } catch {
+            /* ignore */
         }
-
-        this.sendWs({ type: 'chat', text: trimmed });
     }
 
     private apiUrl() {
@@ -149,11 +186,11 @@ export class MultiplayerClient {
         }, CONNECT_TIMEOUT_MS);
 
         this.ws.addEventListener('open', () => {
-            this.sendWs({ type: 'join', room: this.options.room, name: this.options.name });
+            void this.sendJoinWs();
         });
 
         this.ws.addEventListener('message', (event) => {
-            this.handleMessage(event.data);
+            void this.handleMessage(event.data);
         });
 
         this.ws.addEventListener('close', () => {
@@ -174,6 +211,16 @@ export class MultiplayerClient {
         });
     }
 
+    private async sendJoinWs() {
+        try {
+            const name = await this.options.cipher.encrypt(this.options.name);
+            const state = await this.options.cipher.encrypt(defaultPlayerState());
+            this.sendWs({ type: 'join', room: this.options.room, name, state, seq: 0 });
+        } catch {
+            /* ignore */
+        }
+    }
+
     private async connectHttp() {
         this.connectTimeout = setTimeout(() => {
             if (this.localId) return;
@@ -181,13 +228,18 @@ export class MultiplayerClient {
         }, CONNECT_TIMEOUT_MS);
 
         try {
+            const name = await this.options.cipher.encrypt(this.options.name);
+            const state = await this.options.cipher.encrypt(defaultPlayerState());
+
             const res = await fetch(this.apiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: 'join',
                     room: this.options.room,
-                    name: this.options.name,
+                    name,
+                    state,
+                    seq: 0,
                 } satisfies ClientMessage),
             });
 
@@ -204,13 +256,15 @@ export class MultiplayerClient {
             this.localColor = welcome.color;
             this.clearConnectTimeout();
             this.setStatus('connected');
-            this.options.onWelcome?.(welcome.id, welcome.color, welcome.players);
+
+            const players = await this.decryptPlayers(welcome.players);
+            this.options.onWelcome?.(welcome.id, welcome.color, players);
 
             const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}`;
             this.eventSource = new EventSource(streamUrl);
 
             this.eventSource.onmessage = (event) => {
-                this.handleMessage(event.data);
+                void this.handleMessage(event.data);
             };
 
             this.eventSource.onerror = () => {
@@ -262,7 +316,23 @@ export class MultiplayerClient {
         this.options.onStatus?.(status, detail);
     }
 
-    private handleMessage(raw: unknown) {
+    private async decryptPlayers(encrypted: EncryptedPlayerSnapshot[]): Promise<PlayerSnapshot[]> {
+        const out: PlayerSnapshot[] = [];
+        for (const p of encrypted) {
+            const snap = await this.decryptPlayer(p);
+            if (snap) out.push(snap);
+        }
+        return out;
+    }
+
+    private async decryptPlayer(p: EncryptedPlayerSnapshot): Promise<PlayerSnapshot | null> {
+        const name = await this.options.cipher.decrypt<string>(p.name);
+        const state = await this.options.cipher.decrypt<Omit<PlayerSnapshot, 'id' | 'name' | 'color'>>(p.state);
+        if (name === null || state === null) return null;
+        return { id: p.id, color: p.color, name, ...state };
+    }
+
+    private async handleMessage(raw: unknown) {
         let msg: ServerMessage;
         try {
             msg = JSON.parse(String(raw)) as ServerMessage;
@@ -271,25 +341,33 @@ export class MultiplayerClient {
         }
 
         switch (msg.type) {
-            case 'welcome':
+            case 'welcome': {
                 this.clearConnectTimeout();
                 this.localId = msg.id;
                 this.localColor = msg.color;
                 this.setStatus('connected');
-                this.options.onWelcome?.(msg.id, msg.color, msg.players);
+                const players = await this.decryptPlayers(msg.players);
+                this.options.onWelcome?.(msg.id, msg.color, players);
                 break;
-            case 'player_joined':
-                this.options.onPlayerJoined?.(msg.player);
+            }
+            case 'player_joined': {
+                const player = await this.decryptPlayer(msg.player);
+                if (player) this.options.onPlayerJoined?.(player);
                 break;
+            }
             case 'player_left':
                 this.options.onPlayerLeft?.(msg.id);
                 break;
-            case 'state':
-                this.options.onPlayerState?.(msg.id, msg.state);
+            case 'state': {
+                const state = await this.options.cipher.decrypt<Omit<PlayerSnapshot, 'id' | 'name' | 'color'>>(msg.state);
+                if (state) this.options.onPlayerState?.(msg.id, state);
                 break;
-            case 'chat':
-                this.options.onChat?.(msg.id, msg.name, msg.text, msg.ts);
+            }
+            case 'chat': {
+                const chat = await this.options.cipher.decrypt<{ name: string; text: string }>(msg.payload);
+                if (chat) this.options.onChat?.(msg.id, chat.name, chat.text, msg.ts);
                 break;
+            }
         }
     }
 }

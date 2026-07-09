@@ -10,7 +10,7 @@ export function setupMultiplayerUI() {
         <h2>🐾 Multiplayer</h2>
         <div id="mp-status" class="mp-status mp-disconnected">Offline</div>
         <div id="mp-players" class="mp-players"></div>
-        <div class="mp-hint" id="mp-hint">Add <code>?multiplayer&room=your-room</code> to the URL</div>
+        <div class="mp-hint" id="mp-hint">Add <code>?multiplayer</code> to the URL, then share this exact link to play together. 🔒 End-to-end encrypted — the server can’t read names, positions, or chat.</div>
     `;
     document.body.appendChild(panel);
     statusEl = panel.querySelector('#mp-status');

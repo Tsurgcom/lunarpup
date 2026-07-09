@@ -1,5 +1,6 @@
 import { MultiplayerClient } from '../net/client.ts';
-import type { PlayerSnapshot } from '../net/protocol.ts';
+import { RoomCipher } from '../net/crypto.ts';
+import type { MultiplayerConfig, PlayerSnapshot } from '../net/protocol.ts';
 import {
     addRemotePlayer,
     clearRemotePlayers,
@@ -12,23 +13,23 @@ import { appendChatMessage } from '../ui/chat.ts';
 import { setMultiplayerClient } from '../state.ts';
 import { tintLocalDog } from './player.ts';
 
-export function initMultiplayer(config: {
-    transport: 'ws' | 'http';
-    wsUrl?: string | null;
-    apiBase?: string;
-    room: string;
-    name: string;
-}) {
-    let localName = config.name;
+export async function initMultiplayer(config: MultiplayerConfig) {
+    const localName = config.name;
+
+    // Derive the shared E2E cipher from the room key. The relay never receives
+    // this key — it lives only in the URL fragment — so only clients in the
+    // room can read names, positions, and chat.
+    const cipher = await RoomCipher.fromKey(config.roomKey);
 
     const client = new MultiplayerClient({
         transport: config.transport,
+        cipher,
         wsUrl: config.wsUrl ?? undefined,
         apiBase: config.apiBase,
-        room: config.room,
+        room: config.roomId,
         name: config.name,
         onStatus: (status, detail) => {
-            updateMultiplayerStatus(status, detail, config.room);
+            updateMultiplayerStatus(status, detail, config.roomName);
         },
         onWelcome: (id, color, players) => {
             tintLocalDog(color);
