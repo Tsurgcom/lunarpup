@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Pup Skater 3D - PCG LOD</title>
+    <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+    <div id="ui">
+        <h1>🌙 Lunar Pup Skater</h1>
+        <div class="controls">
+            <span class="key">▲</span> / <span class="key">W</span> Accelerate<br>
+            <span class="key">▼</span> / <span class="key">S</span> Brake / Reverse<br>
+            <span class="key">◄</span> <span class="key">►</span> / <span class="key">A</span> <span class="key">D</span> Steer<br>
+            <span class="key">Spacebar</span> Low-Gravity Ollie (Jump)<br>
+            <span class="key">Shift</span> Boost<br>
+            <span class="key">Mouse drag</span> Orbit Camera<br>
+            <span class="key">Wheel</span> Zoom In / Out
+        </div>
+    </div>
+
+    <div id="tuning-panel">
+        <h2>⚙️ Live Tuning</h2>
+        <div id="sliders"></div>
+        <div class="tuning-buttons">
+            <button id="copy-settings" type="button">Copy values</button>
+            <button id="reset-settings" type="button">Reset</button>
+        </div>
+        <textarea id="tuning-output" readonly placeholder="Tune sliders, then copy these values back to hardcode."></textarea>
+    </div>
+
+    <div id="speedometer">0.0 U/S  | chunks 0</div>
+    <div id="speed-lines"></div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

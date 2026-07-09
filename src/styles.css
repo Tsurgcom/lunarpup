@@ -1,0 +1,134 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #050510;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select: none;
+}
+#canvas-container {
+    width: 100vw;
+    height: 100vh;
+}
+#ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+h1 {
+    margin: 0 0 5px 0;
+    font-size: 24px;
+    letter-spacing: 1px;
+    color: #a0c4ff;
+}
+.controls {
+    background: rgba(10, 10, 25, 0.6);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 14px;
+    line-height: 1.5;
+}
+.key {
+    background: #fff;
+    color: #000;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 12px;
+}
+#speedometer {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    color: #ffc6ff;
+    font-family: monospace;
+    font-size: 20px;
+    background: rgba(10, 10, 25, 0.6);
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+#tuning-panel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 280px;
+    color: #fff;
+    background: rgba(10, 10, 25, 0.72);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+#tuning-panel h2 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: #ffc6ff;
+}
+.slider-row {
+    display: grid;
+    grid-template-columns: 92px 1fr 48px;
+    gap: 8px;
+    align-items: center;
+    margin: 7px 0;
+}
+.slider-row input {
+    width: 100%;
+}
+.slider-value {
+    text-align: right;
+    font-family: monospace;
+    color: #a0c4ff;
+}
+.tuning-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+.tuning-buttons button {
+    flex: 1;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+.tuning-buttons button:hover {
+    background: rgba(255,255,255,0.18);
+}
+#tuning-output {
+    width: 100%;
+    min-height: 52px;
+    margin-top: 10px;
+    box-sizing: border-box;
+    background: rgba(0,0,0,0.25);
+    color: #dff;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    font-size: 11px;
+    resize: vertical;
+}
+#speed-lines {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 80ms linear;
+}
+.speed-line {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 18vw;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(190,220,255,0.85), rgba(255,255,255,0));
+    transform-origin: 0 50%;
+    filter: blur(0.3px);
+}

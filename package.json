@@ -1,0 +1,21 @@
+{
+  "name": "lunarpup",
+  "module": "src/main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot ./index.html",
+    "build": "bun build ./index.html --outdir=dist --minify --splitting --target=browser",
+    "preview": "bunx serve dist"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/three": "^0.185.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
