@@ -1,7 +1,7 @@
 import { keys } from '../state.ts';
 
 export function handleKeys(event: KeyboardEvent, isPressed: boolean) {
-    if (['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
+    if (['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
         event.preventDefault();
     }
 
@@ -14,6 +14,9 @@ export function handleKeys(event: KeyboardEvent, isPressed: boolean) {
         case 'KeyS': keys.s = isPressed; break;
         case 'ArrowRight':
         case 'KeyD': keys.d = isPressed; break;
+        case 'KeyQ': keys.q = isPressed; break;
+        case 'KeyE': keys.e = isPressed; break;
+        case 'KeyF': keys.f = isPressed; break;
         case 'Space': keys.space = isPressed; break;
         case 'ShiftLeft':
         case 'ShiftRight': keys.shift = isPressed; break;

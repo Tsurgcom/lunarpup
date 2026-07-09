@@ -15,6 +15,7 @@ export async function bootstrap() {
         { setupCameraControls, startGameLoop },
         { setupTuningPanel },
         { setupSpeedLines },
+        { setupTrickUI },
         { bindInput },
         { setupMultiplayerUI },
     ] = await Promise.all([
@@ -24,6 +25,7 @@ export async function bootstrap() {
         import('./loop.ts'),
         import('../ui/tuning.ts'),
         import('../ui/speedLines.ts'),
+        import('../ui/tricks.ts'),
         import('./input.ts'),
         import('../ui/multiplayer.ts'),
     ]);
@@ -40,6 +42,7 @@ export async function bootstrap() {
 
     setupCameraControls();
     setSpeedLines(setupSpeedLines());
+    setupTrickUI();
     setupTuningPanel();
     setupMultiplayerUI();
 
