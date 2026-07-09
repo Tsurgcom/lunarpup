@@ -12,6 +12,27 @@ let heightCache: Float32Array | null = null;
 let cacheCenterX = NaN;
 let cacheCenterZ = NaN;
 
+export function bindMinimapCanvas(nextCanvas: HTMLCanvasElement) {
+    const nextContext = nextCanvas.getContext('2d');
+    if (!nextContext) return () => {};
+
+    canvas = nextCanvas;
+    ctx = nextContext;
+    heightCache = null;
+    cacheCenterX = NaN;
+    cacheCenterZ = NaN;
+
+    return () => {
+        if (canvas !== nextCanvas) return;
+
+        canvas = null;
+        ctx = null;
+        heightCache = null;
+        cacheCenterX = NaN;
+        cacheCenterZ = NaN;
+    };
+}
+
 export function setupMinimap() {
     document.getElementById('minimap-panel')?.remove();
     const panel = document.createElement('div');
@@ -23,7 +44,7 @@ export function setupMinimap() {
     canvas.className = 'minimap-canvas';
     panel.appendChild(canvas);
     document.body.appendChild(panel);
-    ctx = canvas.getContext('2d');
+    bindMinimapCanvas(canvas);
 }
 
 export function updateMinimap() {
