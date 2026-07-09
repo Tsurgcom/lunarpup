@@ -1,4 +1,5 @@
 dist
+dist-r3f
 node_modules
 legacy
 .netlify
