@@ -14,9 +14,17 @@
     "preview": "bunx serve dist"
   },
   "dependencies": {
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.5.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
+    "@metaplex-foundation/umi-signer-wallet-adapters": "^1.5.1",
     "@netlify/blobs": "^10.7.0",
     "@netlify/functions": "^5.1.2",
-    "three": "^0.185.1"
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^6.0.0",
+    "three": "^0.185.1",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@netlify/edge-functions": "^3.0.3",
