@@ -221,6 +221,16 @@ Netlify static site
 - [ ] PR includes screenshots, test commands, and known differences.
 - [ ] Friend reviews/approves before merge.
 - [ ] Merge only after build, parity, multiplayer, and performance checks pass.
+
+## Current draft PR
+
+- [x] Push `feat/r3f-shell` to fork `zmack12344321/lunarpup`.
+- [x] Open draft PR #7: https://github.com/Tsurgcom/lunarpup/pull/7
+- [ ] Manual gameplay parity review.
+- [ ] Buddy review and approval.
+- [ ] Address requested changes.
+- [ ] Convert draft to ready for review.
+- [ ] Merge after checks and approval.
 - [ ] Tag a rollback commit before each architectural phase.
 
 ## Context7 references used
