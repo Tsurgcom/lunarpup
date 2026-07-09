@@ -9,7 +9,6 @@ import {
     jumpInput,
     cameraControl,
     scratch,
-    terrainChunks,
     skateboard,
     tail,
     multiplayerClient,
@@ -18,6 +17,7 @@ import { groundClearance } from '../config.ts';
 import {
     getTerrainNormal,
     getHeightAboveTerrain,
+    getRenderedTerrainChunkCount,
     updateTerrainChunks,
     alignPlayerToTerrain,
 } from './terrain.ts';
@@ -30,16 +30,16 @@ import { finishTrick, startTrick, updateTrick } from './tricks.ts';
 export function setupCameraControls() {
     const canvas = renderer.domElement;
 
-    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+    const preventContextMenu = (event: MouseEvent) => event.preventDefault();
 
-    canvas.addEventListener('pointerdown', (event) => {
+    const onPointerDown = (event: PointerEvent) => {
         cameraControl.isDragging = true;
         cameraControl.lastX = event.clientX;
         cameraControl.lastY = event.clientY;
         canvas.setPointerCapture(event.pointerId);
-    });
+    };
 
-    canvas.addEventListener('pointermove', (event) => {
+    const onPointerMove = (event: PointerEvent) => {
         if (!cameraControl.isDragging) return;
 
         const dx = event.clientX - cameraControl.lastX;
@@ -53,7 +53,7 @@ export function setupCameraControls() {
             -0.2,
             1.25,
         );
-    });
+    };
 
     function stopDragging(event?: PointerEvent) {
         cameraControl.isDragging = false;
@@ -62,11 +62,7 @@ export function setupCameraControls() {
         }
     }
 
-    canvas.addEventListener('pointerup', stopDragging);
-    canvas.addEventListener('pointercancel', stopDragging);
-    canvas.addEventListener('pointerleave', stopDragging);
-
-    canvas.addEventListener('wheel', (event) => {
+    const onWheel = (event: WheelEvent) => {
         event.preventDefault();
         const zoomMultiplier = 1 + event.deltaY * cameraControl.zoomSensitivity;
         cameraControl.distance = THREE.MathUtils.clamp(
@@ -74,7 +70,25 @@ export function setupCameraControls() {
             cameraControl.minDistance,
             cameraControl.maxDistance,
         );
-    }, { passive: false });
+    };
+
+    canvas.addEventListener('contextmenu', preventContextMenu);
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', stopDragging);
+    canvas.addEventListener('pointercancel', stopDragging);
+    canvas.addEventListener('pointerleave', stopDragging);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+        canvas.removeEventListener('contextmenu', preventContextMenu);
+        canvas.removeEventListener('pointerdown', onPointerDown);
+        canvas.removeEventListener('pointermove', onPointerMove);
+        canvas.removeEventListener('pointerup', stopDragging);
+        canvas.removeEventListener('pointercancel', stopDragging);
+        canvas.removeEventListener('pointerleave', stopDragging);
+        canvas.removeEventListener('wheel', onWheel);
+    };
 }
 
 function lerpAngle(a: number, b: number, t: number) {
@@ -82,7 +96,7 @@ function lerpAngle(a: number, b: number, t: number) {
     return a + delta * t;
 }
 
-function updateCamera(dt: number) {
+export function updateCamera(dt: number) {
     const frameScale = dt * 60;
     if (!cameraControl.isDragging && Math.abs(physics.speed) > 0.03) {
         const followStrength = 1 - Math.pow(1 - cameraControl.autoFollowStrength, frameScale);
@@ -249,11 +263,39 @@ function handlePhysics(dt: number) {
     updateSpeedLines(speedRatio, isBoosting);
     const speedometer = document.getElementById('speedometer');
     if (speedometer) {
-        speedometer.innerText = `${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${terrainChunks.size}`;
+        speedometer.innerText = `${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${getRenderedTerrainChunkCount()}`;
     }
 }
 
-export function startGameLoop() {
+export function stepGameFrame(dt = 1 / 60, options: { updateCamera?: boolean } = {}) {
+    updateTrick(dt);
+    handlePhysics(dt);
+    if (options.updateCamera ?? true) updateCamera(dt);
+    updateRemotePlayers(dt);
+    updateMinimap();
+
+    if (multiplayerClient?.isConnected) {
+        multiplayerClient.sendState(buildLocalSnapshot(
+            playerGroup,
+            physics.heading,
+            physics.speed,
+            physics.isGrounded,
+            skateboard.rotation.x,
+            skateboard.rotation.z,
+        ));
+    }
+
+    if (Math.abs(physics.speed) > 0.05) {
+        const time = Date.now() * 0.015;
+        if (tail) tail.rotation.z = Math.sin(time) * 0.4;
+        for (let i = 1; i < skateboard.children.length; i++) {
+            skateboard.children[i]!.rotation.x += physics.speed * 2 * dt * 60;
+        }
+    }
+}
+
+export function startGameLoop(options: { externalRenderLoop?: boolean } = {}) {
+    if (options.externalRenderLoop) return;
     let lastFrame = performance.now();
 
     function animate() {
@@ -262,32 +304,7 @@ export function startGameLoop() {
         const dt = Math.min((now - lastFrame) / 1000, 0.05);
         lastFrame = now;
 
-        updateTrick(dt);
-        handlePhysics(dt);
-        updateCamera(dt);
-        updateRemotePlayers(dt);
-        updateMinimap();
-
-        if (multiplayerClient?.isConnected) {
-            multiplayerClient.sendState(buildLocalSnapshot(
-                playerGroup,
-                physics.heading,
-                physics.speed,
-                physics.isGrounded,
-                skateboard.rotation.x,
-                skateboard.rotation.z,
-            ));
-        }
-
-        if (Math.abs(physics.speed) > 0.05) {
-            const time = Date.now() * 0.015;
-            if (tail) {
-                tail.rotation.z = Math.sin(time) * 0.4;
-            }
-            for (let i = 1; i < skateboard.children.length; i++) {
-                skateboard.children[i]!.rotation.x += physics.speed * 2 * dt * 60;
-            }
-        }
+        stepGameFrame(dt);
         renderer.render(scene, camera);
     }
 

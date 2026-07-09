@@ -2,6 +2,7 @@ const POLL_INTERVAL_MS = 60_000;
 
 let loadedBuildId: string | null = null;
 let bannerEl: HTMLDivElement | null = null;
+let pollTimer: number | null = null;
 
 async function fetchBuildId(): Promise<string | null> {
     try {
@@ -44,8 +45,9 @@ async function checkForUpdate() {
 }
 
 export function setupUpdateNotice() {
+    if (pollTimer) clearInterval(pollTimer);
     void checkForUpdate();
-    window.setInterval(() => {
+    pollTimer = window.setInterval(() => {
         void checkForUpdate();
     }, POLL_INTERVAL_MS);
 }

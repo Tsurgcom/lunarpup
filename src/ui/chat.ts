@@ -2,12 +2,17 @@ import { groundClearance } from '../config.ts';
 import { getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain } from '../game/terrain.ts';
 import { findRemotePlayerByName } from '../game/remotePlayers.ts';
 import { multiplayerClient, physics, playerGroup } from '../state.ts';
-import type { MultiplayerClient } from '../net/client.ts';
 
-let panel: HTMLDivElement | null = null;
-let logEl: HTMLDivElement | null = null;
-let inputEl: HTMLInputElement | null = null;
-let visible = false;
+export interface ChatPanelBinding {
+    panel: HTMLDivElement;
+    log: HTMLDivElement;
+    input: HTMLInputElement;
+    isVisible(): boolean;
+    setVisible(visible: boolean): void;
+}
+
+let activeBinding: ChatPanelBinding | null = null;
+let disposeLegacyChat = () => {};
 let localName = 'You';
 
 const MAX_LOG_LINES = 60;
@@ -19,14 +24,34 @@ let lastOutgoingAt = 0;
 let lastTpBroadcastAt = 0;
 const recentMessages: { text: string; at: number }[] = [];
 
-export function setupChatUI(mpEnabled: boolean, playerName: string) {
+/**
+ * Connects a mounted chat view to the imperative game and multiplayer APIs.
+ * The returned cleanup must run when that view unmounts.
+ */
+export function bindChatPanel(binding: ChatPanelBinding, mpEnabled: boolean, playerName: string) {
+    activeBinding = binding;
     localName = playerName;
 
-    panel = document.createElement('div');
+    if (!mpEnabled) {
+        appendLocalMessage('system', 'Join with ?multiplayer to use chat.');
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+        window.removeEventListener('keydown', onKeyDown);
+        if (activeBinding === binding) activeBinding = null;
+    };
+}
+
+/** Temporary legacy entry-point until the R3F shell mounts ChatPanel. */
+export function setupChatUI(mpEnabled: boolean, playerName: string) {
+    disposeLegacyChat();
+    document.getElementById('chat-panel')?.remove();
+
+    const panel = document.createElement('div');
     panel.id = 'chat-panel';
     panel.className = mpEnabled ? 'chat-visible' : 'chat-hidden';
-    visible = mpEnabled;
-
     panel.innerHTML = `
         <div class="chat-header">
             <h2>💬 Chat</h2>
@@ -39,27 +64,45 @@ export function setupChatUI(mpEnabled: boolean, playerName: string) {
     `;
     document.body.appendChild(panel);
 
-    logEl = panel.querySelector('#chat-log');
-    inputEl = panel.querySelector('#chat-input');
-
-    panel.querySelector('#chat-toggle')?.addEventListener('click', () => toggleChat());
-    panel.querySelector('#chat-form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        void submitChat();
-    });
-
-    if (!mpEnabled) {
-        appendLocalMessage('system', 'Join with ?multiplayer to use chat.');
+    const log = panel.querySelector<HTMLDivElement>('#chat-log');
+    const input = panel.querySelector<HTMLInputElement>('#chat-input');
+    const form = panel.querySelector<HTMLFormElement>('#chat-form');
+    const toggle = panel.querySelector<HTMLButtonElement>('#chat-toggle');
+    if (!log || !input || !form || !toggle) {
+        panel.remove();
+        return;
     }
 
-    window.addEventListener('keydown', onKeyDown);
+    const binding: ChatPanelBinding = {
+        panel,
+        log,
+        input,
+        isVisible: () => panel.classList.contains('chat-visible'),
+        setVisible(visible) {
+            panel.classList.toggle('chat-visible', visible);
+            panel.classList.toggle('chat-collapsed', !visible);
+            toggle.textContent = visible ? '−' : '+';
+            if (visible) input.focus();
+        },
+    };
+
+    const onToggle = () => toggleChat();
+    const onSubmit = (event: SubmitEvent) => {
+        event.preventDefault();
+        void submitChat(input);
+    };
+    toggle.addEventListener('click', onToggle);
+    form.addEventListener('submit', onSubmit);
+
+    const unbind = bindChatPanel(binding, mpEnabled, playerName);
+    disposeLegacyChat = () => {
+        toggle.removeEventListener('click', onToggle);
+        form.removeEventListener('submit', onSubmit);
+        unbind();
+    };
 }
 
-export function bindChatClient(client: MultiplayerClient) {
-    // Client callbacks are wired in multiplayer.ts; this is for local-only messages.
-}
-
-export function appendChatMessage(id: string, name: string, text: string, isSelf = false) {
+export function appendChatMessage(_id: string, name: string, text: string, isSelf = false) {
     const trimmed = text.trim();
     if (!trimmed) return;
     appendLocalMessage(isSelf ? 'self' : 'remote', `${name}: ${trimmed}`);
@@ -69,6 +112,32 @@ export function appendSystemMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
     appendLocalMessage('system', trimmed);
+}
+
+export async function submitChat(input: HTMLInputElement) {
+    const text = input.value.trim();
+    if (!text) return;
+
+    if (text.startsWith('/tp')) {
+        input.value = '';
+        handleTpCommand(text);
+        return;
+    }
+
+    const client = multiplayerClient;
+    if (!client?.isConnected) {
+        appendSystemMessage('Not connected to multiplayer.');
+        return;
+    }
+
+    const now = Date.now();
+    if (now - lastOutgoingAt < OUTGOING_MIN_INTERVAL_MS || !client.sendChat(text)) {
+        appendSystemMessage('Slow down — one message per second.');
+        return;
+    }
+
+    lastOutgoingAt = now;
+    input.value = '';
 }
 
 function shouldShowMessage(text: string): boolean {
@@ -84,73 +153,42 @@ function shouldShowMessage(text: string): boolean {
 }
 
 function appendLocalMessage(kind: 'self' | 'remote' | 'system', text: string) {
-    if (!logEl || !shouldShowMessage(text)) return;
+    const log = activeBinding?.log;
+    if (!log || !shouldShowMessage(text)) return;
+
     const line = document.createElement('div');
     line.className = `chat-line chat-${kind}`;
     line.textContent = text;
-    logEl.appendChild(line);
-    while (logEl.children.length > MAX_LOG_LINES) {
-        logEl.firstChild?.remove();
-    }
-    logEl.scrollTop = logEl.scrollHeight;
+    log.appendChild(line);
+    while (log.children.length > MAX_LOG_LINES) log.firstChild?.remove();
+    log.scrollTop = log.scrollHeight;
 }
 
 function toggleChat(force?: boolean) {
-    if (!panel) return;
-    visible = force ?? !visible;
-    panel.classList.toggle('chat-visible', visible);
-    panel.classList.toggle('chat-collapsed', !visible);
-    const btn = panel.querySelector('#chat-toggle');
-    if (btn) btn.textContent = visible ? '−' : '+';
-    if (visible) inputEl?.focus();
+    const binding = activeBinding;
+    if (!binding) return;
+
+    const visible = force ?? !binding.isVisible();
+    binding.setVisible(visible);
 }
 
-function onKeyDown(e: KeyboardEvent) {
-    if (e.key === 't' || e.key === 'T') {
-        if (document.activeElement === inputEl) return;
-        e.preventDefault();
+function onKeyDown(event: KeyboardEvent) {
+    const binding = activeBinding;
+    if (!binding) return;
+
+    if (event.key === 't' || event.key === 'T') {
+        if (document.activeElement === binding.input) return;
+        event.preventDefault();
         toggleChat();
         return;
     }
-    if (e.key === 'Enter' && document.activeElement !== inputEl && panel?.classList.contains('chat-visible')) {
-        e.preventDefault();
-        inputEl?.focus();
+    if (event.key === 'Enter' && document.activeElement !== binding.input && binding.isVisible()) {
+        event.preventDefault();
+        binding.input.focus();
     }
-    if (e.key === 'Escape' && document.activeElement === inputEl) {
-        inputEl?.blur();
+    if (event.key === 'Escape' && document.activeElement === binding.input) {
+        binding.input.blur();
     }
-}
-
-async function submitChat() {
-    if (!inputEl) return;
-    const text = inputEl.value.trim();
-    if (!text) return;
-
-    if (text.startsWith('/tp')) {
-        inputEl.value = '';
-        handleTpCommand(text);
-        return;
-    }
-
-    const client = multiplayerClient;
-    if (!client?.isConnected) {
-        appendSystemMessage('Not connected to multiplayer.');
-        return;
-    }
-
-    const now = Date.now();
-    if (now - lastOutgoingAt < OUTGOING_MIN_INTERVAL_MS) {
-        appendSystemMessage('Slow down — one message per second.');
-        return;
-    }
-
-    if (!client.sendChat(text)) {
-        appendSystemMessage('Slow down — one message per second.');
-        return;
-    }
-
-    lastOutgoingAt = now;
-    inputEl.value = '';
 }
 
 function handleTpCommand(raw: string) {
@@ -188,9 +226,8 @@ function maybeBroadcastTp(client: typeof multiplayerClient, text: string) {
     if (!client?.isConnected) return;
 
     const now = Date.now();
-    if (now - lastTpBroadcastAt < TP_BROADCAST_INTERVAL_MS) return;
+    if (now - lastTpBroadcastAt < TP_BROADCAST_INTERVAL_MS || !client.sendChat(text)) return;
 
-    if (!client.sendChat(text)) return;
     lastTpBroadcastAt = now;
     lastOutgoingAt = now;
 }

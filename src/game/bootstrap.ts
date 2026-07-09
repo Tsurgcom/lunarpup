@@ -2,16 +2,19 @@ import { groundClearance } from '../config.ts';
 import { physics, playerGroup, setSpeedLines } from '../state.ts';
 import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
 
-export async function bootstrap() {
-    const container = document.getElementById('canvas-container');
-    if (!container) throw new Error('Missing #canvas-container');
+import type { SceneHost } from './scene.ts';
+import type { VoxelDogParts } from './player.ts';
+
+export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: VoxelDogParts } = {}) {
+    const container = options.r3fHost ? undefined : document.getElementById('canvas-container');
+    if (!options.r3fHost && !container) throw new Error('Missing #canvas-container');
 
     const mpConfig = getMultiplayerConfig();
 
     const [
         { initScene, onWindowResize },
-        { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain },
-        { createPlayer },
+        { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain, setTerrainPresentationMode },
+        { createPlayer, bindPlayerParts },
         { setupCameraControls, startGameLoop },
         { setupTuningPanel },
         { setupSpeedLines },
@@ -36,23 +39,29 @@ export async function bootstrap() {
         import('../ui/updateNotice.ts'),
     ]);
 
-    initScene(container);
+    initScene(container ?? undefined, options.r3fHost);
+    setTerrainPresentationMode(options.r3fHost ? 'r3f' : 'legacy');
     initTerrain();
-    createPlayer();
-    bindInput();
+    if (options.r3fPlayer) bindPlayerParts(options.r3fPlayer);
+    else createPlayer();
+    const unbindInput = options.r3fHost ? undefined : bindInput();
 
     playerGroup.position.set(0, getTerrainHeight(0, 0) + groundClearance, 0);
     physics.heading = 0;
     updateTerrainChunks(true);
     alignPlayerToTerrain();
 
-    setupCameraControls();
+    const removeCameraControls = setupCameraControls();
     setSpeedLines(setupSpeedLines());
-    setupTrickUI();
-    setupTuningPanel();
-    setupMultiplayerUI();
-    setupMinimap();
-    setupChatUI(mpConfig.enabled, mpConfig.name);
+    // React owns migrated UI surfaces in the R3F entry. Keep vanilla
+    // self-contained while remaining legacy surfaces are migrated.
+    if (!options.r3fHost) {
+        setupTuningPanel();
+        setupTrickUI();
+        setupMultiplayerUI();
+        setupMinimap();
+        setupChatUI(mpConfig.enabled, mpConfig.name);
+    }
     setupUpdateNotice();
 
     if (mpConfig.enabled) {
@@ -72,7 +81,15 @@ export async function bootstrap() {
         }
     }
 
-    window.addEventListener('resize', onWindowResize);
+    // Canvas measures and resizes itself in R3F mode. The legacy renderer still
+    // needs its window listener until the temporary entry is removed.
+    if (!options.r3fHost) window.addEventListener('resize', onWindowResize);
 
-    startGameLoop();
+    startGameLoop({ externalRenderLoop: Boolean(options.r3fHost) });
+
+    return () => {
+        unbindInput?.();
+        removeCameraControls();
+        if (!options.r3fHost) window.removeEventListener('resize', onWindowResize);
+    };
 }

@@ -6,20 +6,29 @@
   "scripts": {
     "dev": "bun scripts/dev.ts",
     "dev:game": "bun --hot ./index.html",
+    "dev:vanilla": "bun --hot ./index.vanilla.html",
+    "dev:r3f": "bun --hot ./index.r3f.html",
     "dev:server": "bun --hot src/server.ts",
     "build": "bun scripts/build.ts",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit",
+    "build:vanilla": "bun build ./index.vanilla.html --outdir=dist-vanilla --minify --splitting --target=browser",
+    "build:r3f": "bun build ./index.r3f.html --outdir=dist-r3f --minify --splitting --target=browser",
     "preview": "bunx serve dist"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.0",
     "@netlify/functions": "^5.1.2",
+    "@react-three/fiber": "^9.6.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "three": "^0.185.1"
   },
   "devDependencies": {
     "@netlify/edge-functions": "^3.0.3",
     "@types/bun": "latest",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.1"
   },
   "peerDependencies": {

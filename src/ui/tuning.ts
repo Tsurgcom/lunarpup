@@ -8,6 +8,7 @@ export function setupTuningPanel() {
     const sliders = document.getElementById('sliders');
     const output = document.getElementById('tuning-output') as HTMLTextAreaElement | null;
     if (!sliders || !output) return;
+    sliders.replaceChildren();
 
     tuningSettings.forEach(setting => {
         defaultTuning[setting.key] = physics[setting.key];
