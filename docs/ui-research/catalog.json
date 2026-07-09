@@ -875,6 +875,31 @@
   ],
   "lootbox-reward-gacha": [
     {
+      "title": "Event cases catalog row (case art, price pill, odds meter, hover sparkline)",
+      "game": "CS:GO/CS2 skin gambling site (user-provided screenshot)",
+      "pageUrl": null,
+      "mediaUrl": "file:///mnt/c/Users/Lars/Downloads/Screenshot 2026-07-09 171349.png",
+      "tags": [
+        "user-provided",
+        "observed",
+        "store",
+        "lootbox-catalog"
+      ]
+    },
+    {
+      "title": "Case battle: 4-column vertical reel spin, live running totals, drop-history grid",
+      "game": "CS:GO/CS2 skin gambling site (user-provided recording, 10.6s)",
+      "pageUrl": null,
+      "mediaUrl": "file:///mnt/c/Users/Lars/Downloads/Recording 2026-07-09 171603.mp4",
+      "tags": [
+        "user-provided",
+        "observed",
+        "lootbox-open",
+        "reveal-animation",
+        "multiplayer"
+      ]
+    },
+    {
       "title": "Mission",
       "game": "Dishonored 2",
       "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-mission/",

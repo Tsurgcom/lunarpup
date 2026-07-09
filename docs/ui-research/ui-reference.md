@@ -202,6 +202,46 @@ than an instant reveal); show odds; make duplicate-refund explicit. **Don't:** l
 open button be spammable — disable it during the reveal animation (Lunar Pup already
 does this via `openingLootbox`).
 
+### User-provided exemplars: CS:GO/CS2 skin-gambling site **[observed]**
+
+Two user-supplied captures (a catalog screenshot and a 10.6s recording of a 4-player
+"case battle"; frames extracted with ffmpeg) — the only entries in this category where
+the *motion* was directly observed rather than inferred. Referenced in `catalog.json`
+as the first two `lootbox-reward-gacha` entries with `file://` media URLs.
+
+**Catalog row anatomy (screenshot):** dark navy background; horizontal row of case
+cards, each = 3D case art render, name, price in a teal-green pill, and a small
+segmented horizontal meter under each (yellow-to-green fill, reading as an odds/
+value-heat indicator). The hovered/featured card adds a red top-border accent, a red
+sparkline at its foot, a weapon-category badge, and a "+0.39 coin" cashback tag.
+Takeaway: a lootbox catalog card is legible from four stacked elements — art, name,
+cost, chance-signal — and the chance-signal lives on the card itself, not behind a tap.
+
+**Open/reveal loop (recording):** the strongest observed motion reference in this
+document.
+- Pre-spin beat: a glowing yellow case icon pulses alone in the active column before
+  any items appear — the "acquire → open" beat separation from the three-beat structure
+  above, observed literally.
+- The reveal is a **vertical slot-reel spin per player column** that decelerates onto
+  the won item (roughly 2-3s per round). Deceleration, not a fixed-duration crossfade,
+  is what produces the anticipation.
+- The active player's column carries a yellow-orange border glow while its reel
+  resolves — an "active actor highlight" that keeps a 4-way simultaneous UI readable.
+- **Value is first-class and live:** every item shows a price; per-column running
+  totals tick up immediately on each resolve ($3.04 → $3.23, $377.91 → $378.10); a
+  round counter ("ROUND 17/70") frames a multi-open as progression; numerals are
+  effectively tabular/monospace.
+- A persistent **drop-history grid** sits below the live reels: every prior drop with
+  wear tag (WW/FN) and price, with the single rare item (a $375.06 knife) color-flagged
+  orange while commons stay dim — the rarity-color-does-the-work principle again.
+- **Anti-patterns to explicitly not copy** (this is a real-money gambling site and much
+  of its craft is compulsion machinery): the live-chat "rain" pot with Join button and
+  countdown (FOMO), real-currency framing throughout, and an always-on social feed
+  encouraging further spending. Lunar Pup should take the reel-spin reveal, the
+  active-column glow, the live totals, and the card anatomy — and none of the
+  compulsion loops. Lunar Pup's existing published-odds + duplicate-refund approach is
+  the ethical inverse of this site's design goals and should stay.
+
 ---
 
 ## Lobby / matchmaking / room list
@@ -400,7 +440,7 @@ root element ID/class instead).
 |---|---|---|---|
 | Agent HUD | `src/ui/agentHud.ts`, `#agent-hud` | Working; card list of harness sessions, status pill, screen-pulse flash on needs-input | Already closest to "shared visual language" — good baseline for tokens (blur, radius, pill shape) to extract into the shared system |
 | Tuning panel | `src/ui/tuning.ts`, `#tuning-panel` | Live-applies every slider change immediately, only Reset/Copy, no Apply/confirm step | **Settings** pattern: add an explicit Apply with a Dishonored-2-style auto-revert confirm for changes that could break playability (e.g. gravity/speed extremes) — currently the biggest concrete gap the exemplar addresses |
-| Cosmetics shop + lootbox | `src/ui/cosmetics.ts`, `#cosmetics-panel`, `.lootbox-*` | Functionally complete: catalog grid, currency pill, lootbox odds card, open button with a basic pop animation, rarity color classes | **Shop** + **Lootbox** patterns: mostly present already — bring the reveal beat (brief withhold before result) and rarity palette in line with Inventory's palette so all three (shop/inventory/lootbox) share one rarity scale |
+| Cosmetics shop + lootbox | `src/ui/cosmetics.ts`, `#cosmetics-panel`, `.lootbox-*` | Functionally complete: catalog grid, currency pill, lootbox odds card, open button with a basic pop animation (three bouncing diamonds), rarity color classes | **Shop** + **Lootbox** patterns: replace the diamond-bounce with a decelerating reel-spin reveal per the observed CS-site recording (pre-spin glow beat → reel decelerates onto result → rarity-colored result card); adopt the observed catalog-card anatomy (art, name, price pill, odds meter on the card); unify rarity palette across shop/inventory/lootbox. Explicitly skip the gambling-site compulsion machinery (FOMO timers, social pressure feeds) |
 | Room browser / lobby | `src/ui/multiplayer.ts`, `#multiplayer-panel`, `.mp-rooms`, `.mp-create` | Text-list room browser + inline create form; no distinct "who's in my room right now" view | **Lobby** pattern: keep the text list for browsing, add a slot/avatar-based roster view once inside a room, and a single unmistakable bottom "Ready"/"Join" CTA |
 | Minimap | `src/ui/minimap.ts`, `#minimap-panel` | Canvas panel, top-right | Fold into shared panel tokens (already close: same rgba/border/radius/shadow recipe as the other panels) |
 | Chat | `src/ui/chat.ts`, `#chat-panel` | Collapsible log + form, bottom-right | Fine as-is structurally; align its collapse/expand chrome with the shared token set |

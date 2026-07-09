@@ -63,7 +63,20 @@ Full detail, exemplar URLs, and per-category do/don't guidance live in
    stacking support for a second concurrent message). The overhaul should build a real
    stacking toast system and keep the update banner as one deliberate non-dismissing
    instance of it, not the only notification mechanism the whole game has.
-5. **Room browsing vs. in-room roster are different views.** Keep `.mp-rooms` as a text
+5. **Lootbox reveal: decelerating reel, not instant swap** (observed, from
+   user-provided CS:GO/CS2 case-site captures — a catalog screenshot plus a 10.6s
+   recording whose frames were extracted and inspected; see the lootbox section of the
+   reference doc and the two `file://` entries in `catalog.json`). The observed loop:
+   pre-spin glow beat on the case icon → vertical reel spin that *decelerates* onto the
+   won item (~2-3s) → rarity-colored result card, with live-updating tabular value
+   totals and a persistent drop-history grid below. Lunar Pup's current
+   `.lootbox-animation` (three bouncing diamonds) should be replaced with this shape,
+   and the observed catalog-card anatomy (art, name, price pill, odds meter on the card
+   itself) applied to the Moon Crate card. The same captures also document what to
+   deliberately *not* copy: FOMO rain pots with countdowns, real-currency framing, and
+   social-pressure feeds — Lunar Pup's published-odds + duplicate-refund stance is the
+   ethical inverse and stays.
+6. **Room browsing vs. in-room roster are different views.** Keep `.mp-rooms` as a text
    list for browsing (that's the right shape for choosing among many rooms), but add a
    slot/avatar-based roster once a player is actually inside a room, plus one
    unmistakable bottom-anchored primary CTA — mirroring the Apex Legends lobby hub
@@ -95,6 +108,10 @@ Full detail, exemplar URLs, and per-category do/don't guidance live in
 - Cosmetics/inventory/lootbox rarity colors are unified to one palette used in all
   three places (currently `.cosmetics-swatch` and `.lootbox-rarity-*` are separate,
   unlinked color decisions).
+- The Moon Crate open flow uses a decelerating reel-spin reveal (pre-spin beat →
+  decelerating reel → rarity-colored result) per the observed CS-site exemplar, with
+  the open button disabled for the full reveal, a reduced-motion fallback, and no
+  FOMO/pressure mechanics added.
 
 ## Note on execution
 
