@@ -10,6 +10,8 @@
     "build": "bun scripts/build.ts",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit",
+    "smoke": "bun scripts/smoke.ts",
+    "verify": "bun run typecheck && bun test && bun run smoke",
     "db:migrate": "bun scripts/migrate.ts",
     "preview": "bunx serve dist"
   },

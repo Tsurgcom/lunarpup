@@ -29,10 +29,11 @@ Run the automated checks:
 ```bash
 bun run test
 bun run typecheck
+bun run smoke
 ```
 
 Enable multiplayer with URL parameters such as
-`?multiplayer&room=lunar-park&name=Pup123`.
+`?multiplayer&room=lunar-park&name=Pup123`. Override the API/WebSocket server with `?ws=ws://localhost:3001`.
 
 ## Production build
 
@@ -57,15 +58,29 @@ bun run preview
 
 ```
 src/
-  main.ts           # Browser entry point
-  styles.css        # UI styles
-  config.ts         # Game constants
-  state.ts          # Shared runtime state
-  game/             # Scene, terrain, player, loop, input, tricks
-  net/              # WebSocket client and shared protocol
-  ui/               # Tuning, speed lines, multiplayer, and trick HUD
-  server.ts         # Bun multiplayer WebSocket server
-index.html          # HTML shell
-dist/               # Build output (generated)
-legacy/             # Original saved HTML snapshot
+  main.ts              # Browser entry point
+  styles.css           # HUD, shop, lobby, lootbox, and leaderboard styles
+  config.ts            # Game constants
+  state.ts             # Shared runtime state
+  game/                # Scene, terrain, player, loop, input, tricks
+  modes/               # Runtime gamemode packages, sampling, and results UI
+  net/                 # getApiBaseUrl(), WebSocket client, shared protocol
+  ui/                  # Tuning, speed lines, multiplayer, cosmetics, agent HUD
+  contracts/           # Runtime-validated contracts and storage interfaces
+  cosmetics/           # Content-addressed cosmetic package registry
+  solana/              # Devnet SPL token and Metaplex NFT adapters
+  server/              # Bun HTTP/WebSocket modules: rooms, wallet, cosmetics,
+                       # lootbox, agent events, gamemodes, leaderboard
+  server.ts            # Bun server wiring; CORS is applied here for all HTTP responses
+content/
+  cosmetics/           # Cosmetic manifests and definitions
+  gamemodes/           # Gamemode manifests and params
+db/migrations/         # Timescale/Postgres schema and continuous aggregates
+docs/                  # Architecture, Solana, lootbox, persistence notes
+scripts/
+  smoke.ts             # End-to-end API/WebSocket smoke gate
+  dev.ts               # Starts game (:3000) and API/WebSocket server (:3001)
+index.html             # HTML shell
+dist/                  # Build output (generated)
+legacy/                # Original saved HTML snapshot
 ```
