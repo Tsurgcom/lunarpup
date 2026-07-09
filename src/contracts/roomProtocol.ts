@@ -1,13 +1,14 @@
 import { fail, isRecord, ok, readArray, readEnum, readNumber, readString, type ValidationResult, type Validator } from './validators.ts';
 
-export const roomClientMessageTypes = ['create_room', 'join_room', 'leave_room', 'list_rooms'] as const;
+export const roomClientMessageTypes = ['create_room', 'join_room', 'leave_room', 'list_rooms', 'start_gamemode'] as const;
 export type RoomClientMessageType = (typeof roomClientMessageTypes)[number];
 
 export interface CreateRoomMessage { type: 'create_room'; roomId: string; gamemodeId: string; playerId: string }
 export interface JoinRoomMessage { type: 'join_room'; roomId: string; playerId: string }
 export interface LeaveRoomMessage { type: 'leave_room'; roomId: string; playerId: string }
 export interface ListRoomsMessage { type: 'list_rooms' }
-export type RoomClientMessage = CreateRoomMessage | JoinRoomMessage | LeaveRoomMessage | ListRoomsMessage;
+export interface StartGamemodeMessage { type: 'start_gamemode'; roomId: string; playerId: string }
+export type RoomClientMessage = CreateRoomMessage | JoinRoomMessage | LeaveRoomMessage | ListRoomsMessage | StartGamemodeMessage;
 
 export interface RoomSummary {
     roomId: string;
@@ -27,7 +28,14 @@ export interface RoomListMessage {
     rooms: RoomSummary[];
 }
 
-export type RoomServerMessage = RoomStateBroadcast | RoomListMessage;
+export interface StartGamemodeBroadcast {
+    type: 'start_gamemode';
+    roomId: string;
+    gamemodeId: string;
+    hostId: string;
+}
+
+export type RoomServerMessage = RoomStateBroadcast | RoomListMessage | StartGamemodeBroadcast;
 
 function validateRoomSummary(value: unknown, path = 'rooms[]'): ValidationResult<RoomSummary> {
     if (!isRecord(value)) return fail(`${path} must be an object`);
@@ -68,6 +76,15 @@ export function validateRoomServerMessage(value: unknown): ValidationResult<Room
         if (!rooms.ok) return rooms;
         return ok({ type: 'room_list', rooms: rooms.value });
     }
+    if (value.type === 'start_gamemode') {
+        const roomId = readString(value, 'roomId');
+        if (!roomId.ok) return roomId;
+        const gamemodeId = readString(value, 'gamemodeId');
+        if (!gamemodeId.ok) return gamemodeId;
+        const hostId = readString(value, 'hostId');
+        if (!hostId.ok) return hostId;
+        return ok({ type: 'start_gamemode', roomId: roomId.value, gamemodeId: gamemodeId.value, hostId: hostId.value });
+    }
     if (value.type === 'room_state') {
         const roomId = readString(value, 'roomId');
         if (!roomId.ok) return roomId;
@@ -77,5 +94,5 @@ export function validateRoomServerMessage(value: unknown): ValidationResult<Room
         if (!players.ok) return players;
         return ok({ type: 'room_state', roomId: roomId.value, gamemodeId: gamemodeId.value, players: players.value });
     }
-    return fail('type must be room_state or room_list');
+    return fail('type must be room_state, room_list, or start_gamemode');
 }

@@ -1,11 +1,13 @@
 import { DEFAULT_WS_PORT } from './net/protocol.ts';
 import { createInitialConnection, registerMultiplayerModule, removePlayer, type PlayerConnection } from './server/multiplayer.ts';
 import { registerAgentEventsModule } from './server/agentEvents.ts';
+import { registerRoomsModule } from './server/rooms.ts';
 import { ModularRouter } from './server/router.ts';
 import { registerWalletModule } from './server/wallet.ts';
 
 export function createServerRouter(): ModularRouter<PlayerConnection> {
     const router = new ModularRouter<PlayerConnection>();
+    registerRoomsModule(router);
     registerMultiplayerModule(router);
     registerAgentEventsModule(router);
     registerWalletModule(router);

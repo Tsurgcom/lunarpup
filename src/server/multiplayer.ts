@@ -18,7 +18,7 @@ export interface PlayerConnection {
     state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>;
 }
 
-interface Room {
+export interface Room {
     players: Map<string, PlayerConnection>;
     usedColors: Set<number>;
     gamemodeId: string;
@@ -26,11 +26,13 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
-function getRoom(roomId: string): Room {
+export function ensureRoom(roomId: string, gamemodeId = 'free-skate'): Room {
     let room = rooms.get(roomId);
     if (!room) {
-        room = { players: new Map(), usedColors: new Set(), gamemodeId: 'free-skate' };
+        room = { players: new Map(), usedColors: new Set(), gamemodeId };
         rooms.set(roomId, room);
+    } else if (gamemodeId) {
+        room.gamemodeId = gamemodeId;
     }
     return room;
 }
@@ -87,7 +89,7 @@ export function removePlayer(conn: PlayerConnection): void {
 
 function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMessage, { type: 'join' }>): void {
     const roomId = msg.room.trim() || DEFAULT_ROOM;
-    const room = getRoom(roomId);
+    const room = ensureRoom(roomId);
     const id = crypto.randomUUID();
     const color = pickColor(room);
     const name = msg.name.trim().slice(0, 24) || `Pup${Math.floor(Math.random() * 900 + 100)}`;
