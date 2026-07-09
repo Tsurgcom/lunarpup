@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P1
 COMPLEXITY: medium
 TOUCHES: src/modes/, src/ui/, content/gamemodes/
@@ -18,3 +18,7 @@ modes proving the framework.
 
 DONE WHEN: a race can be started, checkpoints trigger in order, finish produces a scored
 result; same for parkour; both defined as packages; tsc+tests green.
+
+## Resolution
+
+landed cd66d9e+5ae2aee (mode runtime, race, parkour; PR #11)

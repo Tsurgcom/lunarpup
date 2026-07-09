@@ -1,4 +1,4 @@
-STATUS: in-progress
+STATUS: closed
 PRIORITY: P0
 COMPLEXITY: medium
 TOUCHES: src/contracts/, src/server.ts, src/game/loop.ts, src/storage/
@@ -23,3 +23,7 @@ DONE WHEN: `bun install && bunx tsc --noEmit && bun test` green; docs/architectu
 describes each contract; no feature code.
 
 DISPATCHED: foundation-contracts-mrdywtuf-1-fb3205d7
+
+## Resolution
+
+landed 35d271d (foundation contracts/router/hooks/sqlite; gate green; PR #4)

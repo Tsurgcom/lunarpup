@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P2
 COMPLEXITY: high
 TOUCHES: src/solana/, scripts/solana/
@@ -18,3 +18,7 @@ the game never imports chain code directly. DEVNET ONLY.
 
 DONE WHEN: devnet round-trip in tests/smoke (sign in, receive token, mint NFT, ownership
 reflects in inventory); zero mainnet endpoints reachable from game code; tsc+tests green.
+
+## Resolution
+
+landed 515ce0c+45720c2 (wallet auth, SPL devnet, NFT bridge, gated mainnet script; PR #12)

@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P0
 COMPLEXITY: medium
 TOUCHES: src/agent/, src/ui/, adapters/claude-code/
@@ -19,3 +19,7 @@ player the moment human input is needed.
 
 DONE WHEN: fake harness event via curl triggers HUD update + notification path in tests;
 adapter script posts real Claude Code hook payloads; tsc+tests green.
+
+## Resolution
+
+landed d0baab0+64b2ebb+a6c0cce (agent events, HUD, Claude Code adapter; PR #6); owner-scoping follow-up landed f530e9b (PR #15)

@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P1
 COMPLEXITY: medium
 TOUCHES: cross-cutting, README.md, docs/
@@ -16,3 +16,7 @@ Wire the verticals together and prove the whole thing live.
   race, open a lootbox, devnet wallet round-trip.
 
 DONE WHEN: smoke passes end-to-end on main; full tsc+test green; docs shipped.
+
+## Resolution
+
+landed b9bcc67+43425b4 (token payments, NFT mints, leaderboards, docs, e2e smoke green; PR #17)

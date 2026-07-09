@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P2
 COMPLEXITY: medium
 TOUCHES: src/storage/timescale/, docker-compose.yml, db/migrations/
@@ -19,3 +19,7 @@ zero-setup dev default; Timescale is opt-in via env.
 
 DONE WHEN: same test suite passes against sqlite and (when available) Timescale; compose
 boots a working stack; aggregates return leaderboard + drop-rate rows; tsc+tests green.
+
+## Resolution
+
+landed 0428f6c+a7218c2 (pg adapter, compose, hypertables, aggregates; PR #8)

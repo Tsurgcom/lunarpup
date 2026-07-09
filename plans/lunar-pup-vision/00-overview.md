@@ -66,3 +66,10 @@ lootbox opens with ledger entries written, and a devnet wallet round-trip works.
   concern 03 (cosmetics attach to renderables) and concern 04 (mode HUD/visuals) —
   those define renderer-agnostic seams (cosmetics resolve to attachment points, not
   concrete meshes) so the rewrite can proceed underneath them.
+
+## Status (2026-07-09)
+
+All nine concerns closed — landed on the fork's integration main, gate green
+(tsc + 48 tests + live e2e smoke), each declared as a draft PR (#4, #6, #8–#12,
+#14, #15, #17; hotfixes #13; research #16). Follow-on concern: 10-ui-overhaul
+(open, on main/PR #16).

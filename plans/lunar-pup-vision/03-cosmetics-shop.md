@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P1
 COMPLEXITY: medium
 TOUCHES: src/packages/, src/ui/shop/, src/game/player.ts, src/game/remotePlayers.ts, content/cosmetics/
@@ -16,3 +16,7 @@ and remote players, purchasable in a shop backed by the currency/inventory servi
 
 DONE WHEN: buying + equipping a cosmetic persists across reload and renders on a remote
 player in tests; package with tampered hash is rejected; tsc+tests green.
+
+## Resolution
+
+landed d419be2 (packages, shop, inventory, remote sync; PR #10); browser-verified
