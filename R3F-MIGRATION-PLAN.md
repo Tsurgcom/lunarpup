@@ -46,7 +46,7 @@ Target:
 - [x] Make R3F `Canvas` default renderer.
 - [x] Keep frame-time game loop via `useFrame`.
 - [x] Preserve renderer DPR, shadows, camera near/far/FOV, and performance settings.
-- [ ] Add React error boundary and WebGL fallback screen.
+- [x] Add React error boundary and WebGL fallback screen. Verified by typecheck, unit tests, and production build.
 - [ ] Remove temporary `index.vanilla.html`, `dev:vanilla`, and `build:vanilla` after Phase 0 smoke coverage exists.
 
 ## Phase 2: declarative world
@@ -55,7 +55,7 @@ Goal: R3F owns all static scene presentation.
 
 - [x] Move background, fog, lights, starfield, and planet into R3F components.
 - [x] Move terrain root/chunk presentation into R3F components. Chunk React state changes only when player enters a new chunk.
-- [ ] Extract terrain math into pure functions with deterministic tests. Existing height function remains shared transitional math.
+- [x] Extract terrain math into a pure module with deterministic height regression tests; the shared `calculateTerrainHeight` export preserves legacy and R3F behavior. Verified with `bun run typecheck`, `bun test`, and `bun run build`.
 - [x] Add chunk lifecycle/disposal ownership for R3F geometry/materials and legacy terrain cleanup.
 - [ ] Add world/environment configuration object.
 - [x] Make legacy scene presentation conditional: vanilla owns it only in temporary legacy mode; R3F owns it in Canvas mode.
@@ -72,7 +72,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Phase 4: React UI and state boundaries
 
-- [ ] Replace DOM-injection HUD, tricks, chat, minimap, multiplayer, and update notice with React components. React now owns the tuning panel.
+- [ ] Replace DOM-injection HUD, chat, minimap, multiplayer, and update notice with React components. React now owns the tuning panel and trick presentation; trick HUD updates use DOM refs outside the frame loop's React state. Verified by typecheck, unit tests, and production build.
 - [ ] Add Zustand only for coarse UI/session/settings state.
 - [ ] Keep speed, transforms, physics, terrain, and snapshots out of React state.
 - [ ] Add accessible settings, controls reference, connection state, and error states.
@@ -91,7 +91,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 ## Phase 6: multiplayer production path
 
 - [x] Set room capacity (`32`) and validate finite replicated state.
-- [ ] Capture current protocol in client/server tests before replacing it.
+- [x] Capture WebSocket client-message protocol validation in `src/net/protocol.test.ts` (valid join/state/chat/leave payloads; malformed, unknown, and non-finite state rejection). Verified with `bun test`, `bun run typecheck`, and `bun run build`.
 - [ ] Add heartbeat, stale cleanup, reconnect/backoff, room rejoin, message size limits, and rate limits.
 - [ ] Add remote-player interpolation component.
 - [ ] Decide/implement authoritative room server: evaluate Colyseus first; keep raw WebSocket only if custom protocol gets full lifecycle/tests.

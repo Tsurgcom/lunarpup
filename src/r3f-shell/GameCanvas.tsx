@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
+import { Component, useCallback, useEffect, useRef, useState } from 'react';
+import type { ErrorInfo, MutableRefObject, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type * as THREE from 'three';
 import { bootstrap } from '../game/bootstrap.ts';
@@ -76,12 +76,49 @@ function GameScene() {
 
 function GameHost() {
     return (
-        <Canvas camera={{ fov: 60, near: 0.1, far: 2500 }} gl={{ antialias: true, powerPreference: 'high-performance' }} dpr={[1, 2]} shadows>
+        <Canvas
+            camera={{ fov: 60, near: 0.1, far: 2500 }}
+            fallback={<WebGLFallback />}
+            gl={{ antialias: true, powerPreference: 'high-performance' }}
+            dpr={[1, 2]}
+            shadows
+        >
             <GameScene />
         </Canvas>
     );
 }
 
+function WebGLFallback({ error }: { error?: unknown }) {
+    return (
+        <section className="r3f-fallback" role="alert">
+            <h2>Moon needs WebGL</h2>
+            <p>Enable hardware acceleration or update browser/GPU drivers, then reload.</p>
+            {error instanceof Error && <p className="r3f-fallback-detail">{error.message}</p>}
+            <button type="button" onClick={() => window.location.reload()}>Reload game</button>
+        </section>
+    );
+}
+
+type CanvasBoundaryProps = { children: ReactNode };
+type CanvasBoundaryState = { error: unknown | null };
+
+class CanvasErrorBoundary extends Component<CanvasBoundaryProps, CanvasBoundaryState> {
+    override state: CanvasBoundaryState = { error: null };
+
+    static getDerivedStateFromError(error: unknown): CanvasBoundaryState {
+        return { error };
+    }
+
+    override componentDidCatch(error: Error, info: ErrorInfo) {
+        console.error('R3F canvas crashed', error, info.componentStack);
+    }
+
+    override render() {
+        if (this.state.error) return <WebGLFallback error={this.state.error} />;
+        return this.props.children;
+    }
+}
+
 export function GameCanvas() {
-    return <GameHost />;
+    return <CanvasErrorBoundary><GameHost /></CanvasErrorBoundary>;
 }
