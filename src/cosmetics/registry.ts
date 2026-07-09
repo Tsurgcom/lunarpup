@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256Hex } from '../contracts/sha256.ts';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { validateCosmeticDefinition, type CosmeticDefinition, type CosmeticSlot } from '../contracts/cosmetic.ts';
@@ -55,7 +55,7 @@ export async function loadCosmeticPackage(packageDir: string): Promise<CosmeticP
     }
 
     const definitionJson = await readFile(join(packageDir, definitionRef.uri), 'utf8');
-    const actualSha = createHash('sha256').update(definitionJson).digest('hex');
+    const actualSha = sha256Hex(definitionJson);
     if (actualSha !== definitionRef.sha256) {
         throw new Error(`${packageDir}/${definitionRef.uri}: sha256 mismatch (${actualSha})`);
     }

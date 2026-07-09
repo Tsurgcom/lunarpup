@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256Hex } from './sha256.ts';
 import { fail, isRecord, ok, readArray, readEnum, readRecordOfStrings, readString, type ValidationResult, type Validator } from './validators.ts';
 
 export const packageKinds = ['cosmetic', 'gamemode'] as const;
@@ -37,7 +37,7 @@ export function canonicalManifestJson(manifest: Omit<PackageManifest, 'id'>): st
 }
 
 export function packageManifestId(manifest: Omit<PackageManifest, 'id'>): string {
-    return createHash('sha256').update(canonicalManifestJson(manifest)).digest('hex');
+    return sha256Hex(canonicalManifestJson(manifest));
 }
 
 const validateAssetRef: Validator<AssetRef> = (value, path = 'assetRefs[]') => {
