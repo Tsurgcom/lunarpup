@@ -1,7 +1,6 @@
 const POLL_INTERVAL_MS = 60_000;
 
 let loadedBuildId: string | null = null;
-let bannerEl: HTMLDivElement | null = null;
 let pollTimer: number | null = null;
 let reactNotifier: (() => void) | null = null;
 
@@ -16,26 +15,6 @@ async function fetchBuildId(): Promise<string | null> {
     }
 }
 
-function showUpdateBanner() {
-    if (reactNotifier) {
-        reactNotifier();
-        return;
-    }
-
-    if (bannerEl) return;
-
-    bannerEl = document.createElement('div');
-    bannerEl.id = 'update-notice';
-    bannerEl.innerHTML = `
-        <span>Update available — refresh to get the latest</span>
-        <button type="button">Refresh</button>
-    `;
-    bannerEl.querySelector('button')?.addEventListener('click', () => {
-        window.location.reload();
-    });
-    document.body.appendChild(bannerEl);
-}
-
 async function checkForUpdate() {
     const remoteBuildId = await fetchBuildId();
     if (!remoteBuildId) return;
@@ -46,7 +25,7 @@ async function checkForUpdate() {
     }
 
     if (remoteBuildId !== loadedBuildId) {
-        showUpdateBanner();
+        reactNotifier?.();
     }
 }
 
@@ -69,8 +48,4 @@ export function bindUpdateNotice(onAvailable: () => void) {
             pollTimer = null;
         }
     };
-}
-
-export function setupUpdateNotice() {
-    startPolling();
 }

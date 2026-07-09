@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Mesh, Group, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import type { Group, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import type { MultiplayerClient } from './net/client.ts';
 
 export const keys = {
@@ -61,11 +61,7 @@ export let playerGroup: Group;
 export let trickRoot: Group;
 export let skateboard: Group;
 export let dog: Group;
-export let tail: Mesh;
-export let terrainRoot: Group;
-
-export const terrainChunks = new Map<string, Mesh>();
-export const terrainMaterials: Record<string, THREE.MeshStandardMaterial> = {};
+export let tail: THREE.Mesh;
 
 export const scratch = {
     forwardVector: new THREE.Vector3(),
@@ -95,7 +91,6 @@ export function setPlayerGroup(g: Group) { playerGroup = g; }
 export function setTrickRoot(g: Group) { trickRoot = g; }
 export function setSkateboard(g: Group) { skateboard = g; }
 export function setDog(g: Group) { dog = g; }
-export function setTail(m: Mesh) { tail = m; }
-export function setTerrainRoot(g: Group) { terrainRoot = g; }
+export function setTail(m: THREE.Mesh) { tail = m; }
 export function setSpeedLines(lines: HTMLDivElement[]) { speedLines = lines; }
 export function setMultiplayerClient(client: MultiplayerClient | null) { multiplayerClient = client; }

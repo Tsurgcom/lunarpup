@@ -26,16 +26,3 @@ export function handleKeys(event: KeyboardEvent, isPressed: boolean) {
     }
 }
 
-export function bindInput() {
-    const onKeyDown = (event: KeyboardEvent) => handleKeys(event, true);
-    const onKeyUp = (event: KeyboardEvent) => handleKeys(event, false);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-
-    return () => {
-        window.removeEventListener('keydown', onKeyDown);
-        window.removeEventListener('keyup', onKeyUp);
-        for (const key of Object.keys(keys) as Array<keyof typeof keys>) keys[key] = false;
-        jumpInput.queuedAt = 0;
-    };
-}

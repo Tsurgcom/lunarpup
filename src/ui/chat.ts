@@ -1,5 +1,5 @@
 import { groundClearance } from '../config.ts';
-import { getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain } from '../game/terrain.ts';
+import { getTerrainHeight, alignPlayerToTerrain } from '../game/terrain.ts';
 import { findRemotePlayerByName } from '../game/remotePlayers.ts';
 import { multiplayerClient, physics, playerGroup } from '../state.ts';
 
@@ -12,7 +12,6 @@ export interface ChatPanelBinding {
 }
 
 let activeBinding: ChatPanelBinding | null = null;
-let disposeLegacyChat = () => {};
 let localName = 'You';
 
 const MAX_LOG_LINES = 60;
@@ -24,10 +23,6 @@ let lastOutgoingAt = 0;
 let lastTpBroadcastAt = 0;
 const recentMessages: { text: string; at: number }[] = [];
 
-/**
- * Connects a mounted chat view to the imperative game and multiplayer APIs.
- * The returned cleanup must run when that view unmounts.
- */
 export function bindChatPanel(binding: ChatPanelBinding, mpEnabled: boolean, playerName: string) {
     activeBinding = binding;
     localName = playerName;
@@ -41,64 +36,6 @@ export function bindChatPanel(binding: ChatPanelBinding, mpEnabled: boolean, pla
     return () => {
         window.removeEventListener('keydown', onKeyDown);
         if (activeBinding === binding) activeBinding = null;
-    };
-}
-
-/** Temporary legacy entry-point until the R3F shell mounts ChatPanel. */
-export function setupChatUI(mpEnabled: boolean, playerName: string) {
-    disposeLegacyChat();
-    document.getElementById('chat-panel')?.remove();
-
-    const panel = document.createElement('div');
-    panel.id = 'chat-panel';
-    panel.className = mpEnabled ? 'chat-visible' : 'chat-hidden';
-    panel.innerHTML = `
-        <div class="chat-header">
-            <h2>💬 Chat</h2>
-            <button type="button" id="chat-toggle" title="Toggle chat (T)">${mpEnabled ? '−' : '+'}</button>
-        </div>
-        <div id="chat-log" class="chat-log"></div>
-        <form id="chat-form" class="chat-form">
-            <input id="chat-input" type="text" maxlength="200" placeholder="Say something… (/tp x z)" />
-        </form>
-    `;
-    document.body.appendChild(panel);
-
-    const log = panel.querySelector<HTMLDivElement>('#chat-log');
-    const input = panel.querySelector<HTMLInputElement>('#chat-input');
-    const form = panel.querySelector<HTMLFormElement>('#chat-form');
-    const toggle = panel.querySelector<HTMLButtonElement>('#chat-toggle');
-    if (!log || !input || !form || !toggle) {
-        panel.remove();
-        return;
-    }
-
-    const binding: ChatPanelBinding = {
-        panel,
-        log,
-        input,
-        isVisible: () => panel.classList.contains('chat-visible'),
-        setVisible(visible) {
-            panel.classList.toggle('chat-visible', visible);
-            panel.classList.toggle('chat-collapsed', !visible);
-            toggle.textContent = visible ? '−' : '+';
-            if (visible) input.focus();
-        },
-    };
-
-    const onToggle = () => toggleChat();
-    const onSubmit = (event: SubmitEvent) => {
-        event.preventDefault();
-        void submitChat(input);
-    };
-    toggle.addEventListener('click', onToggle);
-    form.addEventListener('submit', onSubmit);
-
-    const unbind = bindChatPanel(binding, mpEnabled, playerName);
-    disposeLegacyChat = () => {
-        toggle.removeEventListener('click', onToggle);
-        form.removeEventListener('submit', onSubmit);
-        unbind();
     };
 }
 
@@ -239,7 +176,6 @@ function teleportTo(x: number, z: number, label: string) {
     physics.velocity.set(0, 0, 0);
     physics.isGrounded = true;
     physics.speed = 0;
-    updateTerrainChunks(true);
     alignPlayerToTerrain();
     appendSystemMessage(`You ${label}.`);
 }

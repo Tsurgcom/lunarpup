@@ -27,7 +27,7 @@ bun run build
 bun run preview
 ```
 
-Use `bun install --backend=copyfile` only if Windows produces a package-link `EPERM` error. `index.html` is the default R3F entry. `index.vanilla.html` and its scripts are temporary reference tooling; do not add new product work there.
+Use `bun install --backend=copyfile` only if Windows produces a package-link `EPERM` error. `index.html` is the R3F app entry.
 
 ## Architecture and ownership
 
@@ -35,7 +35,7 @@ Use `bun install --backend=copyfile` only if Windows produces a package-link `EP
 - `GameCanvas.tsx` owns the Canvas and frame orchestration.
 - `WorldEnvironment.tsx`, `Terrain.tsx`, `Player.tsx`, and `CameraRig.tsx` own their R3F presentation.
 - `src/game/` contains transitional mutable simulation, terrain math, input, tricks, and bootstrap work. Extract tested simulation modules before changing gameplay behavior.
-- `src/ui/` contains temporary imperative UI. Port a surface to React, prove it works, then remove its imperative setup path.
+- `src/ui/` contains React-bound UI bridges. Each surface mounts from `src/r3f-shell/`; do not add imperative DOM setup paths.
 - `src/content/` defines reusable animal, board, material, and loadout contracts.
 - `src/net/`, `src/server.ts`, and `netlify/` define multiplayer transport and deployment boundaries.
 
@@ -59,7 +59,7 @@ Use `bun install --backend=copyfile` only if Windows produces a package-link `EP
 
 Before asking for review, run `bun run typecheck`, `bun test`, and `bun run build`. For runtime changes, manually check the documented affected behavior in a browser. Before making a PR ready, provide a Netlify preview URL and state its multiplayer limitation if applicable.
 
-Draft PR #7 is the active R3F migration branch. Keep it draft until the current batch is self-contained, synced with `upstream/main`, verified, and ready for the maintainer to review. Never merge or mark it ready without approval.
+Draft PR #7 is merged. Do not reintroduce a vanilla renderer entry or dual ownership paths.
 
 ## Avoid
 

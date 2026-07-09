@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {
-    scene,
     dog,
     setPlayerGroup,
     setTrickRoot,
@@ -129,12 +128,4 @@ function setDogMaterialColor(root: THREE.Group, color: number) {
 
 export function tintLocalDog(color: number) {
     if (dog) setDogMaterialColor(dog, color);
-}
-
-export function createPlayer() {
-    const parts = createVoxelDog();
-    scene.add(parts.group);
-    bindPlayerParts(parts);
-
-    return parts;
 }

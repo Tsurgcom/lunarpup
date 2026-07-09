@@ -27,12 +27,6 @@ export function bindSpeedLinesLayer(layer: HTMLElement): HTMLDivElement[] {
     return createSpeedLines(layer);
 }
 
-export function setupSpeedLines() {
-    const layer = document.getElementById('speed-lines');
-    if (!layer) return [];
-    return createSpeedLines(layer);
-}
-
 export function updateSpeedLines(speedRatio: number, isBoosting: boolean) {
     const layer = document.getElementById('speed-lines');
     if (!layer) return;
