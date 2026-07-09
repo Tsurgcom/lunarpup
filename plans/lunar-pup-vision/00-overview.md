@@ -61,7 +61,7 @@ lootbox opens with ledger entries written, and a devnet wallet round-trip works.
   agreed in PR comments; whoever lands second rebases and combines both behaviors.
   The trick system is a natural early consumer of concern 01's loop hooks and of
   concern 04's scoring interfaces.
-- **Renderer rewrite (discussed in chat, undeclared)**: per CONTRIBUTING.md this needs
+- **Renderer rewrite (discussed in chat, undeclared)**: per CONTRIBUTING.md (PR #3) this needs
   an issue + draft PR declaring scope before it lands anywhere. It directly affects
   concern 03 (cosmetics attach to renderables) and concern 04 (mode HUD/visuals) —
   those define renderer-agnostic seams (cosmetics resolve to attachment points, not
