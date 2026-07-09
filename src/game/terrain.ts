@@ -11,8 +11,33 @@ import {
     terrainRoot,
 } from '../state.ts';
 
+export type TerrainChunkDescriptor = {
+    key: string;
+    cx: number;
+    cz: number;
+    lodName: 'near' | 'mid' | 'far';
+    segments: number;
+};
+
+let terrainPresentationMode: 'legacy' | 'r3f' = 'legacy';
+let r3fChunkCount = 0;
+
+export function setTerrainPresentationMode(mode: 'legacy' | 'r3f') {
+    terrainPresentationMode = mode;
+    if (mode === 'legacy') r3fChunkCount = 0;
+}
+
+export function setR3FTerrainChunkCount(count: number) {
+    r3fChunkCount = count;
+}
+
+export function getRenderedTerrainChunkCount() {
+    return terrainPresentationMode === 'r3f' ? r3fChunkCount : terrainChunks.size;
+}
+
 export function initTerrain() {
     disposeTerrain();
+    if (terrainPresentationMode === 'r3f') return;
     const root = new THREE.Group();
     setTerrainRoot(root);
     scene.add(root);
@@ -45,10 +70,28 @@ function chunkKey(cx: number, cz: number) {
     return `${cx},${cz}`;
 }
 
-function getChunkLod(distanceInChunks: number) {
-    if (distanceInChunks <= 1.25) return { name: 'near', segments: 56 };
-    if (distanceInChunks <= 2.25) return { name: 'mid', segments: 28 };
-    return { name: 'far', segments: 12 };
+function getChunkLod(distanceInChunks: number): Pick<TerrainChunkDescriptor, 'lodName' | 'segments'> {
+    if (distanceInChunks <= 1.25) return { lodName: 'near', segments: 56 };
+    if (distanceInChunks <= 2.25) return { lodName: 'mid', segments: 28 };
+    return { lodName: 'far', segments: 12 };
+}
+
+export function getTerrainChunkPlan(x: number, z: number): TerrainChunkDescriptor[] {
+    const playerCx = Math.round(x / chunkSize);
+    const playerCz = Math.round(z / chunkSize);
+    const chunks: TerrainChunkDescriptor[] = [];
+
+    for (let dz = -terrainViewDistance; dz <= terrainViewDistance; dz++) {
+        for (let dx = -terrainViewDistance; dx <= terrainViewDistance; dx++) {
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > terrainViewDistance + 0.35) continue;
+            const cx = playerCx + dx;
+            const cz = playerCz + dz;
+            chunks.push({ key: chunkKey(cx, cz), cx, cz, ...getChunkLod(dist) });
+        }
+    }
+
+    return chunks;
 }
 
 function createTerrainChunk(cx: number, cz: number, lodName: string, chunkSegments: number) {
@@ -80,6 +123,7 @@ function createTerrainChunk(cx: number, cz: number, lodName: string, chunkSegmen
 
 export function updateTerrainChunks(force = false) {
     if (!terrainRoot) return;
+    if (terrainPresentationMode === 'r3f') return;
 
     const playerCx = Math.round(playerGroup.position.x / chunkSize);
     const playerCz = Math.round(playerGroup.position.z / chunkSize);
@@ -97,12 +141,12 @@ export function updateTerrainChunks(force = false) {
             const lod = getChunkLod(dist);
             const existing = terrainChunks.get(key);
 
-            if (!existing || existing.userData.lodName !== lod.name || force) {
+            if (!existing || existing.userData.lodName !== lod.lodName || force) {
                 if (existing) {
                     terrainRoot.remove(existing);
                     existing.geometry.dispose();
                 }
-                terrainChunks.set(key, createTerrainChunk(cx, cz, lod.name, lod.segments));
+                terrainChunks.set(key, createTerrainChunk(cx, cz, lod.lodName, lod.segments));
             }
         }
     }

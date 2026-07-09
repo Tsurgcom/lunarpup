@@ -8,6 +8,7 @@ import { stepGameFrame } from '../game/loop.ts';
 import type { VoxelDogParts } from '../game/player.ts';
 import { CameraRig } from './CameraRig.tsx';
 import { Player } from './Player.tsx';
+import { Terrain } from './Terrain.tsx';
 import { WorldEnvironment } from './WorldEnvironment.tsx';
 
 function useGameInput() {
@@ -66,6 +67,7 @@ function GameScene() {
         <>
             <WorldEnvironment />
             <Player onReady={onPlayerReady} />
+            {player && <Terrain player={player} />}
             {player && <GameRuntime player={player} ready={ready} />}
             <CameraRig ready={ready} />
         </>

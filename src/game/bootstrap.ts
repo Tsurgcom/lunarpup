@@ -13,7 +13,7 @@ export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: Voxe
 
     const [
         { initScene, onWindowResize },
-        { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain },
+        { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain, setTerrainPresentationMode },
         { createPlayer, bindPlayerParts },
         { setupCameraControls, startGameLoop },
         { setupTuningPanel },
@@ -40,6 +40,7 @@ export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: Voxe
     ]);
 
     initScene(container ?? undefined, options.r3fHost);
+    setTerrainPresentationMode(options.r3fHost ? 'r3f' : 'legacy');
     initTerrain();
     if (options.r3fPlayer) bindPlayerParts(options.r3fPlayer);
     else createPlayer();

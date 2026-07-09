@@ -9,7 +9,6 @@ import {
     jumpInput,
     cameraControl,
     scratch,
-    terrainChunks,
     skateboard,
     tail,
     multiplayerClient,
@@ -18,6 +17,7 @@ import { groundClearance } from '../config.ts';
 import {
     getTerrainNormal,
     getHeightAboveTerrain,
+    getRenderedTerrainChunkCount,
     updateTerrainChunks,
     alignPlayerToTerrain,
 } from './terrain.ts';
@@ -263,7 +263,7 @@ function handlePhysics(dt: number) {
     updateSpeedLines(speedRatio, isBoosting);
     const speedometer = document.getElementById('speedometer');
     if (speedometer) {
-        speedometer.innerText = `${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${terrainChunks.size}`;
+        speedometer.innerText = `${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${getRenderedTerrainChunkCount()}`;
     }
 }
 

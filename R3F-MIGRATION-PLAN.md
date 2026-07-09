@@ -54,9 +54,9 @@ Target:
 Goal: R3F owns all static scene presentation.
 
 - [x] Move background, fog, lights, starfield, and planet into R3F components.
-- [ ] Move terrain root/chunk presentation into R3F components.
-- [ ] Extract terrain math into pure functions with deterministic tests.
-- [ ] Add chunk lifecycle/disposal ownership.
+- [x] Move terrain root/chunk presentation into R3F components. Chunk React state changes only when player enters a new chunk.
+- [ ] Extract terrain math into pure functions with deterministic tests. Existing height function remains shared transitional math.
+- [x] Add chunk lifecycle/disposal ownership for R3F geometry/materials and legacy terrain cleanup.
 - [ ] Add world/environment configuration object.
 - [x] Make legacy scene presentation conditional: vanilla owns it only in temporary legacy mode; R3F owns it in Canvas mode.
 
