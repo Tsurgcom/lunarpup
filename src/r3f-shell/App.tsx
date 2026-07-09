@@ -1,4 +1,5 @@
 import { GameCanvas } from './GameCanvas.tsx';
+import { TuningPanel } from './TuningPanel.tsx';
 import '../styles.css';
 import './shell.css';
 
@@ -17,12 +18,7 @@ export function App() {
                     <span className="key">Wheel</span> Zoom In / Out
                 </div>
             </div>
-            <div id="tuning-panel">
-                <h2>⚙️ Live Tuning</h2>
-                <div id="sliders" />
-                <div className="tuning-buttons"><button id="copy-settings" type="button">Copy values</button><button id="reset-settings" type="button">Reset</button></div>
-                <textarea id="tuning-output" readOnly placeholder="Tune sliders, then copy these values back to hardcode." />
-            </div>
+            <TuningPanel />
             <div id="speedometer">0.0 U/S  | chunks 0</div>
             <div id="speed-lines" />
             <div id="canvas-container"><GameCanvas /></div>

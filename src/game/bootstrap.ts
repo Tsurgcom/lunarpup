@@ -54,7 +54,9 @@ export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: Voxe
     const removeCameraControls = setupCameraControls();
     setSpeedLines(setupSpeedLines());
     setupTrickUI();
-    setupTuningPanel();
+    // React owns tuning controls in the R3F entry. Keep vanilla self-contained
+    // while its remaining imperative UI is migrated in bounded batches.
+    if (!options.r3fHost) setupTuningPanel();
     setupMultiplayerUI();
     setupMinimap();
     setupChatUI(mpConfig.enabled, mpConfig.name);
