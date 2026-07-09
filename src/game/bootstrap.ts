@@ -74,7 +74,9 @@ export async function bootstrap(options: { r3fHost?: SceneHost } = {}) {
         }
     }
 
-    window.addEventListener('resize', onWindowResize);
+    // Canvas measures and resizes itself in R3F mode. The legacy renderer still
+    // needs its window listener until the temporary entry is removed.
+    if (!options.r3fHost) window.addEventListener('resize', onWindowResize);
 
     startGameLoop({ externalRenderLoop: Boolean(options.r3fHost) });
 }

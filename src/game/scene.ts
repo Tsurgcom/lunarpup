@@ -33,8 +33,12 @@ export function initScene(container?: HTMLElement, host?: SceneHost) {
     if (!host && container) container.appendChild(r.domElement);
     setRenderer(r);
 
-    setupLighting();
-    createStarfield();
+    // R3F owns these presentation objects in Canvas mode. Legacy mode keeps the
+    // original imperative setup until it is removed with the temporary entry.
+    if (!host) {
+        setupLighting();
+        createStarfield();
+    }
 
     return { scene: s, camera: cam, renderer: r };
 }

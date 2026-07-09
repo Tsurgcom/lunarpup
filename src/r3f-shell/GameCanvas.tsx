@@ -5,6 +5,7 @@ import type { RootState } from '@react-three/fiber';
 import type * as THREE from 'three';
 import { bootstrap } from '../game/bootstrap.ts';
 import { stepGameFrame } from '../game/loop.ts';
+import { WorldEnvironment } from './WorldEnvironment.tsx';
 
 function GameRuntime({ ready }: { ready: MutableRefObject<boolean> }) {
     useFrame((_, delta) => {
@@ -31,6 +32,7 @@ function GameHost() {
 
     return (
         <Canvas onCreated={onCreated} camera={{ fov: 60, near: 0.1, far: 2500 }} gl={{ antialias: true, powerPreference: 'high-performance' }} dpr={[1, 2]} shadows>
+            <WorldEnvironment />
             <GameRuntime ready={ready} />
         </Canvas>
     );
