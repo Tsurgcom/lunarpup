@@ -15,7 +15,8 @@ let cacheCenterZ = NaN;
 export function setupMinimap() {
     const panel = document.createElement('div');
     panel.id = 'minimap-panel';
-    panel.innerHTML = '<h2>🗺️ Map</h2>';
+    panel.className = 'lp-panel lp-gameplay';
+    panel.innerHTML = '<h2 class="lp-panel-title">Map</h2>';
     canvas = document.createElement('canvas');
     canvas.width = SIZE;
     canvas.height = SIZE;

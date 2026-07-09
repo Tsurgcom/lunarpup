@@ -202,14 +202,15 @@ function setupAgentHud(): void {
     if (panelEl) return;
     panelEl = document.createElement('div');
     panelEl.id = 'agent-hud';
+    panelEl.className = 'lp-panel lp-gameplay';
     panelEl.innerHTML = `
         <div class="agent-header">
-            <h2>Agent harness</h2>
+            <h2 class="lp-panel-title">Agent harness</h2>
             <div id="agent-status" class="agent-status">Waiting for agent events</div>
             <label class="agent-owner">
                 <span>Owner key</span>
-                <input id="agent-owner-key" type="text" readonly>
-                <button id="agent-owner-copy" type="button">Copy</button>
+                <input id="agent-owner-key" class="lp-field" type="text" readonly>
+                <button id="agent-owner-copy" class="lp-button" type="button">Copy</button>
             </label>
         </div>
         <div id="agent-session-list" class="agent-session-list"></div>

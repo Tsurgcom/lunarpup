@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
-    <div id="ui">
-        <h1>🌙 Lunar Pup Skater</h1>
-        <div class="controls">
+    <div id="ui" class="lp-gameplay">
+        <h1>Lunar Pup Skater</h1>
+        <div class="controls lp-panel">
             <span class="key">▲</span> / <span class="key">W</span> Accelerate<br>
             <span class="key">▼</span> / <span class="key">S</span> Brake / Reverse<br>
             <span class="key">◄</span> <span class="key">►</span> / <span class="key">A</span> <span class="key">D</span> Steer<br>
@@ -22,18 +22,19 @@
         </div>
     </div>
 
-    <div id="tuning-panel">
-        <h2>⚙️ Live Tuning</h2>
+    <div id="tuning-panel" class="lp-panel lp-gameplay">
+        <h2 class="lp-panel-title">Settings</h2>
         <div id="sliders"></div>
         <div class="tuning-buttons">
-            <button id="copy-settings" type="button">Copy values</button>
-            <button id="reset-settings" type="button">Reset</button>
+            <button id="apply-settings" class="lp-button lp-button-primary" type="button" disabled>Apply</button>
+            <button id="copy-settings" class="lp-button" type="button">Copy</button>
+            <button id="reset-settings" class="lp-button" type="button">Reset</button>
         </div>
         <textarea id="tuning-output" readonly placeholder="Tune sliders, then copy these values back to hardcode."></textarea>
     </div>
 
-    <div id="speedometer">0.0 U/S  | chunks 0</div>
-    <div id="speed-lines"></div>
+    <div id="speedometer" class="lp-gameplay">0.0 U/S  | chunks 0</div>
+    <div id="speed-lines" class="lp-gameplay"></div>
 
     <div id="canvas-container"></div>
 

@@ -17,17 +17,17 @@ export function setupChatUI(mpEnabled: boolean, playerName: string) {
 
     panel = document.createElement('div');
     panel.id = 'chat-panel';
-    panel.className = mpEnabled ? 'chat-visible' : 'chat-hidden';
+    panel.className = `lp-panel lp-gameplay ${mpEnabled ? 'chat-visible' : 'chat-hidden'}`;
     visible = mpEnabled;
 
     panel.innerHTML = `
         <div class="chat-header">
-            <h2>💬 Chat</h2>
-            <button type="button" id="chat-toggle" title="Toggle chat (T)">${mpEnabled ? '−' : '+'}</button>
+            <h2 class="lp-panel-title">Chat</h2>
+            <button class="lp-button" type="button" id="chat-toggle" title="Toggle chat (T)">${mpEnabled ? '−' : '+'}</button>
         </div>
         <div id="chat-log" class="chat-log"></div>
         <form id="chat-form" class="chat-form">
-            <input id="chat-input" type="text" maxlength="200" placeholder="Say something… (/tp x z)" />
+            <input id="chat-input" class="lp-field" type="text" maxlength="200" placeholder="Say something… (/tp x z)" />
         </form>
     `;
     document.body.appendChild(panel);
