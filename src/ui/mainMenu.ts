@@ -3,6 +3,7 @@ import { prefersReducedMotion, REDUCED_MOTION_CLASS } from './motion.ts';
 import { handleArrowNav } from './menuNav.ts';
 import { pauseController } from '../game/pause.ts';
 import { setMenuOrbit } from '../game/loop.ts';
+import { setMenuOpen } from './hudVisibility.ts';
 
 export interface MainMenuActions {
     /** Reveal the multiplayer/rooms panel. */
@@ -68,6 +69,7 @@ export function setupMainMenu(actions: MainMenuActions): MainMenuHandle {
         overlay.classList.add('is-visible');
 
         pauseController.setPaused(true);
+        setMenuOpen('main', true);
         setMenuOrbit(true, isReduced);
         items[0]?.focus();
     }
@@ -78,6 +80,7 @@ export function setupMainMenu(actions: MainMenuActions): MainMenuHandle {
         markMainMenuSeen();
         setMenuOrbit(false);
         pauseController.setPaused(false);
+        setMenuOpen('main', false);
 
         overlay.classList.remove('is-visible');
         if (prefersReducedMotion()) {

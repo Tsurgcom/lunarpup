@@ -1,9 +1,10 @@
 import { prefersReducedMotion, REDUCED_MOTION_CLASS } from './motion.ts';
 import { handleArrowNav } from './menuNav.ts';
 import { pauseController } from '../game/pause.ts';
+import { setMenuOpen } from './hudVisibility.ts';
 
 export interface PauseMenuActions {
-    /** Reveal the settings/tuning panel (menu stays paused underneath). */
+    /** Close the pause menu and reveal the settings/tuning panel. */
     openSettings(): void;
     /** Leave the current session back to the main menu. */
     quitToMenu(): void;
@@ -66,6 +67,7 @@ export function setupPauseMenu(actions: PauseMenuActions): PauseMenuHandle {
         overlay.classList.add('is-visible');
 
         pauseController.setPaused(true);
+        setMenuOpen('pause', true);
         items[0]?.focus();
     }
 
@@ -73,6 +75,7 @@ export function setupPauseMenu(actions: PauseMenuActions): PauseMenuHandle {
         if (!open) return;
         open = false;
         pauseController.setPaused(false);
+        setMenuOpen('pause', false);
 
         overlay.classList.remove('is-visible');
         if (prefersReducedMotion()) {
@@ -90,6 +93,9 @@ export function setupPauseMenu(actions: PauseMenuActions): PauseMenuHandle {
                 hide();
                 break;
             case 'settings':
+                // Close the pause overlay first so the (gameplay-tagged)
+                // settings panel is no longer suppressed, then reveal it.
+                hide();
                 actions.openSettings();
                 break;
             case 'quit':

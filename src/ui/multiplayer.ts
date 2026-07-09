@@ -23,30 +23,31 @@ export function setupMultiplayerUI(options?: MultiplayerUIOptions) {
 
     const panel = document.createElement('div');
     panel.id = 'multiplayer-panel';
+    panel.className = 'lp-panel lp-gameplay';
     panel.innerHTML = `
-        <h2>Multiplayer</h2>
+        <h2 class="lp-panel-title">Multiplayer</h2>
         <div id="mp-status" class="mp-status mp-disconnected">Offline</div>
         <div id="mp-players" class="mp-players"></div>
         <div class="mp-lobby" aria-label="Room browser">
             <div class="mp-lobby-header">
                 <strong>Rooms</strong>
-                <button id="mp-refresh" type="button">Refresh</button>
+                <button id="mp-refresh" class="lp-button" type="button">Refresh</button>
             </div>
             <div id="mp-rooms" class="mp-rooms" role="list" aria-live="polite">Loading rooms…</div>
             <form id="mp-create" class="mp-create">
                 <label>
                     Room
-                    <input id="mp-room-id" name="room" type="text" autocomplete="off" maxlength="32" placeholder="lunar-park">
+                    <input id="mp-room-id" class="lp-field" name="room" type="text" autocomplete="off" maxlength="32" placeholder="lunar-park">
                 </label>
                 <label>
                     Gamemode
-                    <select id="mp-gamemode" name="gamemode">
+                    <select id="mp-gamemode" class="lp-field" name="gamemode">
                         <option value="free-skate">Free skate</option>
                         <option value="checkpoint-race">Checkpoint race</option>
                         <option value="trick-attack">Trick attack</option>
                     </select>
                 </label>
-                <button type="submit">Create room</button>
+                <button class="lp-button lp-button-primary" type="submit">Create room</button>
             </form>
         </div>
         <div class="mp-hint" id="mp-hint">Choose a room to join, or keep free-skate drop-in with <code>?multiplayer</code>.</div>
@@ -144,7 +145,7 @@ function renderRooms(rooms: RoomSummary[]) {
     roomsEl.replaceChildren(...rooms.map((room) => {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = room.roomId === selectedRoom ? 'mp-room mp-room-selected' : 'mp-room';
+        item.className = room.roomId === selectedRoom ? 'lp-button mp-room mp-room-selected' : 'lp-button mp-room';
         item.innerHTML = `<span>${escapeHtml(room.roomId)}</span><small>${escapeHtml(room.gamemodeId)} · ${room.playerCount} pup${room.playerCount === 1 ? '' : 's'}</small>`;
         item.addEventListener('click', () => joinRoom(room.roomId));
         return item;

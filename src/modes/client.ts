@@ -30,7 +30,8 @@ export function setupGamemodeUI(): void {
     const packages = gamemodePackages.map(pkg => validateGamemodePackage(pkg));
     const panel = document.createElement('div');
     panel.id = 'gamemode-panel';
-    panel.innerHTML = `<h2>Gamemodes</h2><div id="gamemode-buttons"></div><div id="gamemode-status">Free skate</div>`;
+    panel.className = 'lp-panel lp-gameplay';
+    panel.innerHTML = `<h2 class="lp-panel-title">Gamemodes</h2><div id="gamemode-buttons"></div><div id="gamemode-status">Free skate</div>`;
     document.body.appendChild(panel);
     const buttons = document.getElementById('gamemode-buttons');
     if (!buttons) return;
@@ -43,8 +44,8 @@ export function setupGamemodeUI(): void {
     }
     const results = document.createElement('div');
     results.id = 'gamemode-results';
+    results.className = 'lp-panel lp-panel-strong lp-gameplay';
     results.hidden = true;
-    document.body.appendChild(results);
 }
 
 export function startGamemode(pkg: GamemodePackageDefinition): void {
@@ -211,7 +212,7 @@ function showResults(): void {
     const results = document.getElementById('gamemode-results');
     if (!results) return;
     results.hidden = false;
-    results.innerHTML = `<h2>${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading leaderboard…</div><button type="button" id="gamemode-close-results">Close</button>`;
+    results.innerHTML = `<h2 class="lp-panel-title">${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading leaderboard…</div><button class="lp-button" type="button" id="gamemode-close-results">Close</button>`;
     document.getElementById('gamemode-close-results')?.addEventListener('click', () => { results.hidden = true; });
     void loadLeaderboard(activePackage.manifest.id);
 }

@@ -8,6 +8,7 @@ let resultTimer: ReturnType<typeof setTimeout> | null = null;
 export function setupTrickUI() {
     const panel = document.createElement('div');
     panel.id = 'trick-hud';
+    panel.className = 'lp-gameplay';
     panel.innerHTML = `
         <div id="trick-score">SCORE 0</div>
         <div id="trick-current"></div>
