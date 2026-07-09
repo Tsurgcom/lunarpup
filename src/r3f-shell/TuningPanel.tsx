@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { tuningSettings, type PhysicsKey } from '../config.ts';
-import { physics } from '../state.ts';
+import { useGameRuntime } from './GameProvider.tsx';
 
 type TuningValues = Record<PhysicsKey, number>;
-
-function readTuningValues(): TuningValues {
-    return Object.fromEntries(tuningSettings.map(setting => [setting.key, physics[setting.key]])) as TuningValues;
-}
 
 function formatTuning(values: TuningValues) {
     const lines = tuningSettings.map(setting => `            ${setting.key}: ${values[setting.key]},`).join('\n');
     return `// Paste these into the physics object:\n${lines}`;
 }
 
+function readTuningValues(physics: ReturnType<typeof useGameRuntime>['physics']): TuningValues {
+    return Object.fromEntries(tuningSettings.map(setting => [setting.key, physics[setting.key]])) as TuningValues;
+}
+
 export function TuningPanel() {
-    const [defaults] = useState<TuningValues>(readTuningValues);
-    const [values, setValues] = useState<TuningValues>(readTuningValues);
+    const physics = useGameRuntime().physics;
+    const [defaults] = useState<TuningValues>(() => readTuningValues(physics));
+    const [values, setValues] = useState<TuningValues>(() => readTuningValues(physics));
 
     function updateSetting(key: PhysicsKey, value: number) {
         physics[key] = value;

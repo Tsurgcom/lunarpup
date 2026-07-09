@@ -8,7 +8,7 @@ import {
     setR3FTerrainChunkCount,
 } from '../game/terrain.ts';
 import type { TerrainChunkDescriptor } from '../game/terrain.ts';
-import type { VoxelDogParts } from '../game/player.ts';
+import type { VoxelDogParts } from '../game/types.ts';
 
 type TerrainMaterials = Record<TerrainChunkDescriptor['lodName'], THREE.MeshStandardMaterial>;
 

@@ -1,19 +1,18 @@
-import { dog, keys, trickRoot } from '../state.ts';
-import { showTrickResult, updateCurrentTrick, updateTrickScore } from '../ui/tricks.ts';
+import type { GameRuntime } from './types.ts';
 import {
-    createTrickSimulation,
     finishTrickSimulation,
     startTrickSimulation,
     stepTrickSimulation,
 } from './trickSimulation.ts';
 
-const trickState = createTrickSimulation();
-
-export function startTrick() {
-    startTrickSimulation(trickState);
+export function startTrick(runtime: GameRuntime) {
+    startTrickSimulation(runtime.trickState);
 }
 
-export function updateTrick(dt: number) {
+export function updateTrick(runtime: GameRuntime, dt: number) {
+    const { parts, keys, trickState, frameHud } = runtime;
+    if (!parts) return;
+
     const pose = stepTrickSimulation(
         trickState,
         {
@@ -21,22 +20,24 @@ export function updateTrick(dt: number) {
             grabbing: keys.f,
         },
         dt,
-        trickRoot.rotation.y,
+        parts.group.rotation.y,
     );
 
-    trickRoot.rotation.y = pose.rotation;
-    updateCurrentTrick(trickState.active ? trickState.rotation : 0, trickState.grabbing);
+    parts.group.rotation.y = pose.rotation;
+    frameHud.updateCurrentTrick?.(trickState.active ? trickState.rotation : 0, trickState.grabbing);
 
     const crouch = 1 - Math.exp(-14 * dt);
-    dog.position.y += (pose.dogTargetY - dog.position.y) * crouch;
-    dog.rotation.x += (pose.dogTargetTilt - dog.rotation.x) * crouch;
+    parts.dog.position.y += (pose.dogTargetY - parts.dog.position.y) * crouch;
+    parts.dog.rotation.x += (pose.dogTargetTilt - parts.dog.rotation.x) * crouch;
 }
 
-export function finishTrick() {
-    const result = finishTrickSimulation(trickState);
+export function finishTrick(runtime: GameRuntime) {
+    const result = finishTrickSimulation(runtime.trickState);
     if (!result) return;
 
-    if (result.status === 'scored') updateTrickScore(trickState.totalScore);
-    showTrickResult(result);
-    trickRoot.rotation.y = trickState.rotation;
+    if (result.status === 'scored') {
+        runtime.frameHud.updateTrickScore?.(runtime.trickState.totalScore);
+    }
+    runtime.frameHud.showTrickResult?.(result);
+    if (runtime.parts) runtime.parts.group.rotation.y = runtime.trickState.rotation;
 }

@@ -34,8 +34,8 @@ Use `bun install --backend=copyfile` only if Windows produces a package-link `EP
 - `src/r3f-shell/` is the React application and R3F scene boundary.
 - `GameCanvas.tsx` owns the Canvas and frame orchestration.
 - `WorldEnvironment.tsx`, `Terrain.tsx`, `Player.tsx`, and `CameraRig.tsx` own their R3F presentation.
-- `src/game/` contains transitional mutable simulation, terrain math, input, tricks, and bootstrap work. Extract tested simulation modules before changing gameplay behavior.
-- `src/ui/` contains React-bound UI bridges. Each surface mounts from `src/r3f-shell/`; do not add imperative DOM setup paths.
+- `src/game/` contains simulation, terrain math, input, tricks, and multiplayer modules. Frame-time state lives in `game/runtime.ts` owned by `GameProvider`.
+- `src/r3f-shell/` is the React application and R3F scene boundary, including all UI panels.
 - `src/content/` defines reusable animal, board, material, and loadout contracts.
 - `src/net/`, `src/server.ts`, and `netlify/` define multiplayer transport and deployment boundaries.
 

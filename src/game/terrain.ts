@@ -1,8 +1,5 @@
-import {
-    playerGroup,
-    physics,
-    scratch,
-} from '../state.ts';
+import type * as THREE from 'three';
+import type { PhysicsState } from './types.ts';
 import { chunkSize, terrainViewDistance } from '../config.ts';
 import { calculateTerrainHeight } from './terrainMath.ts';
 
@@ -58,7 +55,11 @@ export function getTerrainHeight(x: number, z: number) {
     return calculateTerrainHeight(x, z);
 }
 
-export function getTerrainNormal(x: number, z: number) {
+export function getTerrainNormal(
+    x: number,
+    z: number,
+    scratch: { terrainNormal: THREE.Vector3 },
+) {
     const d = 2.8;
     const hL = getTerrainHeight(x - d, z);
     const hR = getTerrainHeight(x + d, z);
@@ -68,17 +69,37 @@ export function getTerrainNormal(x: number, z: number) {
     return scratch.terrainNormal;
 }
 
-/** Signed distance from (x, y, z) above the terrain surface along its normal. */
-export function getHeightAboveTerrain(x: number, y: number, z: number) {
+export function getHeightAboveTerrain(
+    x: number,
+    y: number,
+    z: number,
+    scratch: {
+        terrainNormal: THREE.Vector3;
+        normalProbeA: THREE.Vector3;
+        normalProbeB: THREE.Vector3;
+    },
+) {
     const terrainH = getTerrainHeight(x, z);
-    const normal = getTerrainNormal(x, z);
+    const normal = getTerrainNormal(x, z, scratch);
     scratch.normalProbeA.set(x, terrainH, z);
     scratch.normalProbeB.set(x, y, z).sub(scratch.normalProbeA);
     return scratch.normalProbeB.dot(normal);
 }
 
-export function alignPlayerToTerrain(frameScale = 1) {
-    const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z);
+export function alignPlayerToTerrain(
+    playerGroup: THREE.Group,
+    physics: PhysicsState,
+    scratch: {
+        baseForward: THREE.Vector3;
+        slopeForward: THREE.Vector3;
+        slopeRight: THREE.Vector3;
+        terrainNormal: THREE.Vector3;
+        playerMatrix: THREE.Matrix4;
+        targetPlayerQuat: THREE.Quaternion;
+    },
+    frameScale = 1,
+) {
+    const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z, scratch);
     scratch.baseForward.set(Math.sin(physics.heading), 0, Math.cos(physics.heading));
     scratch.slopeForward.copy(scratch.baseForward).addScaledVector(normal, -scratch.baseForward.dot(normal)).normalize();
     if (scratch.slopeForward.lengthSq() < 0.0001) scratch.slopeForward.set(0, 0, 1);

@@ -1,30 +1,29 @@
-import { useEffect, useRef } from 'react';
-import { bindMultiplayerPanel } from '../ui/multiplayer.ts';
+import { useGame } from './GameProvider.tsx';
+
+const STATUS_LABELS = {
+    disconnected: 'Offline',
+    connecting: 'Connecting…',
+    connected: 'Connected',
+    error: 'Connection error',
+} as const;
 
 export function MultiplayerPanel() {
-    const statusRef = useRef<HTMLDivElement>(null);
-    const playersRef = useRef<HTMLDivElement>(null);
-    const hintRef = useRef<HTMLDivElement>(null);
+    const { mpStatus, mpStatusDetail, mpRoom, mpPlayers, mpHint } = useGame();
 
-    useEffect(() => {
-        const status = statusRef.current;
-        const players = playersRef.current;
-        const hint = hintRef.current;
-        if (!status || !players || !hint) return;
-
-        return bindMultiplayerPanel({ status, players, hint });
-    }, []);
+    const statusText = mpStatus === 'error' && mpStatusDetail
+        ? mpStatusDetail
+        : mpStatus === 'connected' && mpRoom
+            ? `${STATUS_LABELS.connected} · ${mpRoom}`
+            : STATUS_LABELS[mpStatus];
 
     return (
         <aside id="multiplayer-panel" aria-label="Multiplayer">
             <h2>🐾 Multiplayer</h2>
-            <div id="mp-status" ref={statusRef} className="mp-status mp-disconnected" role="status" aria-live="polite">
-                Offline
+            <div id="mp-status" className={`mp-status mp-${mpStatus}`} role="status" aria-live="polite">
+                {statusText}
             </div>
-            <div id="mp-players" ref={playersRef} className="mp-players" />
-            <div id="mp-hint" ref={hintRef} className="mp-hint">
-                Add <code>?multiplayer&amp;room=your-room</code> to the URL
-            </div>
+            <div id="mp-players" className="mp-players">{mpPlayers}</div>
+            <div id="mp-hint" className="mp-hint" dangerouslySetInnerHTML={{ __html: mpHint }} />
         </aside>
     );
 }

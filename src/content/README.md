@@ -7,4 +7,4 @@ Content definitions separate cosmetic identity from gameplay systems.
 - `materials`: texture/material metadata.
 - `PlayerLoadout`: IDs only; safe to send through multiplayer join/session messages later.
 
-Current dog and classic board entries are metadata-only. Existing vanilla player construction remains source of truth until R3F parity is verified.
+Current dog and classic board entries are metadata-only. `VoxelDogModel.tsx` is the runtime source of truth for local and remote player presentation.

@@ -1,6 +1,8 @@
-import { jumpInput, keys } from '../state.ts';
+import type { GameRuntime } from './types.ts';
 
-export function handleKeys(event: KeyboardEvent, isPressed: boolean) {
+export function handleKeys(runtime: GameRuntime, event: KeyboardEvent, isPressed: boolean) {
+    const { keys, jumpInput } = runtime;
+
     if (['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'Space', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
         event.preventDefault();
     }
@@ -25,4 +27,3 @@ export function handleKeys(event: KeyboardEvent, isPressed: boolean) {
         case 'ShiftRight': keys.shift = isPressed; break;
     }
 }
-
