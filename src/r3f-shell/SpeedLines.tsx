@@ -18,5 +18,5 @@ export function SpeedLines() {
         };
     }, []);
 
-    return <div id="speed-lines" ref={ref} />;
+    return <div id="speed-lines" className="lp-gameplay" ref={ref} />;
 }

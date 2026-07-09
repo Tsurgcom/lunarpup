@@ -14,8 +14,8 @@ export function MinimapPanel() {
     }, []);
 
     return (
-        <section id="minimap-panel" aria-label="Map">
-            <h2>🗺️ Map</h2>
+        <section id="minimap-panel" className="lp-panel lp-gameplay" aria-label="Map">
+            <h2 className="lp-panel-title">🗺️ Map</h2>
             <canvas
                 ref={canvasRef}
                 className="minimap-canvas"

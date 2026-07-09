@@ -50,6 +50,7 @@ export function ChatPanel({ multiplayerEnabled, playerName }: ChatPanelProps) {
     }
 
     const className = [
+        'lp-panel lp-gameplay',
         visible ? 'chat-visible' : 'chat-collapsed',
         multiplayerEnabled ? '' : 'chat-hidden',
     ].filter(Boolean).join(' ');

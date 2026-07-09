@@ -11,5 +11,5 @@ export function SpeedHud() {
         return bindSpeedHud(element);
     }, []);
 
-    return <div id="speedometer" ref={ref}>0.0 U/S  | chunks 0</div>;
+    return <div id="speedometer" className="lp-gameplay" ref={ref}>0.0 U/S  | chunks 0</div>;
 }

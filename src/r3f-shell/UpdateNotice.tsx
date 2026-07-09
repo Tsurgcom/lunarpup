@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { bindUpdateNotice } from '../ui/updateNotice.ts';
 
+/**
+ * Starts build-version polling. The notification itself is rendered by the
+ * reskin toast system (`showToast` in `../ui/updateNotice.ts`), so this
+ * component owns only the polling lifecycle and renders no DOM.
+ */
 export function UpdateNotice() {
-    const [visible, setVisible] = useState(false);
-
-    useEffect(() => bindUpdateNotice(() => setVisible(true)), []);
-
-    if (!visible) return null;
-
-    return (
-        <div id="update-notice" role="status">
-            <span>Update available — refresh to get the latest</span>
-            <button type="button" onClick={() => window.location.reload()}>Refresh</button>
-        </div>
-    );
+    useEffect(() => bindUpdateNotice(), []);
+    return null;
 }
