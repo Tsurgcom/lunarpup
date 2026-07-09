@@ -113,9 +113,10 @@ type MaterialDefinition = {
 };
 ```
 
-- [ ] Add registries for animals, boards, materials, and effects.
-- [ ] Keep physics independent from model geometry.
-- [ ] Keep network snapshots model-agnostic: player ID, cosmetic IDs, transform, motion state.
+- [x] Add registries for animals, boards, and materials in `src/content/`.
+- [x] Keep physics independent from model geometry in the content contracts.
+- [x] Define model-agnostic `PlayerLoadout` IDs for future network/session messages.
+- [ ] Add effects registry.
 - [ ] Load GLTF assets through `useLoader`/Drei with `Suspense`.
 - [ ] Preload stable assets.
 - [ ] Define disposal ownership for cached/global assets.
@@ -135,7 +136,8 @@ type MaterialDefinition = {
 
 Current server is a Bun WebSocket relay with room membership and player snapshots.
 
-- [ ] Define room capacity and reject/queue excess players.
+- [x] Define room capacity (`32`) and reject excess players with HTTP `409`.
+- [x] Validate replicated player state for finite numeric values and boolean grounded state.
 - [ ] Add heartbeat/ping and stale connection cleanup.
 - [ ] Add reconnect with backoff and room rejoin.
 - [ ] Add message validation, size limits, and rate limits.
