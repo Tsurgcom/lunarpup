@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { PlayerSnapshot } from '../net/protocol.ts';
 import { scene } from '../state.ts';
 import { createVoxelDog } from './player.ts';
+import { applyRemoteCosmetics } from './cosmetics.ts';
 
 interface RemotePlayer {
     id: string;
@@ -26,6 +27,7 @@ export function addRemotePlayer(player: PlayerSnapshot) {
     parts.skateboard.rotation.x = player.boardTiltX;
     parts.skateboard.rotation.z = player.boardTiltZ;
     scene.add(parts.group);
+    applyRemoteCosmetics(parts, player.cosmetics);
 
     remotePlayers.set(player.id, {
         id: player.id,
@@ -47,6 +49,7 @@ export function updateRemoteTarget(id: string, state: Omit<PlayerSnapshot, 'id' 
     const remote = remotePlayers.get(id);
     if (!remote) return;
     Object.assign(remote.target, state);
+    applyRemoteCosmetics(remote.parts, remote.target.cosmetics);
 }
 
 export function getRemotePlayerNames(): string[] {

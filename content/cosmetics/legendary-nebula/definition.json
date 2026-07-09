@@ -1,0 +1,28 @@
+{
+  "id": "legendary-nebula",
+  "slot": "aura",
+  "visual": {
+    "colors": [
+      "#7209b7",
+      "#ffd166cc",
+      "#4cc9f0cc"
+    ],
+    "mesh": {
+      "shape": "sphere",
+      "scale": [
+        1.55,
+        0.16,
+        1.55
+      ],
+      "roughness": 0.15,
+      "metalness": 0.6
+    },
+    "particles": {
+      "count": 44,
+      "size": 0.07,
+      "lifetime": 1.2,
+      "emissionRate": 26
+    }
+  },
+  "rarity": "legendary"
+}

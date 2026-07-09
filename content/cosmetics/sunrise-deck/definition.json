@@ -1,0 +1,21 @@
+{
+  "id": "sunrise-deck",
+  "slot": "board",
+  "visual": {
+    "colors": [
+      "#ff8c42",
+      "#ffd166"
+    ],
+    "mesh": {
+      "shape": "box",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "roughness": 0.45,
+      "metalness": 0.05
+    }
+  },
+  "rarity": "common"
+}

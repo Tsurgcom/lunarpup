@@ -1,3 +1,5 @@
+import type { EquippedCosmetics } from '../cosmetics/registry.ts';
+
 export const DEFAULT_WS_PORT = 3001;
 export const DEFAULT_ROOM = 'lunar-park';
 export const STATE_SEND_INTERVAL_MS = 50;
@@ -30,6 +32,7 @@ export interface PlayerSnapshot {
     isGrounded: boolean;
     boardTiltX: number;
     boardTiltZ: number;
+    cosmetics?: EquippedCosmetics;
 }
 
 export type MultiplayerTransport = 'ws' | 'http';

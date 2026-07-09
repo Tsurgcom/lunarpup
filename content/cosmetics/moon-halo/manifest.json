@@ -1,0 +1,20 @@
+{
+  "id": "708f58bc2e141d33ec3d49e60c09ceada90d7eb62341a7a115335574de25562b",
+  "kind": "cosmetic",
+  "version": "1.0.0",
+  "author": "Moon Kennel",
+  "displayName": "Moon Halo",
+  "assetRefs": [
+    {
+      "name": "definition",
+      "uri": "definition.json",
+      "sha256": "3610f6b8452844a068e85d9470b2ab65fb43ba944d7d357431a2f09561699983",
+      "mediaType": "application/json"
+    }
+  ],
+  "metadata": {
+    "price": "240",
+    "slot": "aura",
+    "rarity": "epic"
+  }
+}

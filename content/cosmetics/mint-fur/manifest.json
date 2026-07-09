@@ -1,0 +1,20 @@
+{
+  "id": "efc1668de382942dc41f54e2dfc06aedfe17b2c08dd3e5efccfc91f96e468d9f",
+  "kind": "cosmetic",
+  "version": "1.0.0",
+  "author": "Moon Kennel",
+  "displayName": "Mint Fur",
+  "assetRefs": [
+    {
+      "name": "definition",
+      "uri": "definition.json",
+      "sha256": "aff2e84aa411e3a7fcc85d9c5d86d88065e847bee4d4f9526b854c9f9a1efc26",
+      "mediaType": "application/json"
+    }
+  ],
+  "metadata": {
+    "price": "60",
+    "slot": "body",
+    "rarity": "common"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "moon-halo",
+  "slot": "aura",
+  "visual": {
+    "colors": [
+      "#b5179e",
+      "#f72585aa"
+    ],
+    "mesh": {
+      "shape": "sphere",
+      "scale": [
+        1.25,
+        0.12,
+        1.25
+      ],
+      "roughness": 0.25,
+      "metalness": 0.35
+    },
+    "particles": {
+      "count": 18,
+      "size": 0.05,
+      "lifetime": 0.9,
+      "emissionRate": 10
+    }
+  },
+  "rarity": "epic"
+}

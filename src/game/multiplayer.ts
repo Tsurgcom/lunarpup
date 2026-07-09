@@ -1,5 +1,6 @@
 import { MultiplayerClient } from '../net/client.ts';
 import type { PlayerSnapshot } from '../net/protocol.ts';
+import type { EquippedCosmetics } from '../cosmetics/registry.ts';
 import {
     addRemotePlayer,
     clearRemotePlayers,
@@ -11,6 +12,12 @@ import { updateMultiplayerStatus, updateMultiplayerPlayers, updateRoomBrowser, u
 import { appendChatMessage } from '../ui/chat.ts';
 import { setMultiplayerClient } from '../state.ts';
 import { tintLocalDog } from './player.ts';
+
+let localEquippedCosmetics: EquippedCosmetics | undefined;
+
+export function setLocalEquippedCosmetics(equipped: EquippedCosmetics): void {
+    localEquippedCosmetics = { ...equipped };
+}
 
 export function initMultiplayer(config: {
     transport: 'ws' | 'http';
@@ -96,5 +103,6 @@ export function buildLocalSnapshot(
         isGrounded,
         boardTiltX,
         boardTiltZ,
+        cosmetics: localEquippedCosmetics,
     };
 }

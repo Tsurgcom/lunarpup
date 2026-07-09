@@ -1,0 +1,20 @@
+{
+  "id": "6a798f61d4fd759b34ac5d6b09f8e185fd80342b6d9b32237c16a02e246244a4",
+  "kind": "cosmetic",
+  "version": "1.0.0",
+  "author": "Moon Kennel",
+  "displayName": "Sunrise Deck",
+  "assetRefs": [
+    {
+      "name": "definition",
+      "uri": "definition.json",
+      "sha256": "57db36d2aad6dbcc3aacd31294add9fc6151073ebc4f40326b591b100dfbd535",
+      "mediaType": "application/json"
+    }
+  ],
+  "metadata": {
+    "price": "75",
+    "slot": "board",
+    "rarity": "common"
+  }
+}

@@ -576,3 +576,148 @@ h1 {
         transform: scale(1);
     }
 }
+
+#cosmetics-panel {
+    position: fixed;
+    right: 16px;
+    top: 190px;
+    width: min(340px, calc(100vw - 32px));
+    max-height: min(520px, calc(100vh - 220px));
+    overflow: auto;
+    color: #f8f9fa;
+    background: rgba(8, 12, 20, 0.78);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 18px 44px rgba(0,0,0,0.28);
+    backdrop-filter: blur(14px);
+    z-index: 12;
+}
+
+.cosmetics-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.cosmetics-header h2 {
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.cosmetics-pill {
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    padding: 5px 9px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.86);
+}
+
+.cosmetics-account,
+.cosmetics-meta,
+.cosmetics-empty {
+    margin: 0 0 10px;
+    color: rgba(255,255,255,0.72);
+    font-size: 12px;
+}
+
+.cosmetics-list {
+    display: grid;
+    gap: 10px;
+}
+
+.cosmetics-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(255,255,255,0.07);
+}
+
+.cosmetics-card-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cosmetics-swatches {
+    display: flex;
+    gap: 5px;
+    margin-top: 7px;
+}
+
+.cosmetics-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.42);
+}
+
+.cosmetics-button {
+    min-width: 72px;
+    min-height: 40px;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px;
+    background: rgba(76,201,240,0.2);
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.cosmetics-button:hover:not(:disabled),
+.cosmetics-button:focus-visible {
+    background: rgba(76,201,240,0.34);
+}
+
+.cosmetics-button:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.cosmetics-button:disabled {
+    cursor: default;
+    opacity: 0.62;
+}
+
+.cosmetics-error {
+    border-radius: 10px;
+    background: rgba(255,107,107,0.16);
+    color: #ffd6d6;
+    padding: 10px;
+    font-size: 12px;
+}
+
+.cosmetics-skeleton {
+    height: 72px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.07), rgba(255,255,255,0.14), rgba(255,255,255,0.07));
+    background-size: 220% 100%;
+    margin-top: 10px;
+    animation: cosmetics-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cosmetics-pulse {
+    from { background-position: 220% 0; }
+    to { background-position: -20% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cosmetics-skeleton {
+        animation: none;
+    }
+}
+
+@media (max-width: 720px) {
+    #cosmetics-panel {
+        top: auto;
+        right: 12px;
+        bottom: 12px;
+        max-height: 42vh;
+    }
+}

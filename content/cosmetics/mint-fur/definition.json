@@ -1,0 +1,21 @@
+{
+  "id": "mint-fur",
+  "slot": "body",
+  "visual": {
+    "colors": [
+      "#80ffdb",
+      "#caffbf"
+    ],
+    "mesh": {
+      "shape": "box",
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "roughness": 0.8,
+      "metalness": 0.0
+    }
+  },
+  "rarity": "common"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "cf8edaabe0dcb8bfb26263d98720a9a6dcaa020661cc4a4355dd8c7805c406b5",
+  "kind": "cosmetic",
+  "version": "1.0.0",
+  "author": "Moon Kennel",
+  "displayName": "Legendary Nebula",
+  "assetRefs": [
+    {
+      "name": "definition",
+      "uri": "definition.json",
+      "sha256": "bcafb5eb760fadf301c9efd3575f11ea58a79de7779a88724b38715c0b1c7a75",
+      "mediaType": "application/json"
+    }
+  ],
+  "metadata": {
+    "price": "500",
+    "slot": "aura",
+    "rarity": "legendary"
+  }
+}

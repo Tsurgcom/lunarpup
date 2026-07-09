@@ -25,6 +25,7 @@ export function createVoxelDog(dogColor: number = PLAYER_COLORS[0] ?? 0xffb703, 
     const deckMat = new THREE.MeshStandardMaterial({ color: deckColor, roughness: 0.5 });
     const deck = new THREE.Mesh(deckGeom, deckMat);
     deck.position.y = 0.3;
+    deck.userData.dogPart = 'deck';
     deck.castShadow = true;
     skateboard.add(deck);
 

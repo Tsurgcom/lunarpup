@@ -1,0 +1,20 @@
+{
+  "id": "1f0e8018379928ea714d6f1bedcb09f659927c13af9b1b19a51c6a189c45cfec",
+  "kind": "cosmetic",
+  "version": "1.0.0",
+  "author": "Moon Kennel",
+  "displayName": "Comet Trail",
+  "assetRefs": [
+    {
+      "name": "definition",
+      "uri": "definition.json",
+      "sha256": "b270a5c0a3a1295bc83546d6f5eb4455322c33a0f4214a8af87797dbde5d4e75",
+      "mediaType": "application/json"
+    }
+  ],
+  "metadata": {
+    "price": "140",
+    "slot": "trail",
+    "rarity": "rare"
+  }
+}

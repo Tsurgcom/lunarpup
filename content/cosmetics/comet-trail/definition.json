@@ -1,0 +1,17 @@
+{
+  "id": "comet-trail",
+  "slot": "trail",
+  "visual": {
+    "colors": [
+      "#4cc9f0",
+      "#ffffffcc"
+    ],
+    "particles": {
+      "count": 36,
+      "size": 0.08,
+      "lifetime": 0.55,
+      "emissionRate": 20
+    }
+  },
+  "rarity": "rare"
+}
