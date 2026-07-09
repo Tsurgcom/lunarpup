@@ -16,12 +16,12 @@ function GameHost() {
     const onCreated = ({ scene, camera, gl }: RootState) => {
         if (booting.current || ready.current) return;
         booting.current = true;
-        void bootstrap({ r3fHost: { scene, camera: camera as THREE.PerspectiveCamera, renderer: gl } }).catch((error) => {
-            booting.current = false;
-            console.error('R3F game bootstrap failed', error);
-        }).then(() => {
-            ready.current = true;
-        });
+        void bootstrap({ r3fHost: { scene, camera: camera as THREE.PerspectiveCamera, renderer: gl } })
+            .then(() => { ready.current = true; })
+            .catch((error) => {
+                booting.current = false;
+                console.error('R3F game bootstrap failed', error);
+            });
     };
 
     return <Canvas onCreated={onCreated} camera={{ fov: 60, near: 0.1, far: 2500 }} gl={{ antialias: true, powerPreference: 'high-performance' }} dpr={[1, 2]} shadows />;

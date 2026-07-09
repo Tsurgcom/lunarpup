@@ -36,8 +36,9 @@ export function createVoxelDog(dogColor: number = PLAYER_COLORS[0], deckColor = 
         [-0.7, 0.2, -1.2], [0.7, 0.2, -1.2],
     ];
     wheelPositions.forEach(pos => {
+        const [x, y, z] = pos;
         const wheel = new THREE.Mesh(wheelGeom, wheelMat);
-        wheel.position.set(pos[0], pos[1], pos[2]);
+        wheel.position.set(x!, y!, z!);
         wheel.castShadow = true;
         skateboard.add(wheel);
     });

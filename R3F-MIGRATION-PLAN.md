@@ -45,6 +45,8 @@ Goal: create React infrastructure without using it to rewrite the game.
 - [x] Render a blank R3F `<Canvas>` through `index.r3f.html`.
 - [x] Add optional R3F renderer host adapter without changing vanilla bootstrap behavior.
 - [x] Add R3F external frame-step adapter for existing physics, terrain, camera, UI, and multiplayer systems.
+- [x] Make R3F the default `index.html` entry.
+- [x] Preserve exact pre-migration shell as `index.vanilla.html` with `dev:vanilla` and `build:vanilla` fallback commands.
 - [ ] Confirm vanilla game still runs unchanged in browser. Production build passes after upstream sync; browser smoke test remains pending.
 - [ ] Do not move terrain, player, physics, UI, or network code yet.
 
@@ -63,7 +65,7 @@ Goal: let R3F own Canvas/renderer lifecycle while existing systems still own gam
 - [ ] Keep existing imperative game modules behind `src/compat/legacyGameAdapter.ts`.
 - [ ] Add cleanup for event listeners, timers, WebSocket connections, geometries, and materials.
 
-Exit gate: screenshot diff and control replay show no meaningful visual or gameplay change. Current status: vanilla build passes; R3F adapter builds; browser parity test pending.
+Exit gate: screenshot diff and control replay show no meaningful visual or gameplay change. Current status: R3F is default; vanilla fallback is preserved; manual parity test pending.
 
 ## Phase 3: migrate scene systems one at a time
 

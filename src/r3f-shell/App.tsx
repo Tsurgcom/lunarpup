@@ -1,4 +1,5 @@
 import { GameCanvas } from './GameCanvas.tsx';
+import '../styles.css';
 import './shell.css';
 
 export function App() {
