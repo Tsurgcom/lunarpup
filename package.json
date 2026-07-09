@@ -8,6 +8,8 @@
     "dev:game": "bun --hot ./index.html",
     "dev:server": "bun --hot src/server.ts",
     "build": "bun build ./index.html --outdir=dist --minify --splitting --target=browser",
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit",
     "preview": "bunx serve dist"
   },
   "dependencies": {

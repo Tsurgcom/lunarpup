@@ -15,6 +15,7 @@ export async function bootstrap() {
         { setupCameraControls, startGameLoop },
         { setupTuningPanel },
         { setupSpeedLines },
+        { setupTrickUI },
         { bindInput },
         { setupMultiplayerUI, updateMultiplayerStatus, updateMultiplayerHint },
         { setupMinimap },
@@ -26,6 +27,7 @@ export async function bootstrap() {
         import('./loop.ts'),
         import('../ui/tuning.ts'),
         import('../ui/speedLines.ts'),
+        import('../ui/tricks.ts'),
         import('./input.ts'),
         import('../ui/multiplayer.ts'),
         import('../ui/minimap.ts'),
@@ -44,6 +46,7 @@ export async function bootstrap() {
 
     setupCameraControls();
     setSpeedLines(setupSpeedLines());
+    setupTrickUI();
     setupTuningPanel();
     setupMultiplayerUI();
     setupMinimap();

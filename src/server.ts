@@ -14,7 +14,7 @@ interface PlayerConnection {
     name: string;
     color: number;
     room: string;
-    ws: ServerWebSocket<PlayerConnection>;
+    ws?: ServerWebSocket<PlayerConnection>;
     state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>;
 }
 
@@ -54,13 +54,23 @@ function defaultState(): Omit<PlayerSnapshot, 'id' | 'name' | 'color'> {
     };
 }
 
+function pendingConnection(): PlayerConnection {
+    return {
+        id: '',
+        name: '',
+        color: PLAYER_COLORS[0],
+        room: '',
+        state: defaultState(),
+    };
+}
+
 function send(ws: ServerWebSocket<PlayerConnection>, msg: ServerMessage) {
     ws.send(JSON.stringify(msg));
 }
 
 function broadcast(room: Room, msg: ServerMessage, exceptId?: string) {
     for (const [id, conn] of room.players) {
-        if (id !== exceptId) send(conn.ws, msg);
+        if (id !== exceptId && conn.ws) send(conn.ws, msg);
     }
 }
 
@@ -133,21 +143,14 @@ const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 const server = Bun.serve<PlayerConnection>({
     port,
     fetch(req, server) {
-        if (server.upgrade(req)) return undefined;
+        if (server.upgrade(req, { data: pendingConnection() })) return undefined;
         return new Response('Lunar Pup multiplayer WebSocket server', {
             headers: { 'Content-Type': 'text/plain' },
         });
     },
     websocket: {
         open(ws) {
-            ws.data = {
-                id: '',
-                name: '',
-                color: PLAYER_COLORS[0],
-                room: '',
-                ws,
-                state: defaultState(),
-            };
+            ws.data.ws = ws;
         },
         message(ws, message) {
             const parsed = parseClientMessage(message);

@@ -216,7 +216,7 @@ export function getTerrainNormal(x: number, z: number) {
     return scratch.terrainNormal;
 }
 
-export function alignPlayerToTerrain() {
+export function alignPlayerToTerrain(frameScale = 1) {
     const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z);
     scratch.baseForward.set(Math.sin(physics.heading), 0, Math.cos(physics.heading));
     scratch.slopeForward.copy(scratch.baseForward).addScaledVector(normal, -scratch.baseForward.dot(normal)).normalize();
@@ -225,5 +225,6 @@ export function alignPlayerToTerrain() {
 
     scratch.playerMatrix.makeBasis(scratch.slopeRight, normal, scratch.slopeForward);
     scratch.targetPlayerQuat.setFromRotationMatrix(scratch.playerMatrix);
-    playerGroup.quaternion.slerp(scratch.targetPlayerQuat, physics.tiltSmoothing);
+    const tiltSmoothing = 1 - Math.pow(1 - physics.tiltSmoothing, frameScale);
+    playerGroup.quaternion.slerp(scratch.targetPlayerQuat, tiltSmoothing);
 }

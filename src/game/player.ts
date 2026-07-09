@@ -3,6 +3,7 @@ import {
     scene,
     dog,
     setPlayerGroup,
+    setTrickRoot,
     setSkateboard,
     setDog,
     setTail,
@@ -16,7 +17,7 @@ export interface VoxelDogParts {
     tail: THREE.Mesh;
 }
 
-export function createVoxelDog(dogColor = PLAYER_COLORS[0], deckColor = 0xff5555): VoxelDogParts {
+export function createVoxelDog(dogColor: number = PLAYER_COLORS[0], deckColor = 0xff5555): VoxelDogParts {
     const group = new THREE.Group();
 
     const skateboard = new THREE.Group();
@@ -30,7 +31,7 @@ export function createVoxelDog(dogColor = PLAYER_COLORS[0], deckColor = 0xff5555
     const wheelGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.3, 8);
     wheelGeom.rotateZ(Math.PI / 2);
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.2 });
-    const wheelPositions = [
+    const wheelPositions: Array<[number, number, number]> = [
         [-0.7, 0.2, 1.2], [0.7, 0.2, 1.2],
         [-0.7, 0.2, -1.2], [0.7, 0.2, -1.2],
     ];
@@ -120,10 +121,13 @@ export function tintLocalDog(color: number) {
 }
 
 export function createPlayer() {
-    const { group, skateboard, dog: dogGroup, tail: tailMesh } = createVoxelDog();
-    scene.add(group);
+    const playerGroup = new THREE.Group();
+    const { group: trickRoot, skateboard, dog: dogGroup, tail: tailMesh } = createVoxelDog();
+    playerGroup.add(trickRoot);
+    scene.add(playerGroup);
 
-    setPlayerGroup(group);
+    setPlayerGroup(playerGroup);
+    setTrickRoot(trickRoot);
     setSkateboard(skateboard);
     setDog(dogGroup);
     setTail(tailMesh);

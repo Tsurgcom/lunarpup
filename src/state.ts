@@ -2,7 +2,17 @@ import * as THREE from 'three';
 import type { Mesh, Group, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import type { MultiplayerClient } from './net/client.ts';
 
-export const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+export const keys = {
+    w: false,
+    a: false,
+    s: false,
+    d: false,
+    q: false,
+    e: false,
+    f: false,
+    space: false,
+    shift: false,
+};
 
 export const physics = {
     speed: 0,
@@ -43,6 +53,7 @@ export let scene: Scene;
 export let camera: PerspectiveCamera;
 export let renderer: WebGLRenderer;
 export let playerGroup: Group;
+export let trickRoot: Group;
 export let skateboard: Group;
 export let dog: Group;
 export let tail: Mesh;
@@ -76,6 +87,7 @@ export function setScene(s: Scene) { scene = s; }
 export function setCamera(c: PerspectiveCamera) { camera = c; }
 export function setRenderer(r: WebGLRenderer) { renderer = r; }
 export function setPlayerGroup(g: Group) { playerGroup = g; }
+export function setTrickRoot(g: Group) { trickRoot = g; }
 export function setSkateboard(g: Group) { skateboard = g; }
 export function setDog(g: Group) { dog = g; }
 export function setTail(m: Mesh) { tail = m; }

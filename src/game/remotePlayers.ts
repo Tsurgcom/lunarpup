@@ -108,7 +108,7 @@ export function updateRemotePlayers(dt: number) {
             const time = Date.now() * 0.015;
             parts.tail.rotation.z = Math.sin(time + current.x) * 0.4;
             for (let i = 1; i < parts.skateboard.children.length; i++) {
-                parts.skateboard.children[i]!.rotation.x += current.speed * 2;
+                parts.skateboard.children[i]!.rotation.x += current.speed * 2 * dt * 60;
             }
         }
     }

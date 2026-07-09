@@ -23,6 +23,7 @@ import { updateSpeedLines } from '../ui/speedLines.ts';
 import { updateMinimap } from '../ui/minimap.ts';
 import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
+import { finishTrick, startTrick, updateTrick } from './tricks.ts';
 
 export function setupCameraControls() {
     const canvas = renderer.domElement;
@@ -79,9 +80,11 @@ function lerpAngle(a: number, b: number, t: number) {
     return a + delta * t;
 }
 
-function updateCamera() {
+function updateCamera(dt: number) {
+    const frameScale = dt * 60;
     if (!cameraControl.isDragging && Math.abs(physics.speed) > 0.03) {
-        cameraControl.yaw = lerpAngle(cameraControl.yaw, physics.heading + Math.PI, cameraControl.autoFollowStrength);
+        const followStrength = 1 - Math.pow(1 - cameraControl.autoFollowStrength, frameScale);
+        cameraControl.yaw = lerpAngle(cameraControl.yaw, physics.heading + Math.PI, followStrength);
     }
 
     const horizontalDistance = Math.cos(cameraControl.pitch) * cameraControl.distance;
@@ -95,7 +98,8 @@ function updateCamera() {
 
     scratch.targetCamPos.copy(playerGroup.position).add(scratch.camOffset);
 
-    const cameraLerp = keys.shift && keys.w ? 0.16 : 0.10;
+    const baseCameraLerp = keys.shift && keys.w ? 0.16 : 0.10;
+    const cameraLerp = 1 - Math.pow(1 - baseCameraLerp, frameScale);
     camera.position.lerp(scratch.targetCamPos, cameraLerp);
 
     scratch.lookTarget.copy(playerGroup.position);
@@ -104,62 +108,70 @@ function updateCamera() {
 
     const speedRatio = THREE.MathUtils.clamp(Math.abs(physics.speed) / (physics.maxSpeed * physics.boostMultiplier), 0, 1);
     const targetFov = THREE.MathUtils.lerp(physics.cameraBaseFov, physics.cameraMaxFov, Math.pow(speedRatio, 1.35));
-    camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, cameraControl.fovSmoothing);
+    const fovSmoothing = 1 - Math.pow(1 - cameraControl.fovSmoothing, frameScale);
+    camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, fovSmoothing);
     camera.updateProjectionMatrix();
 }
 
-function tiltBoardToTerrain() {
+function tiltBoardToTerrain(frameScale: number) {
     if (!physics.isGrounded) return;
     const speedLean = THREE.MathUtils.clamp(physics.speed / (physics.maxSpeed * physics.boostMultiplier), -1, 1);
     const turnLean = (keys.a ? 1 : 0) + (keys.d ? -1 : 0);
-    skateboard.rotation.x = THREE.MathUtils.lerp(skateboard.rotation.x, -speedLean * 0.05, physics.tiltSmoothing);
-    skateboard.rotation.z = THREE.MathUtils.lerp(skateboard.rotation.z, turnLean * 0.12, physics.tiltSmoothing);
+    const tiltSmoothing = 1 - Math.pow(1 - physics.tiltSmoothing, frameScale);
+    skateboard.rotation.x = THREE.MathUtils.lerp(skateboard.rotation.x, -speedLean * 0.05, tiltSmoothing);
+    skateboard.rotation.z = THREE.MathUtils.lerp(skateboard.rotation.z, turnLean * 0.12, tiltSmoothing);
 }
 
-function handlePhysics() {
-    if (keys.a) physics.heading += physics.rotationSpeed;
-    if (keys.d) physics.heading -= physics.rotationSpeed;
+function handlePhysics(dt: number) {
+    const frameScale = dt * 60;
+    if (keys.a) physics.heading += physics.rotationSpeed * frameScale;
+    if (keys.d) physics.heading -= physics.rotationSpeed * frameScale;
 
     const isBoosting = keys.shift && keys.w;
     const currentMaxSpeed = physics.maxSpeed * (isBoosting ? physics.boostMultiplier : 1);
     const currentAccel = physics.accel * (isBoosting ? physics.boostAccelMultiplier : 1);
 
     if (keys.w) {
-        physics.speed += currentAccel;
+        physics.speed += currentAccel * frameScale;
         if (physics.speed > currentMaxSpeed) physics.speed = currentMaxSpeed;
     } else if (keys.s) {
-        physics.speed -= physics.accel;
+        physics.speed -= physics.accel * frameScale;
         if (physics.speed < -physics.maxSpeed / 2) physics.speed = -physics.maxSpeed / 2;
     } else {
-        if (physics.speed > 0) physics.speed = Math.max(0, physics.speed - physics.decel);
-        if (physics.speed < 0) physics.speed = Math.min(0, physics.speed + physics.decel);
+        if (physics.speed > 0) physics.speed = Math.max(0, physics.speed - physics.decel * frameScale);
+        if (physics.speed < 0) physics.speed = Math.min(0, physics.speed + physics.decel * frameScale);
     }
 
     const targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
     if (physics.isGrounded) {
         const heightDelta = targetY - playerGroup.position.y;
-        playerGroup.position.y += heightDelta * physics.suspension;
+        const suspension = 1 - Math.pow(1 - physics.suspension, frameScale);
+        playerGroup.position.y += heightDelta * suspension;
         if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
         physics.velocity.y = 0;
         if (keys.space) {
             physics.velocity.y = physics.jumpForce;
             physics.isGrounded = false;
+            physics.airTime = 0;
+            startTrick();
         }
     } else {
-        physics.velocity.y -= physics.gravity;
-        playerGroup.position.y += physics.velocity.y;
+        physics.airTime += dt;
+        physics.velocity.y -= physics.gravity * frameScale;
+        playerGroup.position.y += physics.velocity.y * frameScale;
         if (playerGroup.position.y <= targetY) {
             playerGroup.position.y = targetY;
             physics.isGrounded = true;
+            finishTrick();
         }
     }
 
     scratch.forwardVector.set(Math.sin(physics.heading), 0, Math.cos(physics.heading));
-    playerGroup.position.addScaledVector(scratch.forwardVector, physics.speed);
+    playerGroup.position.addScaledVector(scratch.forwardVector, physics.speed * frameScale);
 
     updateTerrainChunks();
-    alignPlayerToTerrain();
-    tiltBoardToTerrain();
+    alignPlayerToTerrain(frameScale);
+    tiltBoardToTerrain(frameScale);
 
     const speedRatio = THREE.MathUtils.clamp(Math.abs(physics.speed) / (physics.maxSpeed * physics.boostMultiplier), 0, 1);
     updateSpeedLines(speedRatio, isBoosting);
@@ -178,8 +190,9 @@ export function startGameLoop() {
         const dt = Math.min((now - lastFrame) / 1000, 0.05);
         lastFrame = now;
 
-        handlePhysics();
-        updateCamera();
+        updateTrick(dt);
+        handlePhysics(dt);
+        updateCamera(dt);
         updateRemotePlayers(dt);
         updateMinimap();
 
@@ -200,7 +213,7 @@ export function startGameLoop() {
                 tail.rotation.z = Math.sin(time) * 0.4;
             }
             for (let i = 1; i < skateboard.children.length; i++) {
-                skateboard.children[i]!.rotation.x += physics.speed * 2;
+                skateboard.children[i]!.rotation.x += physics.speed * 2 * dt * 60;
             }
         }
         renderer.render(scene, camera);
