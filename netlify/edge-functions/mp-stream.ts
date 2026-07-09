@@ -6,6 +6,8 @@ export default async (request: Request, _context: Context) => {
     const url = new URL(request.url);
     const room = url.searchParams.get('room')?.trim();
     const playerId = url.searchParams.get('id')?.trim();
+    const sinceParam = url.searchParams.get('since');
+    const sinceTs = sinceParam ? Number(sinceParam) : 0;
 
     if (!room || !playerId) {
         return new Response('Missing room or id', { status: 400 });
@@ -14,7 +16,7 @@ export default async (request: Request, _context: Context) => {
     const encoder = new TextEncoder();
     const knownPlayers = new Map<string, { name: string; color: number }>();
     const lastFingerprints = new Map<string, string>();
-    let lastChatTs = 0;
+    let lastChatTs = Number.isFinite(sinceTs) && sinceTs > 0 ? sinceTs : 0;
 
     const body = new ReadableStream({
         start(controller) {

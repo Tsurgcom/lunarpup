@@ -32,6 +32,9 @@ export class MultiplayerClient {
     private connectTimeout: ReturnType<typeof setTimeout> | null = null;
     private closedByUser = false;
     private allowReconnect = true;
+    private lastChatSend = 0;
+    private lastChatTs = 0;
+    private seenChatKeys = new Set<string>();
 
     constructor(private options: MultiplayerClientOptions) {}
 
@@ -51,7 +54,7 @@ export class MultiplayerClient {
         this.setStatus('connecting');
 
         if (this.options.transport === 'http') {
-            void this.connectHttp();
+            void this.connectHttp(false);
             return;
         }
 
@@ -139,9 +142,13 @@ export class MultiplayerClient {
         this.sendRoomWs({ type: 'start_gamemode', roomId, playerId });
     }
 
-    sendChat(text: string) {
+    sendChat(text: string): boolean {
         const trimmed = text.trim().slice(0, 200);
-        if (!trimmed || !this.isConnected) return;
+        if (!trimmed || !this.isConnected) return false;
+
+        const now = Date.now();
+        if (now - this.lastChatSend < 1000) return false;
+        this.lastChatSend = now;
 
         if (this.options.transport === 'http') {
             void fetch(this.apiUrl(), {
@@ -154,10 +161,11 @@ export class MultiplayerClient {
                     text: trimmed,
                 } satisfies ClientMessage),
             });
-            return;
+            return true;
         }
 
         this.sendWs({ type: 'chat', text: trimmed });
+        return true;
     }
 
     private apiUrl() {
@@ -198,7 +206,22 @@ export class MultiplayerClient {
         });
     }
 
-    private async connectHttp() {
+    private async connectHttp(isReconnect = false) {
+        if (isReconnect && this.localId) {
+            await fetch(this.apiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'leave',
+                    room: this.options.room,
+                    id: this.localId,
+                } satisfies ClientMessage),
+            }).catch(() => undefined);
+            this.eventSource?.close();
+            this.eventSource = null;
+            this.localId = '';
+        }
+
         this.connectTimeout = setTimeout(() => {
             if (this.localId) return;
             this.failConnection('Multiplayer server unavailable');
@@ -230,7 +253,8 @@ export class MultiplayerClient {
             this.setStatus('connected');
             this.options.onWelcome?.(welcome.id, welcome.color, welcome.players);
 
-            const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}`;
+            const since = this.lastChatTs > 0 ? `&since=${this.lastChatTs}` : '';
+            const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}${since}`;
             this.eventSource = new EventSource(streamUrl);
 
             this.eventSource.onmessage = (event) => {
@@ -257,7 +281,7 @@ export class MultiplayerClient {
     private scheduleReconnect() {
         if (!this.allowReconnect) return;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = setTimeout(() => this.connect(), 2500);
+        this.reconnectTimer = setTimeout(() => { void this.connectHttp(true); }, 2500);
     }
 
     private clearConnectTimeout() {
@@ -309,17 +333,30 @@ export class MultiplayerClient {
                 this.options.onWelcome?.(msg.id, msg.color, msg.players);
                 break;
             case 'player_joined':
-                this.options.onPlayerJoined?.(msg.player);
+                if (msg.player.id !== this.localId) {
+                    this.options.onPlayerJoined?.(msg.player);
+                }
                 break;
             case 'player_left':
                 this.options.onPlayerLeft?.(msg.id);
                 break;
             case 'state':
-                this.options.onPlayerState?.(msg.id, msg.state);
+                if (msg.id !== this.localId) {
+                    this.options.onPlayerState?.(msg.id, msg.state);
+                }
                 break;
-            case 'chat':
+            case 'chat': {
+                const key = `${msg.id}:${msg.ts}:${msg.text}`;
+                if (this.seenChatKeys.has(key)) break;
+                this.seenChatKeys.add(key);
+                if (this.seenChatKeys.size > 200) {
+                    this.seenChatKeys.clear();
+                    this.seenChatKeys.add(key);
+                }
+                this.lastChatTs = Math.max(this.lastChatTs, msg.ts);
                 this.options.onChat?.(msg.id, msg.name, msg.text, msg.ts);
                 break;
+            }
             case 'room_list':
                 this.options.onRoomList?.(msg.rooms);
                 break;

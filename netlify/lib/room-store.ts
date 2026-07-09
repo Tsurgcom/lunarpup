@@ -5,6 +5,7 @@ import type { ChatMessage, PlayerSnapshot } from './protocol.ts';
 const STORE_NAME = 'lunarpup-mp';
 const PLAYER_TTL_MS = 45_000;
 const POLL_MS = 50;
+export const MAX_ROOM_PLAYERS = 32;
 
 export { POLL_MS };
 
@@ -14,6 +15,13 @@ interface RoomIndex {
 }
 
 type PlayerStateBlob = Omit<PlayerSnapshot, 'id' | 'name' | 'color'> & { lastSeen: number };
+
+export class RoomFullError extends Error {
+    constructor() {
+        super('Room is full');
+        this.name = 'RoomFullError';
+    }
+}
 
 function store() {
     return getStore({ name: STORE_NAME, consistency: 'strong' });
@@ -32,6 +40,8 @@ function chatKey(roomId: string) {
 }
 
 const MAX_CHAT_MESSAGES = 80;
+const CHAT_MIN_INTERVAL_MS = 1000;
+const CHAT_DEDUPE_WINDOW_MS = 3000;
 
 function sanitize(value: string) {
     return value.trim().slice(0, 64).replace(/[^a-zA-Z0-9_-]/g, '_') || DEFAULT_ROOM;
@@ -73,6 +83,10 @@ export async function joinRoom(roomId: string, name: string) {
     const index = await readIndex(room);
     await pruneStalePlayers(room, index);
 
+    if (Object.keys(index.players).length >= MAX_ROOM_PLAYERS) {
+        throw new RoomFullError();
+    }
+
     const id = crypto.randomUUID();
     const color = pickColor(index);
     const trimmedName = name.trim().slice(0, 24) || `Pup${Math.floor(Math.random() * 900 + 100)}`;
@@ -108,6 +122,8 @@ export async function updatePlayerState(
     const index = await readIndex(room);
     if (!index.players[playerId]) return false;
 
+    if (!isValidState(state)) return false;
+
     const blob: PlayerStateBlob = { ...state, lastSeen: Date.now() };
     await store().set(stateKey(room, playerId), JSON.stringify(blob));
     return true;
@@ -134,18 +150,26 @@ export async function appendChat(roomId: string, playerId: string, text: string)
     const trimmed = text.trim().slice(0, 200);
     if (!trimmed) return null;
 
-    const msg: ChatMessage = {
-        id: playerId,
-        name: index.players[playerId].name,
-        text: trimmed,
-        ts: Date.now(),
-    };
-
     const raw = await store().get(chatKey(room), { type: 'text' });
     let messages: ChatMessage[] = [];
     if (raw) {
         try { messages = JSON.parse(raw) as ChatMessage[]; } catch { messages = []; }
     }
+
+    const now = Date.now();
+    const lastFromPlayer = [...messages].reverse().find(m => m.id === playerId);
+    if (lastFromPlayer) {
+        if (now - lastFromPlayer.ts < CHAT_MIN_INTERVAL_MS) return null;
+        if (lastFromPlayer.text === trimmed && now - lastFromPlayer.ts < CHAT_DEDUPE_WINDOW_MS) return null;
+    }
+
+    const msg: ChatMessage = {
+        id: playerId,
+        name: index.players[playerId].name,
+        text: trimmed,
+        ts: now,
+    };
+
     messages.push(msg);
     if (messages.length > MAX_CHAT_MESSAGES) {
         messages = messages.slice(-MAX_CHAT_MESSAGES);
@@ -218,4 +242,14 @@ export function stateFingerprint(state: Omit<PlayerSnapshot, 'id' | 'name' | 'co
         state.heading, state.speed, state.isGrounded ? 1 : 0,
         state.boardTiltX, state.boardTiltZ,
     ].map(n => Number(n).toFixed(3)).join('|');
+}
+
+function isValidState(state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>) {
+    const numericValues = [
+        state.x, state.y, state.z,
+        state.qx, state.qy, state.qz, state.qw,
+        state.heading, state.speed,
+        state.boardTiltX, state.boardTiltZ,
+    ];
+    return numericValues.every(Number.isFinite) && typeof state.isGrounded === 'boolean';
 }

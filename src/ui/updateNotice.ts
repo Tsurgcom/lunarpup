@@ -4,6 +4,7 @@ const POLL_INTERVAL_MS = 60_000;
 
 let loadedBuildId: string | null = null;
 let bannerShown = false;
+let pollTimer: number | null = null;
 
 async function fetchBuildId(): Promise<string | null> {
     try {
@@ -26,7 +27,6 @@ function showUpdateBanner() {
         durationMs: null,
     });
 }
-
 async function checkForUpdate() {
     const remoteBuildId = await fetchBuildId();
     if (!remoteBuildId) return;
@@ -41,9 +41,21 @@ async function checkForUpdate() {
     }
 }
 
-export function setupUpdateNotice() {
+function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
     void checkForUpdate();
-    window.setInterval(() => {
+    pollTimer = window.setInterval(() => {
         void checkForUpdate();
     }, POLL_INTERVAL_MS);
+}
+
+export function bindUpdateNotice() {
+    startPolling();
+
+    return () => {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    };
 }

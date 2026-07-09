@@ -1,5 +1,5 @@
 import type { Config, Context } from '@netlify/functions';
-import { joinRoom, leaveRoom, updatePlayerState, appendChat } from '../lib/room-store.ts';
+import { joinRoom, leaveRoom, updatePlayerState, appendChat, RoomFullError } from '../lib/room-store.ts';
 import type { ClientMessage } from '../lib/protocol.ts';
 
 const CORS = {
@@ -71,6 +71,9 @@ export default async (req: Request, _context: Context) => {
                 return Response.json({ error: 'Unknown message type' }, { status: 400, headers: CORS });
         }
     } catch (err) {
+        if (err instanceof RoomFullError) {
+            return Response.json({ error: err.message }, { status: 409, headers: CORS });
+        }
         console.error('[mp]', err);
         return Response.json({ error: 'Server error' }, { status: 500, headers: CORS });
     }

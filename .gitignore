@@ -1,4 +1,5 @@
 dist
+*.log
 node_modules
 legacy
 .netlify

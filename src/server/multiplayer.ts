@@ -16,6 +16,7 @@ export interface PlayerConnection {
     room: string;
     ws: ServerWebSocket<PlayerConnection>;
     state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>;
+    lastChat?: { text: string; ts: number };
 }
 
 export interface Room {
@@ -110,17 +111,38 @@ function handleState(conn: PlayerConnection, msg: Extract<ClientMessage, { type:
     broadcast(room, { type: 'state', id: conn.id, state: msg.state }, conn.id);
 }
 
+/**
+ * Chat flood gate (pure, so the freeze contract is unit-testable). Drops a
+ * message when it arrives under 1s after the sender's previous one, or repeats
+ * the same text within 3s. `recent` is the sender's last accepted message.
+ */
+export function shouldDropChat(
+    recent: { text: string; ts: number } | undefined,
+    text: string,
+    now: number,
+): boolean {
+    if (!recent) return false;
+    if (now - recent.ts < 1000) return true;
+    if (recent.text === text && now - recent.ts < 3000) return true;
+    return false;
+}
+
 function handleChat(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 'chat' }>): void {
     const text = msg.text.trim().slice(0, 200);
     if (!text) return;
     const room = rooms.get(conn.room);
     if (!room) return;
+
+    const now = Date.now();
+    if (shouldDropChat(conn.lastChat, text, now)) return;
+    conn.lastChat = { text, ts: now };
+
     broadcast(room, {
         type: 'chat',
         id: conn.id,
         name: conn.name,
         text,
-        ts: Date.now(),
+        ts: now,
     });
 }
 

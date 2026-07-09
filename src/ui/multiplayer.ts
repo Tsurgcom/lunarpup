@@ -2,72 +2,50 @@ import type { RoomSummary } from '../contracts/roomProtocol.ts';
 import type { MultiplayerStatus } from '../net/client.ts';
 import { getApiBaseUrl } from '../net/protocol.ts';
 
-interface MultiplayerUIOptions {
-    enabled: boolean;
+export interface MultiplayerPanelOptions {
     room: string;
     name: string;
-    apiBase: string;
     wsUrl?: string | null;
     onJoinRoom: (roomId: string) => void;
 }
 
-let statusEl: HTMLDivElement | null = null;
-let playersEl: HTMLDivElement | null = null;
-let roomsEl: HTMLDivElement | null = null;
+export interface MultiplayerPanelBinding {
+    status: HTMLDivElement;
+    players: HTMLDivElement;
+    hint: HTMLDivElement;
+    rooms: HTMLDivElement;
+    refreshButton: HTMLButtonElement;
+    createForm: HTMLFormElement;
+    roomInput: HTMLInputElement;
+    gamemodeInput: HTMLSelectElement;
+    options: MultiplayerPanelOptions;
+}
+
+let activeBinding: MultiplayerPanelBinding | null = null;
 let selectedRoom = '';
-let uiOptions: MultiplayerUIOptions | null = null;
 
-export function setupMultiplayerUI(options?: MultiplayerUIOptions) {
-    uiOptions = options ?? null;
-    selectedRoom = options?.room ?? '';
+export function bindMultiplayerPanel(binding: MultiplayerPanelBinding) {
+    activeBinding = binding;
+    selectedRoom = binding.options.room;
 
-    const panel = document.createElement('div');
-    panel.id = 'multiplayer-panel';
-    panel.className = 'lp-panel lp-gameplay';
-    panel.innerHTML = `
-        <h2 class="lp-panel-title">Multiplayer</h2>
-        <div id="mp-status" class="mp-status mp-disconnected">Offline</div>
-        <div id="mp-players" class="mp-players"></div>
-        <div class="mp-lobby" aria-label="Room browser">
-            <div class="mp-lobby-header">
-                <strong>Rooms</strong>
-                <button id="mp-refresh" class="lp-button" type="button">Refresh</button>
-            </div>
-            <div id="mp-rooms" class="mp-rooms" role="list" aria-live="polite">Loading rooms…</div>
-            <form id="mp-create" class="mp-create">
-                <label>
-                    Room
-                    <input id="mp-room-id" class="lp-field" name="room" type="text" autocomplete="off" maxlength="32" placeholder="lunar-park">
-                </label>
-                <label>
-                    Gamemode
-                    <select id="mp-gamemode" class="lp-field" name="gamemode">
-                        <option value="free-skate">Free skate</option>
-                        <option value="checkpoint-race">Checkpoint race</option>
-                        <option value="trick-attack">Trick attack</option>
-                    </select>
-                </label>
-                <button class="lp-button lp-button-primary" type="submit">Create room</button>
-            </form>
-        </div>
-        <div class="mp-hint" id="mp-hint">Choose a room to join, or keep free-skate drop-in with <code>?multiplayer</code>.</div>
-    `;
-    document.body.appendChild(panel);
-    statusEl = panel.querySelector('#mp-status');
-    playersEl = panel.querySelector('#mp-players');
-    roomsEl = panel.querySelector('#mp-rooms');
-
-    panel.querySelector('#mp-refresh')?.addEventListener('click', () => void refreshRooms());
-    panel.querySelector('#mp-create')?.addEventListener('submit', (event) => {
+    const onRefresh = () => void refreshRooms();
+    const onSubmit = (event: Event) => {
         event.preventDefault();
-        const roomInput = panel.querySelector<HTMLInputElement>('#mp-room-id');
-        const gamemodeInput = panel.querySelector<HTMLSelectElement>('#mp-gamemode');
-        const roomId = roomInput?.value.trim() || 'lunar-park';
-        const gamemodeId = gamemodeInput?.value.trim() || 'free-skate';
+        const roomId = binding.roomInput.value.trim() || 'lunar-park';
+        const gamemodeId = binding.gamemodeInput.value.trim() || 'free-skate';
         void createRoom(roomId, gamemodeId);
-    });
+    };
+
+    binding.refreshButton.addEventListener('click', onRefresh);
+    binding.createForm.addEventListener('submit', onSubmit);
 
     void refreshRooms();
+
+    return () => {
+        binding.refreshButton.removeEventListener('click', onRefresh);
+        binding.createForm.removeEventListener('submit', onSubmit);
+        if (activeBinding === binding) activeBinding = null;
+    };
 }
 
 export function updateRoomBrowser(rooms: RoomSummary[]) {
@@ -75,12 +53,11 @@ export function updateRoomBrowser(rooms: RoomSummary[]) {
 }
 
 export function updateMultiplayerHint(html: string) {
-    const hint = document.getElementById('mp-hint');
-    if (hint) hint.innerHTML = html;
+    if (activeBinding) activeBinding.hint.innerHTML = html;
 }
 
 export function updateMultiplayerStatus(status: MultiplayerStatus, detail?: string, room?: string) {
-    if (!statusEl) return;
+    if (!activeBinding) return;
 
     const labels: Record<MultiplayerStatus, string> = {
         disconnected: 'Offline',
@@ -89,37 +66,40 @@ export function updateMultiplayerStatus(status: MultiplayerStatus, detail?: stri
         error: detail || 'Connection error',
     };
 
-    statusEl.textContent = status === 'error' && detail ? detail : labels[status];
-    statusEl.className = `mp-status mp-${status}`;
+    activeBinding.status.textContent = status === 'error' && detail ? detail : labels[status];
+    activeBinding.status.className = `mp-status mp-${status}`;
 }
 
 export function updateMultiplayerPlayers(localName: string, remoteNames: string[]) {
-    if (!playersEl) return;
+    if (!activeBinding) return;
+
     const all = [localName, ...remoteNames];
-    playersEl.textContent = all.length > 1
+    activeBinding.players.textContent = all.length > 1
         ? `${all.length} pups: ${all.join(', ')}`
         : `Just you (${localName})`;
 }
 
 async function refreshRooms() {
-    if (!roomsEl) return;
-    roomsEl.textContent = 'Loading rooms…';
+    if (!activeBinding) return;
+    const rooms = activeBinding.rooms;
+    rooms.textContent = 'Loading rooms…';
     try {
         const res = await fetch(roomHttpUrl());
         if (!res.ok) throw new Error(`Room list failed (${res.status})`);
         const body = await res.json() as { rooms?: RoomSummary[] };
         renderRooms(body.rooms ?? []);
     } catch {
-        roomsEl.innerHTML = '<div class="mp-empty">Room list unavailable. You can still use <code>?multiplayer</code> for free-skate drop-in.</div>';
+        rooms.innerHTML = '<div class="mp-empty">Room list unavailable. You can still use <code>?multiplayer</code> for free-skate drop-in.</div>';
     }
 }
 
 async function createRoom(roomId: string, gamemodeId: string) {
-    if (!uiOptions) return;
-    const target = uiOptions.wsUrl ?? `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
+    if (!activeBinding) return;
+    const options = activeBinding.options;
+    const target = options.wsUrl ?? `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
     const ws = new WebSocket(target);
     ws.addEventListener('open', () => {
-        ws.send(JSON.stringify({ channel: 'room', type: 'create_room', roomId, gamemodeId, playerId: uiOptions?.name ?? 'Pup' }));
+        ws.send(JSON.stringify({ channel: 'room', type: 'create_room', roomId, gamemodeId, playerId: options.name || 'Pup' }));
         ws.close();
         joinRoom(roomId);
     }, { once: true });
@@ -127,8 +107,9 @@ async function createRoom(roomId: string, gamemodeId: string) {
 }
 
 function roomHttpUrl() {
-    if (!uiOptions?.wsUrl) return `${getApiBaseUrl()}/rooms`;
-    const url = new URL(uiOptions.wsUrl);
+    const wsUrl = activeBinding?.options.wsUrl;
+    if (!wsUrl) return `${getApiBaseUrl()}/rooms`;
+    const url = new URL(wsUrl);
     url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
     url.pathname = '/rooms';
     url.search = '';
@@ -136,13 +117,14 @@ function roomHttpUrl() {
 }
 
 function renderRooms(rooms: RoomSummary[]) {
-    if (!roomsEl) return;
+    if (!activeBinding) return;
+    const container = activeBinding.rooms;
     if (rooms.length === 0) {
-        roomsEl.innerHTML = '<div class="mp-empty">No rooms yet. Create one or drop into free skate.</div>';
+        container.innerHTML = '<div class="mp-empty">No rooms yet. Create one or drop into free skate.</div>';
         return;
     }
 
-    roomsEl.replaceChildren(...rooms.map((room) => {
+    container.replaceChildren(...rooms.map((room) => {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = room.roomId === selectedRoom ? 'lp-button mp-room mp-room-selected' : 'lp-button mp-room';
@@ -154,7 +136,7 @@ function renderRooms(rooms: RoomSummary[]) {
 
 function joinRoom(roomId: string) {
     selectedRoom = roomId;
-    uiOptions?.onJoinRoom(roomId);
+    activeBinding?.options.onJoinRoom(roomId);
 }
 
 function escapeHtml(value: string) {

@@ -12,18 +12,25 @@ let heightCache: Float32Array | null = null;
 let cacheCenterX = NaN;
 let cacheCenterZ = NaN;
 
-export function setupMinimap() {
-    const panel = document.createElement('div');
-    panel.id = 'minimap-panel';
-    panel.className = 'lp-panel lp-gameplay';
-    panel.innerHTML = '<h2 class="lp-panel-title">Map</h2>';
-    canvas = document.createElement('canvas');
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    canvas.className = 'minimap-canvas';
-    panel.appendChild(canvas);
-    document.body.appendChild(panel);
-    ctx = canvas.getContext('2d');
+export function bindMinimapCanvas(nextCanvas: HTMLCanvasElement) {
+    const nextContext = nextCanvas.getContext('2d');
+    if (!nextContext) return () => {};
+
+    canvas = nextCanvas;
+    ctx = nextContext;
+    heightCache = null;
+    cacheCenterX = NaN;
+    cacheCenterZ = NaN;
+
+    return () => {
+        if (canvas !== nextCanvas) return;
+
+        canvas = null;
+        ctx = null;
+        heightCache = null;
+        cacheCenterX = NaN;
+        cacheCenterZ = NaN;
+    };
 }
 
 export function updateMinimap() {

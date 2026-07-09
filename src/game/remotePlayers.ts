@@ -18,7 +18,18 @@ function deckColorFromDog(dogColor: number): number {
     return new THREE.Color(dogColor).multiplyScalar(0.55).getHex();
 }
 
-export function addRemotePlayer(player: PlayerSnapshot) {
+function disposeRemoteParts(parts: ReturnType<typeof createVoxelDog>) {
+    parts.group.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const { material } = object;
+        if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+        else material.dispose();
+    });
+}
+
+export function addRemotePlayer(player: PlayerSnapshot, localId = '') {
+    if (localId && player.id === localId) return;
     if (remotePlayers.has(player.id)) return;
 
     const parts = createVoxelDog(player.color, deckColorFromDog(player.color));
@@ -42,6 +53,7 @@ export function removeRemotePlayer(id: string) {
     const remote = remotePlayers.get(id);
     if (!remote) return;
     scene.remove(remote.parts.group);
+    disposeRemoteParts(remote.parts);
     remotePlayers.delete(id);
 }
 
