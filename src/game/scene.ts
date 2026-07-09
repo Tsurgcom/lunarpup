@@ -8,21 +8,29 @@ import {
     renderer,
 } from '../state.ts';
 
-export function initScene(container: HTMLElement) {
-    const s = new THREE.Scene();
+export type SceneHost = {
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    renderer: THREE.WebGLRenderer;
+};
+
+export function initScene(container?: HTMLElement, host?: SceneHost) {
+    const s = host?.scene ?? new THREE.Scene();
     s.background = new THREE.Color(0x020208);
     s.fog = new THREE.FogExp2(0x020208, 0.0018);
     setScene(s);
 
-    const cam = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2500);
+    const cam = host?.camera ?? new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2500);
     setCamera(cam);
 
-    const r = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    r.setSize(window.innerWidth, window.innerHeight);
-    r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const r = host?.renderer ?? new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    if (!host) {
+        r.setSize(window.innerWidth, window.innerHeight);
+        r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
-    container.appendChild(r.domElement);
+    if (!host && container) container.appendChild(r.domElement);
     setRenderer(r);
 
     setupLighting();

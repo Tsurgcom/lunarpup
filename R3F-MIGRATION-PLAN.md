@@ -43,6 +43,8 @@ Goal: create React infrastructure without using it to rewrite the game.
 - [x] Keep current Bun entrypoint working.
 - [x] Add separate `dev:r3f` and `build:r3f` entrypoints.
 - [x] Render a blank R3F `<Canvas>` through `index.r3f.html`.
+- [x] Add optional R3F renderer host adapter without changing vanilla bootstrap behavior.
+- [x] Add R3F external frame-step adapter for existing physics, terrain, camera, UI, and multiplayer systems.
 - [ ] Confirm vanilla game still runs unchanged in browser. Production build passes after upstream sync; browser smoke test remains pending.
 - [ ] Do not move terrain, player, physics, UI, or network code yet.
 
@@ -53,15 +55,15 @@ Exit gate: vanilla mode screenshot, controls, multiplayer, and production build 
 Goal: let R3F own Canvas/renderer lifecycle while existing systems still own game behavior.
 
 - [ ] Create `src/r3f/App.tsx` and `src/r3f/GameCanvas.tsx`.
-- [ ] Configure Canvas renderer settings to match current Three.js renderer.
+- [x] Configure Canvas renderer settings to match current Three.js renderer.
 - [ ] Preserve antialiasing, pixel ratio cap, color space, tone mapping, shadows, fog, and camera defaults.
-- [ ] Pass R3F scene, camera, and renderer references into an adapter.
-- [ ] Replace manual `renderer.render()` with R3F's render loop only after frame output matches.
+- [x] Pass R3F scene, camera, and renderer references into an adapter.
+- [x] Replace manual `renderer.render()` with R3F's render loop for R3F mode; vanilla mode retains manual rendering.
 - [ ] Move resize ownership to R3F; retain camera aspect/FOV behavior.
 - [ ] Keep existing imperative game modules behind `src/compat/legacyGameAdapter.ts`.
 - [ ] Add cleanup for event listeners, timers, WebSocket connections, geometries, and materials.
 
-Exit gate: screenshot diff and control replay show no meaningful visual or gameplay change.
+Exit gate: screenshot diff and control replay show no meaningful visual or gameplay change. Current status: vanilla build passes; R3F adapter builds; browser parity test pending.
 
 ## Phase 3: migrate scene systems one at a time
 

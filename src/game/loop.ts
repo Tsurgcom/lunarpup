@@ -253,7 +253,35 @@ function handlePhysics(dt: number) {
     }
 }
 
-export function startGameLoop() {
+export function stepGameFrame(dt = 1 / 60) {
+    updateTrick(dt);
+    handlePhysics(dt);
+    updateCamera(dt);
+    updateRemotePlayers(dt);
+    updateMinimap();
+
+    if (multiplayerClient?.isConnected) {
+        multiplayerClient.sendState(buildLocalSnapshot(
+            playerGroup,
+            physics.heading,
+            physics.speed,
+            physics.isGrounded,
+            skateboard.rotation.x,
+            skateboard.rotation.z,
+        ));
+    }
+
+    if (Math.abs(physics.speed) > 0.05) {
+        const time = Date.now() * 0.015;
+        if (tail) tail.rotation.z = Math.sin(time) * 0.4;
+        for (let i = 1; i < skateboard.children.length; i++) {
+            skateboard.children[i]!.rotation.x += physics.speed * 2 * dt * 60;
+        }
+    }
+}
+
+export function startGameLoop(options: { externalRenderLoop?: boolean } = {}) {
+    if (options.externalRenderLoop) return;
     let lastFrame = performance.now();
 
     function animate() {
@@ -262,32 +290,7 @@ export function startGameLoop() {
         const dt = Math.min((now - lastFrame) / 1000, 0.05);
         lastFrame = now;
 
-        updateTrick(dt);
-        handlePhysics(dt);
-        updateCamera(dt);
-        updateRemotePlayers(dt);
-        updateMinimap();
-
-        if (multiplayerClient?.isConnected) {
-            multiplayerClient.sendState(buildLocalSnapshot(
-                playerGroup,
-                physics.heading,
-                physics.speed,
-                physics.isGrounded,
-                skateboard.rotation.x,
-                skateboard.rotation.z,
-            ));
-        }
-
-        if (Math.abs(physics.speed) > 0.05) {
-            const time = Date.now() * 0.015;
-            if (tail) {
-                tail.rotation.z = Math.sin(time) * 0.4;
-            }
-            for (let i = 1; i < skateboard.children.length; i++) {
-                skateboard.children[i]!.rotation.x += physics.speed * 2 * dt * 60;
-            }
-        }
+        stepGameFrame(dt);
         renderer.render(scene, camera);
     }
 

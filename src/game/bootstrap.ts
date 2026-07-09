@@ -2,9 +2,11 @@ import { groundClearance } from '../config.ts';
 import { physics, playerGroup, setSpeedLines } from '../state.ts';
 import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
 
-export async function bootstrap() {
-    const container = document.getElementById('canvas-container');
-    if (!container) throw new Error('Missing #canvas-container');
+import type { SceneHost } from './scene.ts';
+
+export async function bootstrap(options: { r3fHost?: SceneHost } = {}) {
+    const container = options.r3fHost ? undefined : document.getElementById('canvas-container');
+    if (!options.r3fHost && !container) throw new Error('Missing #canvas-container');
 
     const mpConfig = getMultiplayerConfig();
 
@@ -36,7 +38,7 @@ export async function bootstrap() {
         import('../ui/updateNotice.ts'),
     ]);
 
-    initScene(container);
+    initScene(container ?? undefined, options.r3fHost);
     initTerrain();
     createPlayer();
     bindInput();
@@ -74,5 +76,5 @@ export async function bootstrap() {
 
     window.addEventListener('resize', onWindowResize);
 
-    startGameLoop();
+    startGameLoop({ externalRenderLoop: Boolean(options.r3fHost) });
 }
