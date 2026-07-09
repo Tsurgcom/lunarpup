@@ -1,5 +1,6 @@
 dist
 dist-r3f
+dist-vanilla
 *.log
 node_modules
 legacy

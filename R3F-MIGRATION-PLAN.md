@@ -47,6 +47,7 @@ Goal: create React infrastructure without using it to rewrite the game.
 - [x] Add R3F external frame-step adapter for existing physics, terrain, camera, UI, and multiplayer systems.
 - [x] Make R3F the default `index.html` entry.
 - [x] Preserve exact pre-migration shell as `index.vanilla.html` with `dev:vanilla` and `build:vanilla` fallback commands.
+- [x] TypeScript check passes after fixing upstream Bun/Three strictness errors.
 - [ ] Confirm vanilla game still runs unchanged in browser. Production build passes after upstream sync; browser smoke test remains pending.
 - [ ] Do not move terrain, player, physics, UI, or network code yet.
 
