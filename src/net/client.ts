@@ -50,7 +50,7 @@ export class MultiplayerClient {
         this.setStatus('connecting');
 
         if (this.options.transport === 'http') {
-            void this.connectHttp();
+            void this.connectHttp(false);
             return;
         }
 
@@ -182,7 +182,22 @@ export class MultiplayerClient {
         });
     }
 
-    private async connectHttp() {
+    private async connectHttp(isReconnect = false) {
+        if (isReconnect && this.localId) {
+            await fetch(this.apiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'leave',
+                    room: this.options.room,
+                    id: this.localId,
+                } satisfies ClientMessage),
+            }).catch(() => undefined);
+            this.eventSource?.close();
+            this.eventSource = null;
+            this.localId = '';
+        }
+
         this.connectTimeout = setTimeout(() => {
             if (this.localId) return;
             this.failConnection('Multiplayer server unavailable');
@@ -242,7 +257,7 @@ export class MultiplayerClient {
     private scheduleReconnect() {
         if (!this.allowReconnect) return;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = setTimeout(() => this.connect(), 2500);
+        this.reconnectTimer = setTimeout(() => { void this.connectHttp(true); }, 2500);
     }
 
     private clearConnectTimeout() {
@@ -288,13 +303,17 @@ export class MultiplayerClient {
                 this.options.onWelcome?.(msg.id, msg.color, msg.players);
                 break;
             case 'player_joined':
-                this.options.onPlayerJoined?.(msg.player);
+                if (msg.player.id !== this.localId) {
+                    this.options.onPlayerJoined?.(msg.player);
+                }
                 break;
             case 'player_left':
                 this.options.onPlayerLeft?.(msg.id);
                 break;
             case 'state':
-                this.options.onPlayerState?.(msg.id, msg.state);
+                if (msg.id !== this.localId) {
+                    this.options.onPlayerState?.(msg.id, msg.state);
+                }
                 break;
             case 'chat': {
                 const key = `${msg.id}:${msg.ts}:${msg.text}`;
