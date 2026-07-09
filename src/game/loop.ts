@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import {
     renderer,
     camera,
-    scene,
     playerGroup,
     physics,
     keys,
@@ -18,7 +17,6 @@ import {
     getTerrainNormal,
     getHeightAboveTerrain,
     getRenderedTerrainChunkCount,
-    updateTerrainChunks,
     alignPlayerToTerrain,
 } from './terrain.ts';
 import { updateSpeedLines } from '../ui/speedLines.ts';
@@ -243,7 +241,6 @@ function handlePhysics(dt: number) {
         physics.velocity.set(0, 0, 0);
     }
 
-    updateTerrainChunks();
     alignPlayerToTerrain(frameScale);
     tiltBoardToTerrain(frameScale);
 
@@ -279,19 +276,6 @@ export function stepGameFrame(dt = 1 / 60, options: { updateCamera?: boolean } =
     }
 }
 
-export function startGameLoop(options: { externalRenderLoop?: boolean } = {}) {
-    if (options.externalRenderLoop) return;
-    let lastFrame = performance.now();
-
-    function animate() {
-        requestAnimationFrame(animate);
-        const now = performance.now();
-        const dt = Math.min((now - lastFrame) / 1000, 0.05);
-        lastFrame = now;
-
-        stepGameFrame(dt);
-        renderer.render(scene, camera);
-    }
-
-    animate();
+export function startGameLoop() {
+    // R3F owns the render loop via useFrame in GameCanvas.
 }

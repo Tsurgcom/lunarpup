@@ -78,7 +78,6 @@ function GameHost() {
     return (
         <Canvas
             camera={{ fov: 60, near: 0.1, far: 2500 }}
-            fallback={<WebGLFallback />}
             gl={{ antialias: true, powerPreference: 'high-performance' }}
             dpr={[1, 2]}
             shadows

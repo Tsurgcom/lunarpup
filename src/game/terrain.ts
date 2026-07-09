@@ -1,16 +1,10 @@
-import * as THREE from 'three';
-import { chunkSize, terrainViewDistance } from '../config.ts';
-import { calculateTerrainHeight } from './terrainMath.ts';
 import {
-    scene,
-    terrainChunks,
-    terrainMaterials,
     playerGroup,
     physics,
     scratch,
-    setTerrainRoot,
-    terrainRoot,
 } from '../state.ts';
+import { chunkSize, terrainViewDistance } from '../config.ts';
+import { calculateTerrainHeight } from './terrainMath.ts';
 
 export type TerrainChunkDescriptor = {
     key: string;
@@ -20,51 +14,14 @@ export type TerrainChunkDescriptor = {
     segments: number;
 };
 
-let terrainPresentationMode: 'legacy' | 'r3f' = 'legacy';
 let r3fChunkCount = 0;
-
-export function setTerrainPresentationMode(mode: 'legacy' | 'r3f') {
-    terrainPresentationMode = mode;
-    if (mode === 'legacy') r3fChunkCount = 0;
-}
 
 export function setR3FTerrainChunkCount(count: number) {
     r3fChunkCount = count;
 }
 
 export function getRenderedTerrainChunkCount() {
-    return terrainPresentationMode === 'r3f' ? r3fChunkCount : terrainChunks.size;
-}
-
-export function initTerrain() {
-    disposeTerrain();
-    if (terrainPresentationMode === 'r3f') return;
-    const root = new THREE.Group();
-    setTerrainRoot(root);
-    scene.add(root);
-
-    terrainMaterials.near = new THREE.MeshStandardMaterial({
-        color: 0x7d8490,
-        roughness: 0.95,
-        metalness: 0.05,
-        flatShading: false,
-    });
-    terrainMaterials.mid = terrainMaterials.near.clone();
-    terrainMaterials.mid.color.setHex(0x737b86);
-    terrainMaterials.far = terrainMaterials.near.clone();
-    terrainMaterials.far.color.setHex(0x666e78);
-}
-
-export function disposeTerrain() {
-    for (const mesh of terrainChunks.values()) {
-        mesh.removeFromParent();
-        mesh.geometry.dispose();
-    }
-    terrainChunks.clear();
-
-    if (terrainRoot) terrainRoot.removeFromParent();
-    for (const material of Object.values(terrainMaterials)) material.dispose();
-    for (const key of Object.keys(terrainMaterials)) delete terrainMaterials[key];
+    return r3fChunkCount;
 }
 
 function chunkKey(cx: number, cz: number) {
@@ -93,72 +50,6 @@ export function getTerrainChunkPlan(x: number, z: number): TerrainChunkDescripto
     }
 
     return chunks;
-}
-
-function createTerrainChunk(cx: number, cz: number, lodName: string, chunkSegments: number) {
-    const geometry = new THREE.PlaneGeometry(chunkSize, chunkSize, chunkSegments, chunkSegments);
-    geometry.rotateX(-Math.PI / 2);
-
-    const originX = cx * chunkSize;
-    const originZ = cz * chunkSize;
-    const pos = geometry.attributes.position!;
-
-    for (let i = 0; i < pos.count; i++) {
-        const wx = originX + pos.getX(i);
-        const wz = originZ + pos.getZ(i);
-        pos.setY(i, calculateTerrainHeight(wx, wz));
-    }
-
-    geometry.computeVertexNormals();
-
-    const mesh = new THREE.Mesh(geometry, terrainMaterials[lodName]);
-    mesh.position.set(originX, 0, originZ);
-    mesh.receiveShadow = true;
-    mesh.castShadow = false;
-    mesh.userData.cx = cx;
-    mesh.userData.cz = cz;
-    mesh.userData.lodName = lodName;
-    terrainRoot.add(mesh);
-    return mesh;
-}
-
-export function updateTerrainChunks(force = false) {
-    if (!terrainRoot) return;
-    if (terrainPresentationMode === 'r3f') return;
-
-    const playerCx = Math.round(playerGroup.position.x / chunkSize);
-    const playerCz = Math.round(playerGroup.position.z / chunkSize);
-    const needed = new Set<string>();
-
-    for (let dz = -terrainViewDistance; dz <= terrainViewDistance; dz++) {
-        for (let dx = -terrainViewDistance; dx <= terrainViewDistance; dx++) {
-            const cx = playerCx + dx;
-            const cz = playerCz + dz;
-            const key = chunkKey(cx, cz);
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist > terrainViewDistance + 0.35) continue;
-
-            needed.add(key);
-            const lod = getChunkLod(dist);
-            const existing = terrainChunks.get(key);
-
-            if (!existing || existing.userData.lodName !== lod.lodName || force) {
-                if (existing) {
-                    terrainRoot.remove(existing);
-                    existing.geometry.dispose();
-                }
-                terrainChunks.set(key, createTerrainChunk(cx, cz, lod.lodName, lod.segments));
-            }
-        }
-    }
-
-    terrainChunks.forEach((mesh, key) => {
-        if (!needed.has(key)) {
-            terrainRoot.remove(mesh);
-            mesh.geometry.dispose();
-            terrainChunks.delete(key);
-        }
-    });
 }
 
 export { calculateTerrainHeight } from './terrainMath.ts';

@@ -33,20 +33,6 @@ export function bindMinimapCanvas(nextCanvas: HTMLCanvasElement) {
     };
 }
 
-export function setupMinimap() {
-    document.getElementById('minimap-panel')?.remove();
-    const panel = document.createElement('div');
-    panel.id = 'minimap-panel';
-    panel.innerHTML = '<h2>🗺️ Map</h2>';
-    canvas = document.createElement('canvas');
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    canvas.className = 'minimap-canvas';
-    panel.appendChild(canvas);
-    document.body.appendChild(panel);
-    bindMinimapCanvas(canvas);
-}
-
 export function updateMinimap() {
     if (!ctx || !canvas) return;
 

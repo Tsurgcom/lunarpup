@@ -9,11 +9,5 @@ export function bindSpeedHud(element: HTMLDivElement) {
 }
 
 export function updateSpeedHud(text: string) {
-    if (speedElement) {
-        speedElement.textContent = text;
-        return;
-    }
-
-    const fallback = document.getElementById('speedometer');
-    if (fallback) fallback.textContent = text;
+    if (speedElement) speedElement.textContent = text;
 }

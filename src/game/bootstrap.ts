@@ -1,68 +1,35 @@
 import { groundClearance } from '../config.ts';
-import { physics, playerGroup, setSpeedLines } from '../state.ts';
+import { physics, playerGroup } from '../state.ts';
 import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
 
 import type { SceneHost } from './scene.ts';
 import type { VoxelDogParts } from './player.ts';
 
-export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: VoxelDogParts } = {}) {
-    const container = options.r3fHost ? undefined : document.getElementById('canvas-container');
-    if (!options.r3fHost && !container) throw new Error('Missing #canvas-container');
-
+export async function bootstrap(options: { r3fHost: SceneHost; r3fPlayer: VoxelDogParts }) {
     const mpConfig = getMultiplayerConfig();
 
     const [
-        { initScene, onWindowResize },
-        { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain, setTerrainPresentationMode },
-        { createPlayer, bindPlayerParts },
+        { initScene },
+        { getTerrainHeight, alignPlayerToTerrain },
+        { bindPlayerParts },
         { setupCameraControls, startGameLoop },
-        { setupTuningPanel },
-        { setupSpeedLines },
-        { setupTrickUI },
-        { bindInput },
-        { setupMultiplayerUI, updateMultiplayerStatus, updateMultiplayerHint },
-        { setupMinimap },
-        { setupChatUI },
-        { setupUpdateNotice },
+        { updateMultiplayerStatus, updateMultiplayerHint },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
         import('./player.ts'),
         import('./loop.ts'),
-        import('../ui/tuning.ts'),
-        import('../ui/speedLines.ts'),
-        import('../ui/tricks.ts'),
-        import('./input.ts'),
         import('../ui/multiplayer.ts'),
-        import('../ui/minimap.ts'),
-        import('../ui/chat.ts'),
-        import('../ui/updateNotice.ts'),
     ]);
 
-    initScene(container ?? undefined, options.r3fHost);
-    setTerrainPresentationMode(options.r3fHost ? 'r3f' : 'legacy');
-    initTerrain();
-    if (options.r3fPlayer) bindPlayerParts(options.r3fPlayer);
-    else createPlayer();
-    const unbindInput = options.r3fHost ? undefined : bindInput();
+    initScene(options.r3fHost);
+    bindPlayerParts(options.r3fPlayer);
 
     playerGroup.position.set(0, getTerrainHeight(0, 0) + groundClearance, 0);
     physics.heading = 0;
-    updateTerrainChunks(true);
     alignPlayerToTerrain();
 
     const removeCameraControls = setupCameraControls();
-    // React owns migrated UI surfaces in the R3F entry. Keep vanilla
-    // self-contained while remaining legacy surfaces are migrated.
-    if (!options.r3fHost) {
-        setupTuningPanel();
-        setupTrickUI();
-        setupMultiplayerUI();
-        setupMinimap();
-        setupChatUI(mpConfig.enabled, mpConfig.name);
-        setSpeedLines(setupSpeedLines());
-        setupUpdateNotice();
-    }
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
@@ -81,15 +48,9 @@ export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: Voxe
         }
     }
 
-    // Canvas measures and resizes itself in R3F mode. The legacy renderer still
-    // needs its window listener until the temporary entry is removed.
-    if (!options.r3fHost) window.addEventListener('resize', onWindowResize);
-
-    startGameLoop({ externalRenderLoop: Boolean(options.r3fHost) });
+    startGameLoop();
 
     return () => {
-        unbindInput?.();
         removeCameraControls();
-        if (!options.r3fHost) window.removeEventListener('resize', onWindowResize);
     };
 }
