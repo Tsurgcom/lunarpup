@@ -27,6 +27,15 @@ import { updateMinimap } from '../ui/minimap.ts';
 import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
 import { finishTrick, startTrick, updateTrick } from './tricks.ts';
+import {
+    blendSuspensionOffset,
+    canCoyoteJump,
+    consumeJumpRequest,
+    shouldSnapToGround,
+    stepDriveSpeed,
+    stepHeading,
+    wantsJump,
+} from './playerPhysics.ts';
 
 export function setupCameraControls() {
     const canvas = renderer.domElement;
@@ -139,28 +148,12 @@ function tiltBoardToTerrain(frameScale: number) {
     skateboard.rotation.z = THREE.MathUtils.lerp(skateboard.rotation.z, turnLean * 0.12, tiltSmoothing);
 }
 
-const JUMP_BUFFER_MS = 150;
-const COYOTE_TIME_MS = 100;
-
-function wantsJump(now: number) {
-    if (keys.space) return true;
-    return jumpInput.queuedAt > 0 && now - jumpInput.queuedAt <= JUMP_BUFFER_MS;
-}
-
-function consumeJumpRequest() {
-    jumpInput.queuedAt = 0;
-}
-
-function canCoyoteJump() {
-    return !physics.isGrounded && physics.airTime * 1000 <= COYOTE_TIME_MS;
-}
-
 function applyJump() {
     const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z);
     physics.velocity.copy(normal).multiplyScalar(physics.jumpForce);
     physics.isGrounded = false;
     physics.airTime = 0;
-    consumeJumpRequest();
+    consumeJumpRequest(jumpInput);
     startTrick();
 }
 
@@ -180,39 +173,32 @@ function applySuspension(frameScale: number) {
     if (Math.abs(heightDelta) < 1e-6) return;
 
     const normal = getTerrainNormal(x, z);
-    if (heightAbove < groundClearance || Math.abs(heightDelta) > 18) {
+    if (shouldSnapToGround(heightAbove, heightDelta, groundClearance)) {
         playerGroup.position.addScaledVector(normal, heightDelta);
         return;
     }
 
-    const suspensionBlend = 1 - Math.pow(1 - physics.suspension, frameScale);
-    playerGroup.position.addScaledVector(normal, heightDelta * suspensionBlend);
+    playerGroup.position.addScaledVector(
+        normal,
+        blendSuspensionOffset(heightDelta, physics.suspension, frameScale),
+    );
 }
 
 function handlePhysics(dt: number) {
     const frameScale = dt * 60;
-    if (keys.a) physics.heading += physics.rotationSpeed * frameScale;
-    if (keys.d) physics.heading -= physics.rotationSpeed * frameScale;
+    physics.heading = stepHeading(physics.heading, physics.rotationSpeed, keys.a, keys.d, frameScale);
 
     const isBoosting = keys.shift && keys.w;
-    const currentMaxSpeed = physics.maxSpeed * (isBoosting ? physics.boostMultiplier : 1);
-    const currentAccel = physics.accel * (isBoosting ? physics.boostAccelMultiplier : 1);
-
-    if (keys.w) {
-        physics.speed += currentAccel * frameScale;
-        if (physics.speed > currentMaxSpeed) physics.speed = currentMaxSpeed;
-    } else if (keys.s) {
-        physics.speed -= physics.accel * frameScale;
-        if (physics.speed < -physics.maxSpeed / 2) physics.speed = -physics.maxSpeed / 2;
-    } else {
-        if (physics.speed > 0) physics.speed = Math.max(0, physics.speed - physics.decel * frameScale);
-        if (physics.speed < 0) physics.speed = Math.min(0, physics.speed + physics.decel * frameScale);
-    }
+    stepDriveSpeed(physics, {
+        forward: keys.w,
+        reverse: keys.s,
+        boosting: isBoosting,
+    }, frameScale);
 
     const now = performance.now();
 
     if (physics.isGrounded) {
-        if (wantsJump(now)) {
+        if (wantsJump({ spaceHeld: keys.space, queuedAt: jumpInput.queuedAt }, now)) {
             ensureGroundClearance();
             applyJump();
         } else {
@@ -221,7 +207,8 @@ function handlePhysics(dt: number) {
         }
     } else {
         physics.airTime += dt;
-        if (wantsJump(now) && canCoyoteJump()) {
+        if (wantsJump({ spaceHeld: keys.space, queuedAt: jumpInput.queuedAt }, now)
+            && canCoyoteJump(physics.isGrounded, physics.airTime)) {
             applyJump();
         }
     }
@@ -236,7 +223,7 @@ function handlePhysics(dt: number) {
         const velAlongNormal = physics.velocity.dot(normal);
 
         if (heightAbove <= groundClearance && velAlongNormal <= 0) {
-            if (wantsJump(now)) {
+            if (wantsJump({ spaceHeld: keys.space, queuedAt: jumpInput.queuedAt }, now)) {
                 ensureGroundClearance();
                 applyJump();
             } else {
