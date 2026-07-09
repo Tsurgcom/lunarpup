@@ -4,6 +4,7 @@ import { registerAgentEventsModule } from './server/agentEvents.ts';
 import { registerRoomsModule } from './server/rooms.ts';
 import { registerCosmeticsModule } from './server/cosmetics.ts';
 import { registerGamemodeModule } from './server/gamemodes.ts';
+import { registerLootboxModule } from './server/lootbox.ts';
 import { ModularRouter } from './server/router.ts';
 import { registerWalletModule } from './server/wallet.ts';
 
@@ -15,6 +16,7 @@ export function createServerRouter(): ModularRouter<PlayerConnection> {
     registerGamemodeModule(router);
     registerWalletModule(router);
     registerCosmeticsModule(router);
+    registerLootboxModule(router);
     return router;
 }
 
