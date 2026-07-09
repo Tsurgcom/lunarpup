@@ -17,7 +17,7 @@ const DEFAULT_TOP_UP = 1_000_000;
 const dbPath = process.env.LUNARPUP_DB ?? 'data/lunarpup.db';
 const [accountArg, amountArg] = process.argv.slice(2);
 
-const service = new SqliteCurrencyInventoryService({ dbPath });
+const service = new SqliteCurrencyInventoryService({ path: dbPath });
 
 function grantTo(accountId: string, amount: number): void {
     const balance = service.grant(accountId, amount, 'dev-grant faucet');
