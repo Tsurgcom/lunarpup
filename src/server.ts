@@ -53,6 +53,18 @@ function snapshotFrom(conn: PlayerConnection): EncryptedPlayerSnapshot {
     return { id: conn.id, color: conn.color, name: conn.name, state: conn.stateEnvelope, seq: conn.seq };
 }
 
+function pendingConnection(): PlayerConnection {
+    return {
+        id: '',
+        name: { iv: '', data: '' },
+        color: PLAYER_COLORS[0]!,
+        room: '',
+        ws: undefined as unknown as ServerWebSocket<PlayerConnection>,
+        stateEnvelope: { iv: '', data: '' },
+        seq: 0,
+    };
+}
+
 function send(ws: ServerWebSocket<PlayerConnection>, msg: ServerMessage) {
     ws.send(JSON.stringify(msg));
 }
@@ -132,22 +144,14 @@ const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 const server = Bun.serve<PlayerConnection>({
     port,
     fetch(req, server) {
-        if (server.upgrade(req)) return undefined;
+        if (server.upgrade(req, { data: pendingConnection() })) return undefined;
         return new Response('Lunar Pup multiplayer relay (E2E encrypted)', {
             headers: { 'Content-Type': 'text/plain' },
         });
     },
     websocket: {
         open(ws) {
-            ws.data = {
-                id: '',
-                name: { iv: '', data: '' },
-                color: PLAYER_COLORS[0]!,
-                room: '',
-                ws,
-                stateEnvelope: { iv: '', data: '' },
-                seq: 0,
-            };
+            ws.data.ws = ws;
         },
         message(ws, message) {
             const parsed = parseClientMessage(message);

@@ -43,8 +43,7 @@ export type MultiplayerTransport = 'ws' | 'http';
 
 export interface ChatMessage {
     id: string;
-    name: string;
-    text: string;
+    payload: EncryptedEnvelope;
     ts: number;
 }
 
@@ -72,53 +71,11 @@ export type ServerMessage =
     | { type: 'state'; id: string; seq: number; state: EncryptedEnvelope }
     | { type: 'chat'; id: string; ts: number; payload: EncryptedEnvelope };
 
-type ClientState = Extract<ClientMessage, { type: 'state' }>['state'];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function isOptionalString(value: unknown): value is string | undefined {
-    return value === undefined || typeof value === 'string';
-}
-
-function isClientState(value: unknown): value is ClientState {
-    if (!isRecord(value)) return false;
-
-    const numericFields: Array<keyof Omit<ClientState, 'isGrounded'>> = [
-        'x', 'y', 'z', 'qx', 'qy', 'qz', 'qw',
-        'heading', 'speed', 'boardTiltX', 'boardTiltZ',
-    ];
-
-    return numericFields.every((field) => Number.isFinite(value[field]))
-        && typeof value.isGrounded === 'boolean';
-}
-
 export function parseClientMessage(raw: string | Buffer): ClientMessage | null {
     try {
-        const msg: unknown = JSON.parse(typeof raw === 'string' ? raw : raw.toString());
-        if (!isRecord(msg)) return null;
-
-        switch (msg.type) {
-            case 'join':
-                return typeof msg.room === 'string' && typeof msg.name === 'string'
-                    ? { type: 'join', room: msg.room, name: msg.name }
-                    : null;
-            case 'state':
-                return isOptionalString(msg.room) && isOptionalString(msg.id) && isClientState(msg.state)
-                    ? { type: 'state', room: msg.room, id: msg.id, state: msg.state }
-                    : null;
-            case 'leave':
-                return isOptionalString(msg.room) && isOptionalString(msg.id)
-                    ? { type: 'leave', room: msg.room, id: msg.id }
-                    : null;
-            case 'chat':
-                return isOptionalString(msg.room) && isOptionalString(msg.id) && typeof msg.text === 'string'
-                    ? { type: 'chat', room: msg.room, id: msg.id, text: msg.text }
-                    : null;
-            default:
-                return null;
-        }
+        const msg = JSON.parse(typeof raw === 'string' ? raw : raw.toString()) as ClientMessage;
+        if (!msg || typeof msg !== 'object' || !('type' in msg)) return null;
+        return msg;
     } catch {
         return null;
     }
