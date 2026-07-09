@@ -20,6 +20,8 @@ let lastTpBroadcastAt = 0;
 const recentMessages: { text: string; at: number }[] = [];
 
 export function setupChatUI(mpEnabled: boolean, playerName: string) {
+    document.getElementById('chat-panel')?.remove();
+    window.removeEventListener('keydown', onKeyDown);
     localName = playerName;
 
     panel = document.createElement('div');

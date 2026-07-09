@@ -4,6 +4,7 @@ let statusEl: HTMLDivElement | null = null;
 let playersEl: HTMLDivElement | null = null;
 
 export function setupMultiplayerUI() {
+    document.getElementById('multiplayer-panel')?.remove();
     const panel = document.createElement('div');
     panel.id = 'multiplayer-panel';
     panel.innerHTML = `

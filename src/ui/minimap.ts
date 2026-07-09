@@ -13,6 +13,7 @@ let cacheCenterX = NaN;
 let cacheCenterZ = NaN;
 
 export function setupMinimap() {
+    document.getElementById('minimap-panel')?.remove();
     const panel = document.createElement('div');
     panel.id = 'minimap-panel';
     panel.innerHTML = '<h2>🗺️ Map</h2>';

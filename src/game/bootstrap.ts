@@ -3,8 +3,9 @@ import { physics, playerGroup, setSpeedLines } from '../state.ts';
 import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
 
 import type { SceneHost } from './scene.ts';
+import type { VoxelDogParts } from './player.ts';
 
-export async function bootstrap(options: { r3fHost?: SceneHost } = {}) {
+export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: VoxelDogParts } = {}) {
     const container = options.r3fHost ? undefined : document.getElementById('canvas-container');
     if (!options.r3fHost && !container) throw new Error('Missing #canvas-container');
 
@@ -13,7 +14,7 @@ export async function bootstrap(options: { r3fHost?: SceneHost } = {}) {
     const [
         { initScene, onWindowResize },
         { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain },
-        { createPlayer },
+        { createPlayer, bindPlayerParts },
         { setupCameraControls, startGameLoop },
         { setupTuningPanel },
         { setupSpeedLines },
@@ -40,15 +41,16 @@ export async function bootstrap(options: { r3fHost?: SceneHost } = {}) {
 
     initScene(container ?? undefined, options.r3fHost);
     initTerrain();
-    createPlayer();
-    bindInput();
+    if (options.r3fPlayer) bindPlayerParts(options.r3fPlayer);
+    else createPlayer();
+    const unbindInput = options.r3fHost ? undefined : bindInput();
 
     playerGroup.position.set(0, getTerrainHeight(0, 0) + groundClearance, 0);
     physics.heading = 0;
     updateTerrainChunks(true);
     alignPlayerToTerrain();
 
-    setupCameraControls();
+    const removeCameraControls = setupCameraControls();
     setSpeedLines(setupSpeedLines());
     setupTrickUI();
     setupTuningPanel();
@@ -79,4 +81,10 @@ export async function bootstrap(options: { r3fHost?: SceneHost } = {}) {
     if (!options.r3fHost) window.addEventListener('resize', onWindowResize);
 
     startGameLoop({ externalRenderLoop: Boolean(options.r3fHost) });
+
+    return () => {
+        unbindInput?.();
+        removeCameraControls();
+        if (!options.r3fHost) window.removeEventListener('resize', onWindowResize);
+    };
 }

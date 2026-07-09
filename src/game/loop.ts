@@ -30,16 +30,16 @@ import { finishTrick, startTrick, updateTrick } from './tricks.ts';
 export function setupCameraControls() {
     const canvas = renderer.domElement;
 
-    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+    const preventContextMenu = (event: MouseEvent) => event.preventDefault();
 
-    canvas.addEventListener('pointerdown', (event) => {
+    const onPointerDown = (event: PointerEvent) => {
         cameraControl.isDragging = true;
         cameraControl.lastX = event.clientX;
         cameraControl.lastY = event.clientY;
         canvas.setPointerCapture(event.pointerId);
-    });
+    };
 
-    canvas.addEventListener('pointermove', (event) => {
+    const onPointerMove = (event: PointerEvent) => {
         if (!cameraControl.isDragging) return;
 
         const dx = event.clientX - cameraControl.lastX;
@@ -53,7 +53,7 @@ export function setupCameraControls() {
             -0.2,
             1.25,
         );
-    });
+    };
 
     function stopDragging(event?: PointerEvent) {
         cameraControl.isDragging = false;
@@ -62,11 +62,7 @@ export function setupCameraControls() {
         }
     }
 
-    canvas.addEventListener('pointerup', stopDragging);
-    canvas.addEventListener('pointercancel', stopDragging);
-    canvas.addEventListener('pointerleave', stopDragging);
-
-    canvas.addEventListener('wheel', (event) => {
+    const onWheel = (event: WheelEvent) => {
         event.preventDefault();
         const zoomMultiplier = 1 + event.deltaY * cameraControl.zoomSensitivity;
         cameraControl.distance = THREE.MathUtils.clamp(
@@ -74,7 +70,25 @@ export function setupCameraControls() {
             cameraControl.minDistance,
             cameraControl.maxDistance,
         );
-    }, { passive: false });
+    };
+
+    canvas.addEventListener('contextmenu', preventContextMenu);
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', stopDragging);
+    canvas.addEventListener('pointercancel', stopDragging);
+    canvas.addEventListener('pointerleave', stopDragging);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+        canvas.removeEventListener('contextmenu', preventContextMenu);
+        canvas.removeEventListener('pointerdown', onPointerDown);
+        canvas.removeEventListener('pointermove', onPointerMove);
+        canvas.removeEventListener('pointerup', stopDragging);
+        canvas.removeEventListener('pointercancel', stopDragging);
+        canvas.removeEventListener('pointerleave', stopDragging);
+        canvas.removeEventListener('wheel', onWheel);
+    };
 }
 
 function lerpAngle(a: number, b: number, t: number) {

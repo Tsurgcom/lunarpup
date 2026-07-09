@@ -6,6 +6,7 @@ let resultEl: HTMLDivElement | null = null;
 let resultTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function setupTrickUI() {
+    document.getElementById('trick-hud')?.remove();
     const panel = document.createElement('div');
     panel.id = 'trick-hud';
     panel.innerHTML = `

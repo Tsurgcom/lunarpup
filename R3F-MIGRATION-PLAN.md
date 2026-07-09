@@ -64,11 +64,11 @@ Goal: R3F owns all static scene presentation.
 
 Goal: R3F owns local player presentation and camera rig; shared simulation stays frame-time mutable.
 
-- [ ] Create `Player` R3F component with board, animal, wheels, tail, shadows, and trick pose refs.
+- [x] Create `Player` R3F component with board, animal, wheels, tail, shadows, and trick pose refs.
 - [ ] Create camera rig component: follow, orbit drag, zoom, speed FOV.
-- [ ] Move input listeners into a lifecycle-safe React hook.
+- [x] Move keyboard input listeners into a lifecycle-safe React hook. Camera listeners now also clean up with runtime lifecycle.
 - [ ] Move player physics and tricks into isolated simulation module with tests.
-- [ ] Remove legacy player/camera/input ownership after control smoke test.
+- [ ] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering now belongs to R3F; camera math and physics still use transitional simulation modules.
 
 ## Phase 4: React UI and state boundaries
 

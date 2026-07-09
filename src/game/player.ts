@@ -12,9 +12,19 @@ import { PLAYER_COLORS } from '../net/protocol.ts';
 
 export interface VoxelDogParts {
     group: THREE.Group;
+    playerGroup?: THREE.Group;
     skateboard: THREE.Group;
     dog: THREE.Group;
     tail: THREE.Mesh;
+}
+
+export function bindPlayerParts(parts: VoxelDogParts) {
+    const { group, playerGroup, skateboard, dog: dogGroup, tail: tailMesh } = parts;
+    setPlayerGroup(playerGroup ?? group);
+    setTrickRoot(group);
+    setSkateboard(skateboard);
+    setDog(dogGroup);
+    setTail(tailMesh);
 }
 
 export function createVoxelDog(dogColor: number = PLAYER_COLORS[0], deckColor = 0xff5555): VoxelDogParts {
@@ -122,14 +132,9 @@ export function tintLocalDog(color: number) {
 }
 
 export function createPlayer() {
-    const playerGroup = new THREE.Group();
-    const { group: trickRoot, skateboard, dog: dogGroup, tail: tailMesh } = createVoxelDog();
-    playerGroup.add(trickRoot);
-    scene.add(playerGroup);
+    const parts = createVoxelDog();
+    scene.add(parts.group);
+    bindPlayerParts(parts);
 
-    setPlayerGroup(playerGroup);
-    setTrickRoot(trickRoot);
-    setSkateboard(skateboard);
-    setDog(dogGroup);
-    setTail(tailMesh);
+    return parts;
 }

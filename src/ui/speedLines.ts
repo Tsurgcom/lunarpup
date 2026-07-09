@@ -4,6 +4,7 @@ import { speedLines } from '../state.ts';
 export function setupSpeedLines() {
     const layer = document.getElementById('speed-lines');
     if (!layer) return [];
+    layer.replaceChildren();
 
     const lines: HTMLDivElement[] = [];
     const count = 46;

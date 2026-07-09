@@ -12,6 +12,7 @@ import {
 } from '../state.ts';
 
 export function initTerrain() {
+    disposeTerrain();
     const root = new THREE.Group();
     setTerrainRoot(root);
     scene.add(root);
@@ -26,6 +27,18 @@ export function initTerrain() {
     terrainMaterials.mid.color.setHex(0x737b86);
     terrainMaterials.far = terrainMaterials.near.clone();
     terrainMaterials.far.color.setHex(0x666e78);
+}
+
+export function disposeTerrain() {
+    for (const mesh of terrainChunks.values()) {
+        mesh.removeFromParent();
+        mesh.geometry.dispose();
+    }
+    terrainChunks.clear();
+
+    if (terrainRoot) terrainRoot.removeFromParent();
+    for (const material of Object.values(terrainMaterials)) material.dispose();
+    for (const key of Object.keys(terrainMaterials)) delete terrainMaterials[key];
 }
 
 function chunkKey(cx: number, cz: number) {
