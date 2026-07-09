@@ -1,102 +1,37 @@
 import { groundClearance } from '../config.ts';
-import { physics, playerGroup, setSpeedLines } from '../state.ts';
+import { physics, playerGroup, setMultiplayerClient } from '../state.ts';
 import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
 
-export async function bootstrap() {
-    const container = document.getElementById('canvas-container');
-    if (!container) throw new Error('Missing #canvas-container');
+import type { SceneHost } from './scene.ts';
+import type { VoxelDogParts } from './player.ts';
 
+export async function bootstrap(options: { r3fHost: SceneHost; r3fPlayer: VoxelDogParts }) {
     const mpConfig = getMultiplayerConfig();
 
     const [
-        { initScene, onWindowResize },
-        { initTerrain, getTerrainHeight, updateTerrainChunks, alignPlayerToTerrain },
-        { createPlayer },
+        { initScene },
+        { getTerrainHeight, alignPlayerToTerrain },
+        { bindPlayerParts },
         { setupCameraControls, startGameLoop },
-        { setupTuningPanel },
-        { setupSpeedLines },
-        { setupTrickUI },
-        { bindInput },
-        { setupMultiplayerUI, updateMultiplayerStatus, updateMultiplayerHint },
-        { setupMinimap },
-        { setupChatUI },
-        { setupUpdateNotice },
-        { setupExtensions },
-        { setupCosmeticsUI },
-        { setupGamemodeUI },
-        { setupMainMenu, setupMenuButton },
-        { setupPauseMenu },
-        { revealPanel },
-        { hasSeenMainMenu },
+        { updateMultiplayerStatus, updateMultiplayerHint },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
         import('./player.ts'),
         import('./loop.ts'),
-        import('../ui/tuning.ts'),
-        import('../ui/speedLines.ts'),
-        import('../ui/tricks.ts'),
-        import('./input.ts'),
         import('../ui/multiplayer.ts'),
-        import('../ui/minimap.ts'),
-        import('../ui/chat.ts'),
-        import('../ui/updateNotice.ts'),
-        import('../extensions/client.ts'),
-        import('../ui/cosmetics.ts'),
-        import('../modes/client.ts'),
-        import('../ui/mainMenu.ts'),
-        import('../ui/pauseMenu.ts'),
-        import('../ui/menuNav.ts'),
-        import('../ui/menuState.ts'),
     ]);
 
-    initScene(container);
-    initTerrain();
-    createPlayer();
-    bindInput();
+    initScene(options.r3fHost);
+    bindPlayerParts(options.r3fPlayer);
 
     playerGroup.position.set(0, getTerrainHeight(0, 0) + groundClearance, 0);
     physics.heading = 0;
-    updateTerrainChunks(true);
     alignPlayerToTerrain();
 
-    setupCameraControls();
-    setSpeedLines(setupSpeedLines());
-    setupTrickUI();
-    setupTuningPanel();
-    setupMultiplayerUI({
-        enabled: mpConfig.enabled,
-        room: mpConfig.room,
-        name: mpConfig.name,
-        apiBase: mpConfig.apiBase,
-        wsUrl: mpConfig.wsUrl,
-        onJoinRoom: (roomId) => {
-            const url = new URL(location.href);
-            url.searchParams.set('multiplayer', '');
-            url.searchParams.set('room', roomId);
-            if (!url.searchParams.has('name')) url.searchParams.set('name', mpConfig.name);
-            location.href = url.href;
-        },
-    });
-    setupMinimap();
-    setupChatUI(mpConfig.enabled, mpConfig.name);
-    setupCosmeticsUI();
-    setupUpdateNotice();
-    await setupExtensions();
-    setupGamemodeUI();
+    const removeCameraControls = setupCameraControls();
 
-    const mainMenu = setupMainMenu({
-        openRooms: () => revealPanel('multiplayer-panel'),
-        openCosmetics: () => revealPanel('cosmetics-panel'),
-        openSettings: () => revealPanel('tuning-panel'),
-    });
-    setupPauseMenu({
-        openSettings: () => revealPanel('tuning-panel'),
-        quitToMenu: () => mainMenu.show(),
-        canOpen: () => !mainMenu.isOpen(),
-    });
-    setupMenuButton(() => mainMenu.show());
-    if (!hasSeenMainMenu()) mainMenu.show();
+    let disposeMultiplayer: (() => void) | undefined;
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
@@ -108,14 +43,18 @@ export async function bootstrap() {
             );
         } else {
             const { initMultiplayer } = await import('./multiplayer.ts');
-            initMultiplayer(mpConfig);
+            disposeMultiplayer = initMultiplayer(mpConfig);
             if (mpConfig.transport === 'http') {
                 updateMultiplayerHint('Multiplayer runs on Netlify (SSE + Blobs). Share this URL with friends.');
             }
         }
     }
 
-    window.addEventListener('resize', onWindowResize);
-
     startGameLoop();
+
+    return () => {
+        removeCameraControls();
+        disposeMultiplayer?.();
+        setMultiplayerClient(null);
+    };
 }

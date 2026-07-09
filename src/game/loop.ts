@@ -6,24 +6,35 @@ import {
     playerGroup,
     physics,
     keys,
+    jumpInput,
     cameraControl,
     scratch,
-    terrainChunks,
     skateboard,
     tail,
     multiplayerClient,
 } from '../state.ts';
 import { groundClearance } from '../config.ts';
 import {
-    getTerrainHeight,
-    updateTerrainChunks,
+    getTerrainNormal,
+    getHeightAboveTerrain,
+    getRenderedTerrainChunkCount,
     alignPlayerToTerrain,
 } from './terrain.ts';
 import { updateSpeedLines } from '../ui/speedLines.ts';
+import { updateSpeedHud } from '../ui/speedHud.ts';
 import { updateMinimap } from '../ui/minimap.ts';
 import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
 import { finishTrick, startTrick, updateTrick } from './tricks.ts';
+import {
+    blendSuspensionOffset,
+    canCoyoteJump,
+    consumeJumpRequest,
+    shouldSnapToGround,
+    stepDriveSpeed,
+    stepHeading,
+    wantsJump,
+} from './playerPhysics.ts';
 import type { Gamemode, GamemodeRuntimeState } from '../contracts/gamemode.ts';
 import { runFrame } from './frame.ts';
 import { pauseController } from './pause.ts';
@@ -71,16 +82,16 @@ export function getCurrentGamemode(): Gamemode | null {
 export function setupCameraControls() {
     const canvas = renderer.domElement;
 
-    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+    const preventContextMenu = (event: MouseEvent) => event.preventDefault();
 
-    canvas.addEventListener('pointerdown', (event) => {
+    const onPointerDown = (event: PointerEvent) => {
         cameraControl.isDragging = true;
         cameraControl.lastX = event.clientX;
         cameraControl.lastY = event.clientY;
         canvas.setPointerCapture(event.pointerId);
-    });
+    };
 
-    canvas.addEventListener('pointermove', (event) => {
+    const onPointerMove = (event: PointerEvent) => {
         if (!cameraControl.isDragging) return;
 
         const dx = event.clientX - cameraControl.lastX;
@@ -94,7 +105,7 @@ export function setupCameraControls() {
             -0.2,
             1.25,
         );
-    });
+    };
 
     function stopDragging(event?: PointerEvent) {
         cameraControl.isDragging = false;
@@ -103,11 +114,7 @@ export function setupCameraControls() {
         }
     }
 
-    canvas.addEventListener('pointerup', stopDragging);
-    canvas.addEventListener('pointercancel', stopDragging);
-    canvas.addEventListener('pointerleave', stopDragging);
-
-    canvas.addEventListener('wheel', (event) => {
+    const onWheel = (event: WheelEvent) => {
         event.preventDefault();
         const zoomMultiplier = 1 + event.deltaY * cameraControl.zoomSensitivity;
         cameraControl.distance = THREE.MathUtils.clamp(
@@ -115,7 +122,25 @@ export function setupCameraControls() {
             cameraControl.minDistance,
             cameraControl.maxDistance,
         );
-    }, { passive: false });
+    };
+
+    canvas.addEventListener('contextmenu', preventContextMenu);
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', stopDragging);
+    canvas.addEventListener('pointercancel', stopDragging);
+    canvas.addEventListener('pointerleave', stopDragging);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+        canvas.removeEventListener('contextmenu', preventContextMenu);
+        canvas.removeEventListener('pointerdown', onPointerDown);
+        canvas.removeEventListener('pointermove', onPointerMove);
+        canvas.removeEventListener('pointerup', stopDragging);
+        canvas.removeEventListener('pointercancel', stopDragging);
+        canvas.removeEventListener('pointerleave', stopDragging);
+        canvas.removeEventListener('wheel', onWheel);
+    };
 }
 
 function lerpAngle(a: number, b: number, t: number) {
@@ -123,7 +148,7 @@ function lerpAngle(a: number, b: number, t: number) {
     return a + delta * t;
 }
 
-function updateCamera(dt: number) {
+export function updateCamera(dt: number) {
     const frameScale = dt * 60;
     if (!cameraControl.isDragging && Math.abs(physics.speed) > 0.03) {
         const followStrength = 1 - Math.pow(1 - cameraControl.autoFollowStrength, frameScale);
@@ -165,121 +190,157 @@ function tiltBoardToTerrain(frameScale: number) {
     skateboard.rotation.z = THREE.MathUtils.lerp(skateboard.rotation.z, turnLean * 0.12, tiltSmoothing);
 }
 
-function handlePhysics(dt: number) {
-    const frameScale = dt * 60;
-    if (keys.a) physics.heading += physics.rotationSpeed * frameScale;
-    if (keys.d) physics.heading -= physics.rotationSpeed * frameScale;
+function applyJump() {
+    const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z);
+    physics.velocity.copy(normal).multiplyScalar(physics.jumpForce);
+    physics.isGrounded = false;
+    physics.airTime = 0;
+    consumeJumpRequest(jumpInput);
+    startTrick();
+}
 
-    const isBoosting = keys.shift && keys.w;
-    const currentMaxSpeed = physics.maxSpeed * (isBoosting ? physics.boostMultiplier : 1);
-    const currentAccel = physics.accel * (isBoosting ? physics.boostAccelMultiplier : 1);
+function ensureGroundClearance() {
+    const { x, y, z } = playerGroup.position;
+    const heightAbove = getHeightAboveTerrain(x, y, z);
+    if (heightAbove < groundClearance) {
+        const normal = getTerrainNormal(x, z);
+        playerGroup.position.addScaledVector(normal, groundClearance - heightAbove);
+    }
+}
 
-    if (keys.w) {
-        physics.speed += currentAccel * frameScale;
-        if (physics.speed > currentMaxSpeed) physics.speed = currentMaxSpeed;
-    } else if (keys.s) {
-        physics.speed -= physics.accel * frameScale;
-        if (physics.speed < -physics.maxSpeed / 2) physics.speed = -physics.maxSpeed / 2;
-    } else {
-        if (physics.speed > 0) physics.speed = Math.max(0, physics.speed - physics.decel * frameScale);
-        if (physics.speed < 0) physics.speed = Math.min(0, physics.speed + physics.decel * frameScale);
+function applySuspension(frameScale: number) {
+    const { x, y, z } = playerGroup.position;
+    const heightAbove = getHeightAboveTerrain(x, y, z);
+    const heightDelta = groundClearance - heightAbove;
+    if (Math.abs(heightDelta) < 1e-6) return;
+
+    const normal = getTerrainNormal(x, z);
+    if (shouldSnapToGround(heightAbove, heightDelta, groundClearance)) {
+        playerGroup.position.addScaledVector(normal, heightDelta);
+        return;
     }
 
-    const targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
+    playerGroup.position.addScaledVector(
+        normal,
+        blendSuspensionOffset(heightDelta, physics.suspension, frameScale),
+    );
+}
+
+function handlePhysics(dt: number) {
+    const frameScale = dt * 60;
+    physics.heading = stepHeading(physics.heading, physics.rotationSpeed, keys.a, keys.d, frameScale);
+
+    const isBoosting = keys.shift && keys.w;
+    stepDriveSpeed(physics, {
+        forward: keys.w,
+        reverse: keys.s,
+        boosting: isBoosting,
+    }, frameScale);
+
+    const now = performance.now();
+
     if (physics.isGrounded) {
-        const heightDelta = targetY - playerGroup.position.y;
-        const suspension = 1 - Math.pow(1 - physics.suspension, frameScale);
-        playerGroup.position.y += heightDelta * suspension;
-        if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
-        physics.velocity.y = 0;
-        if (keys.space) {
-            physics.velocity.y = physics.jumpForce;
-            physics.isGrounded = false;
-            physics.airTime = 0;
-            startTrick();
+        if (wantsJump({ spaceHeld: keys.space, queuedAt: jumpInput.queuedAt }, now)) {
+            ensureGroundClearance();
+            applyJump();
+        } else {
+            applySuspension(frameScale);
+            physics.velocity.set(0, 0, 0);
         }
     } else {
         physics.airTime += dt;
+        if (wantsJump({ spaceHeld: keys.space, queuedAt: jumpInput.queuedAt }, now)
+            && canCoyoteJump(physics.isGrounded, physics.airTime)) {
+            applyJump();
+        }
+    }
+
+    if (!physics.isGrounded) {
         physics.velocity.y -= physics.gravity * frameScale;
-        playerGroup.position.y += physics.velocity.y * frameScale;
-        if (playerGroup.position.y <= targetY) {
-            playerGroup.position.y = targetY;
-            physics.isGrounded = true;
-            finishTrick();
+        playerGroup.position.addScaledVector(physics.velocity, frameScale);
+
+        const { x, y, z } = playerGroup.position;
+        const normal = getTerrainNormal(x, z);
+        const heightAbove = getHeightAboveTerrain(x, y, z);
+        const velAlongNormal = physics.velocity.dot(normal);
+
+        if (heightAbove <= groundClearance && velAlongNormal <= 0) {
+            if (wantsJump({ spaceHeld: keys.space, queuedAt: jumpInput.queuedAt }, now)) {
+                ensureGroundClearance();
+                applyJump();
+            } else {
+                playerGroup.position.addScaledVector(normal, groundClearance - heightAbove);
+                physics.isGrounded = true;
+                physics.velocity.set(0, 0, 0);
+                finishTrick();
+            }
         }
     }
 
     scratch.forwardVector.set(Math.sin(physics.heading), 0, Math.cos(physics.heading));
     playerGroup.position.addScaledVector(scratch.forwardVector, physics.speed * frameScale);
 
-    updateTerrainChunks();
+    if (physics.isGrounded) {
+        applySuspension(frameScale);
+        physics.velocity.set(0, 0, 0);
+    }
+
     alignPlayerToTerrain(frameScale);
     tiltBoardToTerrain(frameScale);
 
     const speedRatio = THREE.MathUtils.clamp(Math.abs(physics.speed) / (physics.maxSpeed * physics.boostMultiplier), 0, 1);
     updateSpeedLines(speedRatio, isBoosting);
-    const speedometer = document.getElementById('speedometer');
-    if (speedometer) {
-        speedometer.innerText = `${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${terrainChunks.size}`;
-    }
+    updateSpeedHud(`${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${getRenderedTerrainChunkCount()}`);
+}
+
+export function stepGameFrame(dt = 1 / 60, options: { updateCamera?: boolean } = {}) {
+    const doCamera = options.updateCamera ?? true;
+    runFrame(dt, pauseController.isPaused(), {
+        // Local simulation — frozen while a menu pauses the game.
+        stepLocal: (step) => {
+            updateTrick(step);
+            handlePhysics(step);
+
+            const loopState: GameLoopState = { playerGroup, physics, scene, skateboard };
+            for (const hook of updateHooks) hook(step, loopState);
+            if (currentGamemode) {
+                currentGamemode.state.elapsedMs += step * 1000;
+                void currentGamemode.gamemode.tick(step, currentGamemode.state);
+            }
+
+            if (Math.abs(physics.speed) > 0.05) {
+                const time = Date.now() * 0.015;
+                if (tail) tail.rotation.z = Math.sin(time) * 0.4;
+                for (let i = 1; i < skateboard.children.length; i++) {
+                    skateboard.children[i]!.rotation.x += physics.speed * 2 * step * 60;
+                }
+            }
+        },
+        // Presentation + network — always runs, so multiplayer never freezes.
+        // The R3F CameraRig also calls updateCamera each frame; here we only
+        // apply the menu orbit drift and, in non-R3F callers, the camera step.
+        present: (step) => {
+            if (menuOrbitActive && !menuOrbitReduced) {
+                cameraControl.yaw += MENU_ORBIT_SPEED * step;
+            }
+            if (doCamera) updateCamera(step);
+            updateRemotePlayers(step);
+            updateMinimap();
+
+            if (multiplayerClient?.isConnected) {
+                multiplayerClient.sendState(buildLocalSnapshot(
+                    playerGroup,
+                    physics.heading,
+                    physics.speed,
+                    physics.isGrounded,
+                    skateboard.rotation.x,
+                    skateboard.rotation.z,
+                ));
+            }
+        },
+    });
 }
 
 export function startGameLoop() {
-    let lastFrame = performance.now();
-
-    function animate() {
-        requestAnimationFrame(animate);
-        const now = performance.now();
-        const dt = Math.min((now - lastFrame) / 1000, 0.05);
-        lastFrame = now;
-
-        runFrame(dt, pauseController.isPaused(), {
-            // Local simulation — frozen while a menu pauses the game.
-            stepLocal: (step) => {
-                updateTrick(step);
-                handlePhysics(step);
-
-                const loopState: GameLoopState = { playerGroup, physics, scene, skateboard };
-                for (const hook of updateHooks) hook(step, loopState);
-                if (currentGamemode) {
-                    currentGamemode.state.elapsedMs += step * 1000;
-                    void currentGamemode.gamemode.tick(step, currentGamemode.state);
-                }
-
-                if (Math.abs(physics.speed) > 0.05) {
-                    const time = Date.now() * 0.015;
-                    if (tail) {
-                        tail.rotation.z = Math.sin(time) * 0.4;
-                    }
-                    for (let i = 1; i < skateboard.children.length; i++) {
-                        skateboard.children[i]!.rotation.x += physics.speed * 2 * step * 60;
-                    }
-                }
-            },
-            // Presentation + network — always runs, so multiplayer never freezes.
-            present: (step) => {
-                if (menuOrbitActive && !menuOrbitReduced) {
-                    cameraControl.yaw += MENU_ORBIT_SPEED * step;
-                }
-                updateCamera(step);
-                updateRemotePlayers(step);
-                updateMinimap();
-
-                if (multiplayerClient?.isConnected) {
-                    multiplayerClient.sendState(buildLocalSnapshot(
-                        playerGroup,
-                        physics.heading,
-                        physics.speed,
-                        physics.isGrounded,
-                        skateboard.rotation.x,
-                        skateboard.rotation.z,
-                    ));
-                }
-
-                renderer.render(scene, camera);
-            },
-        });
-    }
-
-    animate();
+    // R3F owns the render loop via useFrame in GameCanvas.
 }

@@ -1,6 +1,6 @@
 # Lunar Pup Skater 3D
 
-A Three.js moon-skating game with procedural chunked terrain (PCG LOD).
+A React Three Fiber moon-skating game with procedural chunked terrain (PCG LOD).
 
 Skate across the lunar surface, boost over procedural ridges, and land aerial
 spins and Moon Grabs for points. Optional WebSocket multiplayer synchronizes
@@ -77,14 +77,14 @@ bun run preview
 
 ```
 src/
-  main.ts              # Browser entry point
+  r3f-shell/           # React app, Canvas, declarative world/player/camera/terrain; main.tsx is the entry
   styles.css           # HUD, shop, lobby, lootbox, and leaderboard styles
   config.ts            # Game constants
   state.ts             # Shared runtime state
-  game/                # Scene, terrain, player, loop, input, tricks
+  game/                # Scene, terrain, player, loop, input, tricks, frame gating, gamemode tick
   modes/               # Runtime gamemode packages, sampling, and results UI
   net/                 # getApiBaseUrl(), WebSocket client, shared protocol
-  ui/                  # Tuning, speed lines, multiplayer, cosmetics
+  ui/                  # React-bound UI bridges: tuning, speed lines, multiplayer, cosmetics, menus
   contracts/           # Runtime-validated contracts and storage interfaces
   extensions/          # Generic client/server extension loaders
   cosmetics/           # Content-addressed cosmetic package registry
@@ -105,3 +105,7 @@ index.html             # HTML shell
 dist/                  # Build output (generated)
 legacy/                # Original saved HTML snapshot
 ```
+
+## Acknowledgments
+
+Thanks to **@dustydee** from the Hermes agent Discord server for feedback and inspiration.
