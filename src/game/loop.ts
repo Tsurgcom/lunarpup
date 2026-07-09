@@ -6,6 +6,7 @@ import {
     playerGroup,
     physics,
     keys,
+    jumpInput,
     cameraControl,
     scratch,
     terrainChunks,
@@ -122,6 +123,31 @@ function tiltBoardToTerrain(frameScale: number) {
     skateboard.rotation.z = THREE.MathUtils.lerp(skateboard.rotation.z, turnLean * 0.12, tiltSmoothing);
 }
 
+const JUMP_BUFFER_MS = 150;
+const COYOTE_TIME_MS = 100;
+
+function wantsJump(now: number) {
+    if (keys.space) return true;
+    return jumpInput.queuedAt > 0 && now - jumpInput.queuedAt <= JUMP_BUFFER_MS;
+}
+
+function consumeJumpRequest() {
+    jumpInput.queuedAt = 0;
+}
+
+function canCoyoteJump() {
+    return !physics.isGrounded && physics.airTime * 1000 <= COYOTE_TIME_MS;
+}
+
+function applyJump(frameScale: number) {
+    physics.velocity.y = physics.jumpForce;
+    playerGroup.position.y += physics.jumpForce * frameScale;
+    physics.isGrounded = false;
+    physics.airTime = 0;
+    consumeJumpRequest();
+    startTrick();
+}
+
 function handlePhysics(dt: number) {
     const frameScale = dt * 60;
     if (keys.a) physics.heading += physics.rotationSpeed * frameScale;
@@ -142,27 +168,34 @@ function handlePhysics(dt: number) {
         if (physics.speed < 0) physics.speed = Math.min(0, physics.speed + physics.decel * frameScale);
     }
 
+    const now = performance.now();
     const targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
+
     if (physics.isGrounded) {
-        const heightDelta = targetY - playerGroup.position.y;
-        const suspension = 1 - Math.pow(1 - physics.suspension, frameScale);
-        playerGroup.position.y += heightDelta * suspension;
-        if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
-        physics.velocity.y = 0;
-        if (keys.space) {
-            physics.velocity.y = physics.jumpForce;
-            physics.isGrounded = false;
-            physics.airTime = 0;
-            startTrick();
+        if (wantsJump(now)) {
+            applyJump(frameScale);
+        } else {
+            const heightDelta = targetY - playerGroup.position.y;
+            const suspensionBlend = 1 - Math.pow(1 - physics.suspension, frameScale);
+            playerGroup.position.y += heightDelta * suspensionBlend;
+            if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
+            physics.velocity.y = 0;
         }
     } else {
         physics.airTime += dt;
-        physics.velocity.y -= physics.gravity * frameScale;
-        playerGroup.position.y += physics.velocity.y * frameScale;
-        if (playerGroup.position.y <= targetY) {
-            playerGroup.position.y = targetY;
-            physics.isGrounded = true;
-            finishTrick();
+        if (wantsJump(now) && canCoyoteJump()) {
+            applyJump(frameScale);
+        } else {
+            physics.velocity.y -= physics.gravity * frameScale;
+            playerGroup.position.y += physics.velocity.y * frameScale;
+            if (playerGroup.position.y <= targetY) {
+                playerGroup.position.y = targetY;
+                physics.isGrounded = true;
+                finishTrick();
+                if (wantsJump(now)) {
+                    applyJump(frameScale);
+                }
+            }
         }
     }
 

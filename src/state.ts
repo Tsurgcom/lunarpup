@@ -14,6 +14,11 @@ export const keys = {
     shift: false,
 };
 
+/** Timestamp of the most recent space keydown; used for jump buffering. */
+export const jumpInput = {
+    queuedAt: 0,
+};
+
 export const physics = {
     speed: 0,
     maxSpeed: 0.8,
