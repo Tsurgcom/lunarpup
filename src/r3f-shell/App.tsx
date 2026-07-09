@@ -4,6 +4,9 @@ import { MinimapPanel } from './MinimapPanel.tsx';
 import { MultiplayerPanel } from './MultiplayerPanel.tsx';
 import { TrickHud } from './TrickHud.tsx';
 import { TuningPanel } from './TuningPanel.tsx';
+import { SpeedHud } from './SpeedHud.tsx';
+import { SpeedLines } from './SpeedLines.tsx';
+import { UpdateNotice } from './UpdateNotice.tsx';
 import { getMultiplayerConfig } from '../net/protocol.ts';
 import '../styles.css';
 import './shell.css';
@@ -30,8 +33,9 @@ export function App() {
             <MinimapPanel />
             <MultiplayerPanel />
             <ChatPanel multiplayerEnabled={multiplayer.enabled} playerName={multiplayer.name} />
-            <div id="speedometer">0.0 U/S  | chunks 0</div>
-            <div id="speed-lines" />
+            <SpeedHud />
+            <SpeedLines />
+            <UpdateNotice />
             <div id="canvas-container"><GameCanvas /></div>
         </main>
     );

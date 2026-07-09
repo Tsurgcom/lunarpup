@@ -22,6 +22,7 @@ import {
     alignPlayerToTerrain,
 } from './terrain.ts';
 import { updateSpeedLines } from '../ui/speedLines.ts';
+import { updateSpeedHud } from '../ui/speedHud.ts';
 import { updateMinimap } from '../ui/minimap.ts';
 import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
@@ -261,10 +262,7 @@ function handlePhysics(dt: number) {
 
     const speedRatio = THREE.MathUtils.clamp(Math.abs(physics.speed) / (physics.maxSpeed * physics.boostMultiplier), 0, 1);
     updateSpeedLines(speedRatio, isBoosting);
-    const speedometer = document.getElementById('speedometer');
-    if (speedometer) {
-        speedometer.innerText = `${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${getRenderedTerrainChunkCount()}`;
-    }
+    updateSpeedHud(`${(Math.abs(physics.speed) * 80).toFixed(1)} U/S${isBoosting ? '  BOOST' : ''}  | chunks ${getRenderedTerrainChunkCount()}`);
 }
 
 export function stepGameFrame(dt = 1 / 60, options: { updateCamera?: boolean } = {}) {
