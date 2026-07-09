@@ -1,0 +1,121 @@
+/*
+ * Lunar Pup design tokens — the shared visual language.
+ *
+ * Every panel, menu, and overlay draws its chrome, spacing, type, motion, and
+ * rarity colour from these custom properties instead of hand-repeating literals.
+ * Imported at the very top of styles.css so the variables resolve everywhere.
+ */
+
+:root {
+    /* -------- Panel chrome -------- */
+    --panel-bg: rgba(10, 14, 26, 0.72);
+    --panel-bg-strong: rgba(8, 12, 20, 0.92);
+    --panel-border-color: rgba(255, 255, 255, 0.14);
+    --panel-border: 1px solid var(--panel-border-color);
+    --panel-radius-sm: 8px;
+    --panel-radius: 12px;
+    --panel-radius-lg: 16px;
+    --panel-radius-pill: 999px;
+    --panel-blur: blur(12px);
+    --panel-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    --panel-shadow-sm: 0 8px 30px rgba(0, 0, 0, 0.3);
+
+    /* -------- Surfaces / fills -------- */
+    --surface-inset: rgba(0, 0, 0, 0.25);
+    --surface-raised: rgba(255, 255, 255, 0.07);
+    --surface-hover: rgba(255, 255, 255, 0.16);
+
+    /* -------- Ink (text) -------- */
+    --ink-primary: #f8fbff;
+    --ink-secondary: rgba(255, 255, 255, 0.72);
+    --ink-tertiary: rgba(255, 255, 255, 0.54);
+
+    /* -------- Accents -------- */
+    --accent-blue: #a0c4ff;
+    --accent-pink: #ffc6ff;
+    --accent-cyan: #4cc9f0;
+    --accent-green: #80ff72;
+    --accent-amber: #ffd166;
+
+    /* -------- Status -------- */
+    --status-ok: #80ff72;
+    --status-warn: #ffd166;
+    --status-error: #ff6b6b;
+    --status-idle: #adb5bd;
+
+    /* -------- Spacing scale (4px base) -------- */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-8: 48px;
+    --space-10: 64px;
+
+    /* -------- Typography -------- */
+    --font-ui: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    --fs-display: clamp(52px, 11vw, 132px);
+    --fs-title: clamp(26px, 4vw, 42px);
+    --fs-heading: 16px;
+    --fs-body: 13px;
+    --fs-small: 11px;
+    --fs-mono: 13px;
+
+    --fw-regular: 400;
+    --fw-medium: 600;
+    --fw-bold: 700;
+    --fw-black: 800;
+
+    --tracking-tight: -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.08em;
+    --tracking-wider: 0.22em;
+
+    --leading-tight: 1.08;
+    --leading-normal: 1.4;
+
+    /* -------- Motion -------- */
+    --dur-instant: 80ms;
+    --dur-fast: 140ms;
+    --dur-base: 240ms;
+    --dur-slow: 420ms;
+    --dur-slower: 680ms;
+
+    /* Expo-out — decisive entrances that settle softly. */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --stagger-step: 60ms;
+
+    /* -------- Rarity / status colour scale --------
+     * One scale consumed by cosmetics swatches and lootbox badges alike. */
+    --rarity-common: #d9f99d;
+    --rarity-rare: #93c5fd;
+    --rarity-epic: #d8b4fe;
+    --rarity-legendary: #fbbf24;
+    --rarity-common-glow: rgba(217, 249, 157, 0.4);
+    --rarity-rare-glow: rgba(147, 197, 253, 0.4);
+    --rarity-epic-glow: rgba(216, 180, 254, 0.4);
+    --rarity-legendary-glow: rgba(251, 191, 36, 0.45);
+
+    /* -------- Layering -------- */
+    --z-hud: 20;
+    --z-menu-button: 40;
+    --z-pause: 900;
+    --z-main-menu: 1000;
+}
+
+/* Tabular numerals for every value readout — numbers line up column-wise and
+ * never reflow as they tick. Opt-in via the shared helper class or the mono
+ * readouts the HUD already uses. */
+.lp-numeric,
+#trick-score,
+#speedometer,
+#gamemode-status,
+.slider-value,
+.mp-status {
+    font-variant-numeric: tabular-nums;
+}
