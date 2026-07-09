@@ -96,7 +96,7 @@ function lerpAngle(a: number, b: number, t: number) {
     return a + delta * t;
 }
 
-function updateCamera(dt: number) {
+export function updateCamera(dt: number) {
     const frameScale = dt * 60;
     if (!cameraControl.isDragging && Math.abs(physics.speed) > 0.03) {
         const followStrength = 1 - Math.pow(1 - cameraControl.autoFollowStrength, frameScale);
@@ -267,10 +267,10 @@ function handlePhysics(dt: number) {
     }
 }
 
-export function stepGameFrame(dt = 1 / 60) {
+export function stepGameFrame(dt = 1 / 60, options: { updateCamera?: boolean } = {}) {
     updateTrick(dt);
     handlePhysics(dt);
-    updateCamera(dt);
+    if (options.updateCamera ?? true) updateCamera(dt);
     updateRemotePlayers(dt);
     updateMinimap();
 

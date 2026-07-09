@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import type * as THREE from 'three';
 import { bootstrap } from '../game/bootstrap.ts';
 import { handleKeys } from '../game/input.ts';
 import { stepGameFrame } from '../game/loop.ts';
 import type { VoxelDogParts } from '../game/player.ts';
+import { CameraRig } from './CameraRig.tsx';
 import { Player } from './Player.tsx';
 import { WorldEnvironment } from './WorldEnvironment.tsx';
 
@@ -22,12 +24,11 @@ function useGameInput() {
     }, []);
 }
 
-function GameRuntime({ player }: { player: VoxelDogParts }) {
+function GameRuntime({ player, ready }: { player: VoxelDogParts; ready: MutableRefObject<boolean> }) {
     const { scene, camera, gl } = useThree();
     useFrame((_, delta) => {
-        if (ready.current) stepGameFrame(Math.min(delta, 0.05));
-    });
-    const ready = useRef(false);
+        if (ready.current) stepGameFrame(Math.min(delta, 0.05), { updateCamera: false });
+    }, -1);
 
     useGameInput();
 
@@ -58,13 +59,15 @@ function GameRuntime({ player }: { player: VoxelDogParts }) {
 
 function GameScene() {
     const [player, setPlayer] = useState<VoxelDogParts | null>(null);
+    const ready = useRef(false);
     const onPlayerReady = useCallback((parts: VoxelDogParts) => setPlayer(parts), []);
 
     return (
         <>
             <WorldEnvironment />
             <Player onReady={onPlayerReady} />
-            {player && <GameRuntime player={player} />}
+            {player && <GameRuntime player={player} ready={ready} />}
+            <CameraRig ready={ready} />
         </>
     );
 }
