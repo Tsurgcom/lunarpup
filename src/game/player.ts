@@ -17,7 +17,7 @@ export interface VoxelDogParts {
     tail: THREE.Mesh;
 }
 
-export function createVoxelDog(dogColor: number = PLAYER_COLORS[0], deckColor = 0xff5555): VoxelDogParts {
+export function createVoxelDog(dogColor: number = PLAYER_COLORS[0] ?? 0xffb703, deckColor: number = 0xff5555): VoxelDogParts {
     const group = new THREE.Group();
 
     const skateboard = new THREE.Group();

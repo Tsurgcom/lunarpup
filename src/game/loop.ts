@@ -24,6 +24,37 @@ import { updateMinimap } from '../ui/minimap.ts';
 import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
 import { finishTrick, startTrick, updateTrick } from './tricks.ts';
+import type { Gamemode, GamemodeRuntimeState } from '../contracts/gamemode.ts';
+
+export interface GameLoopState {
+    playerGroup: typeof playerGroup;
+    physics: typeof physics;
+    scene: typeof scene;
+    skateboard: typeof skateboard;
+}
+
+export type UpdateHook = (dt: number, state: GameLoopState) => void;
+
+const updateHooks = new Set<UpdateHook>();
+let currentGamemode: { gamemode: Gamemode; state: GamemodeRuntimeState } | null = null;
+
+export function registerUpdateHook(fn: UpdateHook): () => void {
+    updateHooks.add(fn);
+    return () => updateHooks.delete(fn);
+}
+
+export function setCurrentGamemode(gamemode: Gamemode | null, state?: GamemodeRuntimeState): void {
+    if (!gamemode) {
+        currentGamemode = null;
+        return;
+    }
+    if (!state) throw new Error('state is required when setting a gamemode');
+    currentGamemode = { gamemode, state };
+}
+
+export function getCurrentGamemode(): Gamemode | null {
+    return currentGamemode?.gamemode ?? null;
+}
 
 export function setupCameraControls() {
     const canvas = renderer.domElement;
@@ -195,6 +226,13 @@ export function startGameLoop() {
         updateCamera(dt);
         updateRemotePlayers(dt);
         updateMinimap();
+
+        const loopState: GameLoopState = { playerGroup, physics, scene, skateboard };
+        for (const hook of updateHooks) hook(dt, loopState);
+        if (currentGamemode) {
+            currentGamemode.state.elapsedMs += dt * 1000;
+            void currentGamemode.gamemode.tick(dt, currentGamemode.state);
+        }
 
         if (multiplayerClient?.isConnected) {
             multiplayerClient.sendState(buildLocalSnapshot(
