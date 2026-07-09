@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { speedLines } from '../state.ts';
 
 const LINE_COUNT = 46;
 
@@ -23,19 +22,17 @@ export function createSpeedLines(layer: HTMLElement): HTMLDivElement[] {
     return lines;
 }
 
-export function bindSpeedLinesLayer(layer: HTMLElement): HTMLDivElement[] {
-    return createSpeedLines(layer);
-}
-
-export function updateSpeedLines(speedRatio: number, isBoosting: boolean) {
-    const layer = document.getElementById('speed-lines');
-    if (!layer) return;
-
+export function updateSpeedLines(
+    lines: HTMLDivElement[],
+    layer: HTMLElement,
+    speedRatio: number,
+    isBoosting: boolean,
+) {
     const intensity = THREE.MathUtils.clamp((speedRatio - 0.36) / 0.64, 0, 1);
     layer.style.opacity = (isBoosting ? Math.max(0.45, intensity) : intensity * 0.72).toFixed(3);
 
     const pulse = performance.now() * (isBoosting ? 0.045 : 0.028);
-    speedLines.forEach((line, i) => {
+    lines.forEach((line, i) => {
         const angle = Number(line.dataset.angle);
         const radius = Number(line.dataset.radius) + ((pulse + i * 6) % 28);
         const length = Number(line.dataset.length) * (isBoosting ? 1.55 : 1.0);

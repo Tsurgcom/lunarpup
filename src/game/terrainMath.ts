@@ -1,5 +1,5 @@
 /**
- * Deterministic terrain sampling shared by legacy Three.js and R3F terrain
+ * Deterministic terrain sampling shared by simulation and R3F terrain
  * presentation. This module intentionally has no renderer or mutable state
  * dependencies so terrain shape can be tested independently.
  */

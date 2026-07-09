@@ -31,7 +31,8 @@ Target:
 - [x] Build, typecheck, and unit tests passed before latest upstream sync.
 - [x] Latest upstream production fixes rebased: slope-aware jumps, jump teleport/clipping fixes, contributing/deploy policy.
 - [x] Browser smoke test after latest upstream rebase: HUD, controls, tuning sliders, terrain chunks, tricks, multiplayer panel, minimap, and chat render; no console errors.
-- [ ] Transitional modules still own terrain-coupled physics integration, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels. Jump/drive/trick simulation logic now lives in tested `playerPhysics` and `trickSimulation` modules.
+- [x] Transitional modules still own terrain-coupled physics integration, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels. Jump/drive/trick simulation logic now lives in tested `playerPhysics` and `trickSimulation` modules.
+- [x] Legacy removal batch: deleted `state.ts`, `src/ui/*`, `bootstrap.ts`, `loop.ts`, `scene.ts`, imperative `player.ts`/`remotePlayers.ts`. Simulation lives in `game/simulation.ts` + `game/runtime.ts`; UI in `r3f-shell/` with `GameProvider`; remote players in `RemotePlayers.tsx`. Verified with `bun run typecheck`, `bun test` (34 passed), and `bun run build`.
 
 ## Phase 0: production reference capture
 
@@ -68,7 +69,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 - [x] Create R3F `CameraRig`: existing follow, orbit drag, zoom, and speed-FOV math now runs in R3F `useFrame` after simulation.
 - [x] Move keyboard input listeners into a lifecycle-safe React hook. Camera listeners now also clean up with runtime lifecycle.
 - [x] Move player physics and tricks into isolated simulation modules with tests. `trickSimulation.ts` owns airborne trick state/scoring; `playerPhysics.ts` owns jump buffer, coyote time, drive speed, heading, and suspension blending. Verified with `bun test` (33 passed), `bun run typecheck`, and `bun run build`.
-- [ ] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering belongs to R3F; `loop.ts` still integrates simulation with terrain and presentation.
+- [ ] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering belongs to R3F; simulation integration lives in `simulation.ts` via `GameProvider`.
 
 ## Phase 4: React UI and state boundaries
 
@@ -76,7 +77,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 - [ ] Add Zustand only for coarse UI/session/settings state.
 - [ ] Keep speed, transforms, physics, terrain, and snapshots out of React state.
 - [ ] Add accessible settings, controls reference, connection state, and error states.
-- [ ] Remove imperative UI modules after UI smoke test. Legacy `setup*` DOM injection paths removed; bind-only bridges remain until further React consolidation.
+- [x] Remove imperative UI modules after UI smoke test. Legacy `setup*` DOM injection paths and `src/ui/*` bind bridges removed; HUD updates register through `GameProvider` frame callbacks.
 
 ## Phase 5: reusable content and visual upgrades
 
@@ -109,7 +110,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Current batch
 
-Vanilla fallback removed. Next: remote-player R3F presentation and multiplayer lifecycle hardening (Phase 6).
+Legacy transitional code removed. Next: remote-player interpolation polish and multiplayer lifecycle hardening (Phase 6).
 
 ## Reference docs used
 

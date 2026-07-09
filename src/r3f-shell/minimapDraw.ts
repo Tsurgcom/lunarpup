@@ -1,53 +1,40 @@
+import * as THREE from 'three';
 import { getTerrainHeight } from '../game/terrain.ts';
-import { getRemotePlayerMarkers } from '../game/remotePlayers.ts';
-import { playerGroup, multiplayerClient } from '../state.ts';
 
 const SIZE = 132;
 const RANGE = 600;
 const GRID = 48;
 
-let canvas: HTMLCanvasElement | null = null;
-let ctx: CanvasRenderingContext2D | null = null;
+export interface MinimapMarker {
+    x: number;
+    z: number;
+    color: number;
+    radius: number;
+    pulse?: boolean;
+}
+
+export interface MinimapFrame {
+    playerX: number;
+    playerZ: number;
+    markers: MinimapMarker[];
+}
+
 let heightCache: Float32Array | null = null;
 let cacheCenterX = NaN;
 let cacheCenterZ = NaN;
 
-export function bindMinimapCanvas(nextCanvas: HTMLCanvasElement) {
-    const nextContext = nextCanvas.getContext('2d');
-    if (!nextContext) return () => {};
+export function drawMinimap(ctx: CanvasRenderingContext2D, frame: MinimapFrame) {
+    const { playerX, playerZ } = frame;
 
-    canvas = nextCanvas;
-    ctx = nextContext;
-    heightCache = null;
-    cacheCenterX = NaN;
-    cacheCenterZ = NaN;
-
-    return () => {
-        if (canvas !== nextCanvas) return;
-
-        canvas = null;
-        ctx = null;
-        heightCache = null;
-        cacheCenterX = NaN;
-        cacheCenterZ = NaN;
-    };
-}
-
-export function updateMinimap() {
-    if (!ctx || !canvas) return;
-
-    const px = playerGroup.position.x;
-    const pz = playerGroup.position.z;
-
-    if (px !== cacheCenterX || pz !== cacheCenterZ) {
-        heightCache = sampleHeights(px, pz);
-        cacheCenterX = px;
-        cacheCenterZ = pz;
+    if (playerX !== cacheCenterX || playerZ !== cacheCenterZ) {
+        heightCache = sampleHeights(playerX, playerZ);
+        cacheCenterX = playerX;
+        cacheCenterZ = playerZ;
     }
 
     ctx.clearRect(0, 0, SIZE, SIZE);
     drawTerrain(ctx, heightCache!);
-    drawPlayers(ctx, px, pz);
+    drawMarkers(ctx, frame);
 }
 
 function sampleHeights(cx: number, cz: number) {
@@ -67,7 +54,6 @@ function sampleHeights(cx: number, cz: number) {
         }
     }
 
-    // Normalize heights into 0..1 in-place for drawing
     const span = Math.max(max - min, 1);
     for (let i = 0; i < data.length; i++) {
         data[i] = (data[i]! - min) / span;
@@ -100,16 +86,12 @@ function worldToMap(wx: number, wz: number, cx: number, cz: number) {
     return { x, y };
 }
 
-function drawPlayers(ctx: CanvasRenderingContext2D, cx: number, cz: number) {
-    const remotes = getRemotePlayerMarkers();
-    for (const remote of remotes) {
-        const { x, y } = worldToMap(remote.x, remote.z, cx, cz);
+function drawMarkers(ctx: CanvasRenderingContext2D, frame: MinimapFrame) {
+    for (const marker of frame.markers) {
+        const { x, y } = worldToMap(marker.x, marker.z, frame.playerX, frame.playerZ);
         if (x < -4 || y < -4 || x > SIZE + 4 || y > SIZE + 4) continue;
-        drawDot(ctx, x, y, remote.color, 4);
+        drawDot(ctx, x, y, marker.color, marker.radius, marker.pulse);
     }
-
-    const localColor = multiplayerClient?.color ?? 0xffb703;
-    drawDot(ctx, SIZE / 2, SIZE / 2, localColor, 5, true);
 }
 
 function drawDot(
@@ -139,3 +121,11 @@ function drawDot(
     ctx.lineWidth = 1.5;
     ctx.stroke();
 }
+
+export function resetMinimapCache() {
+    heightCache = null;
+    cacheCenterX = NaN;
+    cacheCenterZ = NaN;
+}
+
+export const MINIMAP_SIZE = SIZE;

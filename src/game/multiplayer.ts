@@ -1,33 +1,79 @@
 import { MultiplayerClient } from '../net/client.ts';
 import type { PlayerSnapshot } from '../net/protocol.ts';
-import {
-    addRemotePlayer,
-    clearRemotePlayers,
-    removeRemotePlayer,
-    updateRemoteTarget,
-    getRemotePlayerNames,
-} from './remotePlayers.ts';
-import { updateMultiplayerStatus, updateMultiplayerPlayers } from '../ui/multiplayer.ts';
-import { appendChatMessage } from '../ui/chat.ts';
-import { multiplayerClient, setMultiplayerClient } from '../state.ts';
-import { tintLocalDog } from './player.ts';
+import type { MultiplayerStatus } from '../net/client.ts';
+import { tintVoxelDog } from './dogTint.ts';
+import type { GameRuntime, RemotePlayerRecord, VoxelDogParts } from './types.ts';
 
 export function isLocalMultiplayerId(localId: string, playerId: string) {
     return localId.length > 0 && playerId === localId;
 }
 
-export function initMultiplayer(config: {
-    transport: 'ws' | 'http';
-    wsUrl?: string | null;
-    apiBase?: string;
-    room: string;
-    name: string;
-}) {
-    multiplayerClient?.disconnect();
-    clearRemotePlayers();
+export interface MultiplayerHandlers {
+    onStatus: (status: MultiplayerStatus, detail?: string, room?: string) => void;
+    onPlayers: (localName: string, remoteNames: string[]) => void;
+    onChat: (id: string, name: string, text: string, isSelf: boolean) => void;
+    onWelcome: (id: string, color: number, players: PlayerSnapshot[]) => void;
+    onPlayerJoined: (player: PlayerSnapshot) => void;
+    onPlayerLeft: (id: string) => void;
+    onPlayerState: (id: string, state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>) => void;
+}
+
+export function createRemotePlayerRecord(player: PlayerSnapshot): RemotePlayerRecord {
+    return {
+        id: player.id,
+        name: player.name,
+        color: player.color,
+        target: { ...player },
+        current: { ...player },
+    };
+}
+
+export function upsertRemotePlayer(
+    map: Map<string, RemotePlayerRecord>,
+    player: PlayerSnapshot,
+    localId: string,
+): boolean {
+    if (isLocalMultiplayerId(localId, player.id)) return false;
+    if (map.has(player.id)) return false;
+    map.set(player.id, createRemotePlayerRecord(player));
+    return true;
+}
+
+export function removeRemotePlayerRecord(map: Map<string, RemotePlayerRecord>, id: string) {
+    map.delete(id);
+}
+
+export function clearRemotePlayerRecords(map: Map<string, RemotePlayerRecord>) {
+    map.clear();
+}
+
+export function getRemotePlayerNames(map: Map<string, RemotePlayerRecord>): string[] {
+    return [...map.values()].map((player) => player.name);
+}
+
+export function findRemotePlayerByName(map: Map<string, RemotePlayerRecord>, name: string) {
+    const lower = name.toLowerCase();
+    for (const remote of map.values()) {
+        if (remote.name.toLowerCase() === lower) return remote;
+    }
+    return undefined;
+}
+
+export function initMultiplayer(
+    runtime: GameRuntime,
+    parts: VoxelDogParts,
+    config: {
+        transport: 'ws' | 'http';
+        wsUrl?: string | null;
+        apiBase?: string;
+        room: string;
+        name: string;
+    },
+    handlers: MultiplayerHandlers,
+): () => void {
+    runtime.multiplayerClient?.disconnect();
 
     let localId = '';
-    let localName = config.name;
 
     const client = new MultiplayerClient({
         transport: config.transport,
@@ -35,44 +81,35 @@ export function initMultiplayer(config: {
         apiBase: config.apiBase,
         room: config.room,
         name: config.name,
-        onStatus: (status, detail) => {
-            updateMultiplayerStatus(status, detail, config.room);
-        },
+        onStatus: (status, detail) => handlers.onStatus(status, detail, config.room),
         onWelcome: (id, color, players) => {
             localId = id;
-            clearRemotePlayers();
-            tintLocalDog(color);
-            for (const player of players) {
-                if (!isLocalMultiplayerId(localId, player.id)) addRemotePlayer(player, localId);
-            }
-            updateMultiplayerPlayers(localName, getRemotePlayerNames());
+            tintVoxelDog(parts.dog, color);
+            handlers.onWelcome(id, color, players);
         },
         onPlayerJoined: (player) => {
             if (isLocalMultiplayerId(localId, player.id)) return;
-            addRemotePlayer(player, localId);
-            updateMultiplayerPlayers(localName, getRemotePlayerNames());
+            handlers.onPlayerJoined(player);
         },
         onPlayerLeft: (id) => {
             if (isLocalMultiplayerId(localId, id)) return;
-            removeRemotePlayer(id);
-            updateMultiplayerPlayers(localName, getRemotePlayerNames());
+            handlers.onPlayerLeft(id);
         },
         onPlayerState: (id, state) => {
             if (isLocalMultiplayerId(localId, id)) return;
-            updateRemoteTarget(id, state);
+            handlers.onPlayerState(id, state);
         },
         onChat: (id, name, text) => {
-            appendChatMessage(id, name, text, id === client.id);
+            handlers.onChat(id, name, text, id === client.id);
         },
     });
 
-    setMultiplayerClient(client);
+    runtime.multiplayerClient = client;
     client.connect();
 
     return () => {
         client.disconnect();
-        clearRemotePlayers();
-        setMultiplayerClient(null);
+        runtime.multiplayerClient = null;
     };
 }
 

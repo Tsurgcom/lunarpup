@@ -57,14 +57,12 @@ bun run preview
 
 ```
 src/
-  r3f-shell/        # React app, Canvas, declarative world/player/camera/terrain
-  main.tsx          # Default R3F browser entry point
+  r3f-shell/        # React app, Canvas, declarative world/player/camera/terrain/UI
+  r3f-shell/main.tsx # Default R3F browser entry point
   styles.css        # UI styles
   config.ts         # Game constants
-  state.ts          # Shared runtime state
-  game/             # Scene, terrain, player, loop, input, tricks
+  game/             # Simulation, terrain, camera, input, tricks, multiplayer
   net/              # WebSocket client and shared protocol
-  ui/               # Transitional imperative UI modules being ported to React
   server.ts         # Bun multiplayer WebSocket server
 index.html          # HTML shell
 dist/               # Build output (generated)
