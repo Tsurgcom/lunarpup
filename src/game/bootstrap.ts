@@ -24,6 +24,10 @@ export async function bootstrap() {
         { setupExtensions },
         { setupCosmeticsUI },
         { setupGamemodeUI },
+        { setupMainMenu, setupMenuButton },
+        { setupPauseMenu },
+        { revealPanel },
+        { hasSeenMainMenu },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
@@ -40,6 +44,10 @@ export async function bootstrap() {
         import('../extensions/client.ts'),
         import('../ui/cosmetics.ts'),
         import('../modes/client.ts'),
+        import('../ui/mainMenu.ts'),
+        import('../ui/pauseMenu.ts'),
+        import('../ui/menuNav.ts'),
+        import('../ui/menuState.ts'),
     ]);
 
     initScene(container);
@@ -76,6 +84,19 @@ export async function bootstrap() {
     setupUpdateNotice();
     await setupExtensions();
     setupGamemodeUI();
+
+    const mainMenu = setupMainMenu({
+        openRooms: () => revealPanel('multiplayer-panel'),
+        openCosmetics: () => revealPanel('cosmetics-panel'),
+        openSettings: () => revealPanel('tuning-panel'),
+    });
+    setupPauseMenu({
+        openSettings: () => revealPanel('tuning-panel'),
+        quitToMenu: () => mainMenu.show(),
+        canOpen: () => !mainMenu.isOpen(),
+    });
+    setupMenuButton(() => mainMenu.show());
+    if (!hasSeenMainMenu()) mainMenu.show();
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {

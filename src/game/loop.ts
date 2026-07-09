@@ -25,6 +25,8 @@ import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
 import { finishTrick, startTrick, updateTrick } from './tricks.ts';
 import type { Gamemode, GamemodeRuntimeState } from '../contracts/gamemode.ts';
+import { runFrame } from './frame.ts';
+import { pauseController } from './pause.ts';
 
 export interface GameLoopState {
     playerGroup: typeof playerGroup;
@@ -37,6 +39,16 @@ export type UpdateHook = (dt: number, state: GameLoopState) => void;
 
 const updateHooks = new Set<UpdateHook>();
 let currentGamemode: { gamemode: Gamemode; state: GamemodeRuntimeState } | null = null;
+
+// Slow diegetic camera orbit while the main menu is up. A lap takes ~105s.
+const MENU_ORBIT_SPEED = 0.06;
+let menuOrbitActive = false;
+let menuOrbitReduced = false;
+
+export function setMenuOrbit(active: boolean, reduced = false): void {
+    menuOrbitActive = active;
+    menuOrbitReduced = reduced;
+}
 
 export function registerUpdateHook(fn: UpdateHook): () => void {
     updateHooks.add(fn);
@@ -221,40 +233,52 @@ export function startGameLoop() {
         const dt = Math.min((now - lastFrame) / 1000, 0.05);
         lastFrame = now;
 
-        updateTrick(dt);
-        handlePhysics(dt);
-        updateCamera(dt);
-        updateRemotePlayers(dt);
-        updateMinimap();
+        runFrame(dt, pauseController.isPaused(), {
+            // Local simulation — frozen while a menu pauses the game.
+            stepLocal: (step) => {
+                updateTrick(step);
+                handlePhysics(step);
 
-        const loopState: GameLoopState = { playerGroup, physics, scene, skateboard };
-        for (const hook of updateHooks) hook(dt, loopState);
-        if (currentGamemode) {
-            currentGamemode.state.elapsedMs += dt * 1000;
-            void currentGamemode.gamemode.tick(dt, currentGamemode.state);
-        }
+                const loopState: GameLoopState = { playerGroup, physics, scene, skateboard };
+                for (const hook of updateHooks) hook(step, loopState);
+                if (currentGamemode) {
+                    currentGamemode.state.elapsedMs += step * 1000;
+                    void currentGamemode.gamemode.tick(step, currentGamemode.state);
+                }
 
-        if (multiplayerClient?.isConnected) {
-            multiplayerClient.sendState(buildLocalSnapshot(
-                playerGroup,
-                physics.heading,
-                physics.speed,
-                physics.isGrounded,
-                skateboard.rotation.x,
-                skateboard.rotation.z,
-            ));
-        }
+                if (Math.abs(physics.speed) > 0.05) {
+                    const time = Date.now() * 0.015;
+                    if (tail) {
+                        tail.rotation.z = Math.sin(time) * 0.4;
+                    }
+                    for (let i = 1; i < skateboard.children.length; i++) {
+                        skateboard.children[i]!.rotation.x += physics.speed * 2 * step * 60;
+                    }
+                }
+            },
+            // Presentation + network — always runs, so multiplayer never freezes.
+            present: (step) => {
+                if (menuOrbitActive && !menuOrbitReduced) {
+                    cameraControl.yaw += MENU_ORBIT_SPEED * step;
+                }
+                updateCamera(step);
+                updateRemotePlayers(step);
+                updateMinimap();
 
-        if (Math.abs(physics.speed) > 0.05) {
-            const time = Date.now() * 0.015;
-            if (tail) {
-                tail.rotation.z = Math.sin(time) * 0.4;
-            }
-            for (let i = 1; i < skateboard.children.length; i++) {
-                skateboard.children[i]!.rotation.x += physics.speed * 2 * dt * 60;
-            }
-        }
-        renderer.render(scene, camera);
+                if (multiplayerClient?.isConnected) {
+                    multiplayerClient.sendState(buildLocalSnapshot(
+                        playerGroup,
+                        physics.heading,
+                        physics.speed,
+                        physics.isGrounded,
+                        skateboard.rotation.x,
+                        skateboard.rotation.z,
+                    ));
+                }
+
+                renderer.render(scene, camera);
+            },
+        });
     }
 
     animate();
