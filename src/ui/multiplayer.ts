@@ -1,5 +1,6 @@
 import type { RoomSummary } from '../contracts/roomProtocol.ts';
 import type { MultiplayerStatus } from '../net/client.ts';
+import { getApiBaseUrl } from '../net/protocol.ts';
 
 interface MultiplayerUIOptions {
     enabled: boolean;
@@ -125,7 +126,7 @@ async function createRoom(roomId: string, gamemodeId: string) {
 }
 
 function roomHttpUrl() {
-    if (!uiOptions?.wsUrl) return '/rooms';
+    if (!uiOptions?.wsUrl) return `${getApiBaseUrl()}/rooms`;
     const url = new URL(uiOptions.wsUrl);
     url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
     url.pathname = '/rooms';

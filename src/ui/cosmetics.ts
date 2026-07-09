@@ -1,5 +1,6 @@
 import type { CosmeticPackage, EquippedCosmetics } from '../cosmetics/registry.ts';
 import { applyLocalCosmetics } from '../game/cosmetics.ts';
+import { getApiBaseUrl } from '../net/protocol.ts';
 import { setLocalEquippedCosmetics } from '../game/multiplayer.ts';
 
 interface InventoryPayload {
@@ -34,7 +35,7 @@ async function loadInventory(): Promise<void> {
     errorText = '';
     renderLoading();
     try {
-        const response = await fetch(`/api/cosmetics/inventory?accountId=${encodeURIComponent(accountId)}`);
+        const response = await fetch(`${getApiBaseUrl()}/api/cosmetics/inventory?accountId=${encodeURIComponent(accountId)}`);
         if (!response.ok) throw new Error(`Inventory failed (${response.status})`);
         state = await response.json() as InventoryPayload;
         applyEquipped();
@@ -59,7 +60,7 @@ async function postAction(path: string, body: Record<string, string>): Promise<v
     errorText = '';
     render();
     try {
-        const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const response = await fetch(`${getApiBaseUrl()}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
         state = payload as InventoryPayload;

@@ -21,16 +21,31 @@ export function createServerRouter(): ModularRouter<PlayerConnection> {
 const router = createServerRouter();
 const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 
+// The game page is served from a different origin than this API server
+// (dev: :3000 vs :3001; prod: Netlify vs the game server), so every HTTP
+// response needs CORS. Auth is token-based, never cookie-based, so '*' is safe.
+const CORS_HEADERS: Record<string, string> = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+function withCors(res: Response): Response {
+    for (const [key, value] of Object.entries(CORS_HEADERS)) res.headers.set(key, value);
+    return res;
+}
+
 const server = Bun.serve<PlayerConnection>({
     port,
     async fetch(req, server) {
+        if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
         const handled = await router.handleHttp(req, {
             server,
             upgrade: (data) => server.upgrade(req, { data: data ?? (undefined as unknown as PlayerConnection) }),
         });
-        if (handled) return handled;
+        if (handled) return withCors(handled);
         if (server.upgrade(req, { data: undefined as unknown as PlayerConnection })) return undefined;
-        return new Response('Not found', { status: 404 });
+        return withCors(new Response('Not found', { status: 404 }));
     },
     websocket: {
         open(ws) {

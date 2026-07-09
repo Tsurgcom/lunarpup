@@ -86,6 +86,24 @@ export function getWsUrl(port = DEFAULT_WS_PORT): string | null {
     return null;
 }
 
+/**
+ * HTTP base URL for the game API server (rooms, cosmetics, lootbox, agent events).
+ * Derived from the WebSocket server host (so `?ws=` overrides both), mapped to
+ * http(s). Empty string means same-origin — for deployments that proxy the API.
+ */
+export function getApiBaseUrl(port = DEFAULT_WS_PORT): string {
+    const ws = getWsUrl(port);
+    if (ws) {
+        const url = new URL(ws);
+        url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+        url.pathname = '';
+        url.search = '';
+        return url.href.replace(/\/+$/, '');
+    }
+
+    return '';
+}
+
 export function getMultiplayerTransport(): MultiplayerTransport {
     const params = new URLSearchParams(location.search);
     if (params.get('ws')?.trim()) return 'ws';
