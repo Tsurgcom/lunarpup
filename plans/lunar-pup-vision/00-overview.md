@@ -53,3 +53,16 @@ wave 3:  09-integration-smoke             (after 03/05/07/08: token payments in 
 Every concern closed, `bunx tsc --noEmit && bun test` green on main, and a live smoke:
 server boots, a fake harness event triggers the in-game notification, a race completes, a
 lootbox opens with ledger entries written, and a devnet wallet round-trip works.
+
+## Coordination with in-flight community work
+
+- **PR #2 (aerial trick system)** touches `loop.ts`, `player.ts`, `remotePlayers.ts`,
+  `server.ts`, `state.ts` — the same files concern 01 refactors. Merge order must be
+  agreed in PR comments; whoever lands second rebases and combines both behaviors.
+  The trick system is a natural early consumer of concern 01's loop hooks and of
+  concern 04's scoring interfaces.
+- **Renderer rewrite (discussed in chat, undeclared)**: per CONTRIBUTING.md this needs
+  an issue + draft PR declaring scope before it lands anywhere. It directly affects
+  concern 03 (cosmetics attach to renderables) and concern 04 (mode HUD/visuals) —
+  those define renderer-agnostic seams (cosmetics resolve to attachment points, not
+  concrete meshes) so the rewrite can proceed underneath them.
