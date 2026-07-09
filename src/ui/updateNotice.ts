@@ -1,7 +1,9 @@
+import { showToast } from './toast.ts';
+
 const POLL_INTERVAL_MS = 60_000;
 
 let loadedBuildId: string | null = null;
-let bannerEl: HTMLDivElement | null = null;
+let bannerShown = false;
 
 async function fetchBuildId(): Promise<string | null> {
     try {
@@ -15,18 +17,14 @@ async function fetchBuildId(): Promise<string | null> {
 }
 
 function showUpdateBanner() {
-    if (bannerEl) return;
-
-    bannerEl = document.createElement('div');
-    bannerEl.id = 'update-notice';
-    bannerEl.innerHTML = `
-        <span>Update available — refresh to get the latest</span>
-        <button type="button">Refresh</button>
-    `;
-    bannerEl.querySelector('button')?.addEventListener('click', () => {
-        window.location.reload();
+    if (bannerShown) return;
+    bannerShown = true;
+    showToast({
+        message: 'Update available — refresh to get the latest',
+        actionLabel: 'Refresh',
+        onAction: () => window.location.reload(),
+        durationMs: null,
     });
-    document.body.appendChild(bannerEl);
 }
 
 async function checkForUpdate() {
