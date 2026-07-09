@@ -5,6 +5,22 @@ let currentEl: HTMLDivElement | null = null;
 let resultEl: HTMLDivElement | null = null;
 let resultTimer: ReturnType<typeof setTimeout> | null = null;
 
+interface TrickHudBinding {
+    updateScore: (totalScore: number) => void;
+    updateCurrent: (rotation: number, grabbing: boolean) => void;
+    showResult: (result: TrickScore) => void;
+}
+
+let reactHud: TrickHudBinding | null = null;
+
+export function bindTrickHud(binding: TrickHudBinding) {
+    reactHud = binding;
+
+    return () => {
+        if (reactHud === binding) reactHud = null;
+    };
+}
+
 export function setupTrickUI() {
     document.getElementById('trick-hud')?.remove();
     const panel = document.createElement('div');
@@ -22,10 +38,18 @@ export function setupTrickUI() {
 }
 
 export function updateTrickScore(totalScore: number) {
+    if (reactHud) {
+        reactHud.updateScore(totalScore);
+        return;
+    }
     if (scoreEl) scoreEl.textContent = `SCORE ${totalScore.toLocaleString()}`;
 }
 
 export function updateCurrentTrick(rotation: number, grabbing: boolean) {
+    if (reactHud) {
+        reactHud.updateCurrent(rotation, grabbing);
+        return;
+    }
     if (!currentEl) return;
 
     const degrees = Math.round(Math.abs(rotation) * 180 / Math.PI);
@@ -36,6 +60,10 @@ export function updateCurrentTrick(rotation: number, grabbing: boolean) {
 }
 
 export function showTrickResult(result: TrickScore) {
+    if (reactHud) {
+        reactHud.showResult(result);
+        return;
+    }
     if (!resultEl || result.status === 'none') return;
 
     if (resultTimer) clearTimeout(resultTimer);

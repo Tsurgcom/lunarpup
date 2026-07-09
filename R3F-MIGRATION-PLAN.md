@@ -72,7 +72,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Phase 4: React UI and state boundaries
 
-- [ ] Replace DOM-injection HUD, chat, minimap, multiplayer, and update notice with React components. React now owns the tuning panel and trick presentation; trick HUD updates use DOM refs outside the frame loop's React state. Verified by typecheck, unit tests, and production build.
+- [ ] Replace DOM-injection HUD, chat, minimap, multiplayer, and update notice with React components. React now owns the tuning panel and trick presentation; trick HUD updates use DOM refs outside the frame loop's React state. Verified by typecheck, unit tests, production build, and a local R3F browser smoke check (HUD mounted; no console errors).
 - [ ] Add Zustand only for coarse UI/session/settings state.
 - [ ] Keep speed, transforms, physics, terrain, and snapshots out of React state.
 - [ ] Add accessible settings, controls reference, connection state, and error states.

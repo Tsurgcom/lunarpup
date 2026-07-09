@@ -1,4 +1,5 @@
 import { GameCanvas } from './GameCanvas.tsx';
+import { TrickHud } from './TrickHud.tsx';
 import { TuningPanel } from './TuningPanel.tsx';
 import '../styles.css';
 import './shell.css';
@@ -19,6 +20,7 @@ export function App() {
                 </div>
             </div>
             <TuningPanel />
+            <TrickHud />
             <div id="speedometer">0.0 U/S  | chunks 0</div>
             <div id="speed-lines" />
             <div id="canvas-container"><GameCanvas /></div>
