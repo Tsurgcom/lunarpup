@@ -29,9 +29,13 @@ export class ModularRouter<TConnection> {
     async handleHttp(request: Request, context: HttpRouteContext<TConnection>): Promise<Response | undefined> {
         const url = new URL(request.url);
         for (const route of this.httpRoutes) {
-            if (route.method === request.method.toUpperCase() && route.path === url.pathname) {
-                return await route.handler(request, context);
+            if (route.method !== request.method.toUpperCase()) continue;
+            const params = matchPath(route.path, url.pathname);
+            if (!params) continue;
+            if (params.size > 0) {
+                Reflect.set(request, 'params', Object.fromEntries(params));
             }
+            return await route.handler(request, context);
         }
         return undefined;
     }
@@ -51,4 +55,22 @@ export class ModularRouter<TConnection> {
         }
         return 'multiplayer';
     }
+}
+
+function matchPath(pattern: string, pathname: string): Map<string, string> | null {
+    if (pattern === pathname) return new Map();
+    const patternParts = pattern.split('/').filter(Boolean);
+    const pathParts = pathname.split('/').filter(Boolean);
+    if (patternParts.length !== pathParts.length) return null;
+    const params = new Map<string, string>();
+    for (let i = 0; i < patternParts.length; i += 1) {
+        const expected = patternParts[i]!;
+        const actual = pathParts[i]!;
+        if (expected.startsWith(':')) {
+            params.set(expected.slice(1), decodeURIComponent(actual));
+            continue;
+        }
+        if (expected !== actual) return null;
+    }
+    return params;
 }

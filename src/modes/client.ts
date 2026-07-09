@@ -7,7 +7,7 @@ import { registerUpdateHook, setCurrentGamemode } from '../game/loop.ts';
 import { getTerrainHeight } from '../game/terrain.ts';
 import { physics, playerGroup, scene, skateboard } from '../state.ts';
 import { buildLocalSnapshot } from '../game/multiplayer.ts';
-import type { PlayerSnapshot } from '../net/protocol.ts';
+import { getApiBaseUrl, type PlayerSnapshot } from '../net/protocol.ts';
 
 interface RunSample {
     t: number;
@@ -211,8 +211,31 @@ function showResults(): void {
     const results = document.getElementById('gamemode-results');
     if (!results) return;
     results.hidden = false;
-    results.innerHTML = `<h2>${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><button type="button" id="gamemode-close-results">Close</button>`;
+    results.innerHTML = `<h2>${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading leaderboard…</div><button type="button" id="gamemode-close-results">Close</button>`;
     document.getElementById('gamemode-close-results')?.addEventListener('click', () => { results.hidden = true; });
+    void loadLeaderboard(activePackage.manifest.id);
+}
+
+async function loadLeaderboard(gamemodeId: string): Promise<void> {
+    const target = document.getElementById('gamemode-leaderboard');
+    if (!target) return;
+    try {
+        const response = await fetch(`${getApiBaseUrl()}/leaderboard/${encodeURIComponent(gamemodeId)}`);
+        const payload = await response.json();
+        if (!response.ok || !isLeaderboardPayload(payload)) throw new Error('leaderboard unavailable');
+        if (payload.entries.length === 0) {
+            target.textContent = 'No leaderboard runs yet.';
+            return;
+        }
+        target.innerHTML = `<ol>${payload.entries.map(entry => `<li><span>${escapeHtml(entry.playerId)}</span><strong>${formatTime(entry.bestTimeMs)}</strong></li>`).join('')}</ol>`;
+    } catch (error) {
+        target.textContent = error instanceof Error ? error.message : 'leaderboard unavailable';
+    }
+}
+
+function isLeaderboardPayload(value: unknown): value is { entries: Array<{ playerId: string; bestTimeMs: number }> } {
+    if (!value || typeof value !== 'object' || !('entries' in value) || !Array.isArray(value.entries)) return false;
+    return value.entries.every(entry => !!entry && typeof entry === 'object' && 'playerId' in entry && typeof entry.playerId === 'string' && 'bestTimeMs' in entry && typeof entry.bestTimeMs === 'number');
 }
 
 function updateStatus(): void {
@@ -247,6 +270,10 @@ function copyLocalIntoSnapshot(player: PlayerSnapshot): void {
     player.isGrounded = snapshot.isGrounded;
     player.boardTiltX = snapshot.boardTiltX;
     player.boardTiltZ = snapshot.boardTiltZ;
+}
+
+function escapeHtml(value: string): string {
+    return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
 function formatTime(ms: number): string {

@@ -3,6 +3,8 @@ import { InsufficientFundsError, SqliteCurrencyInventoryService, SqliteEventLedg
 import { loadCosmeticCatalog, type CosmeticPackage } from '../cosmetics/registry.ts';
 import type { CosmeticRarity } from '../contracts/cosmetic.ts';
 import type { ModularRouter } from './router.ts';
+import type { CosmeticNftService } from '../solana/interfaces.ts';
+import type { WalletSession } from './wallet.ts';
 
 export const LOOTBOX_BOX_ID = 'moon-crate';
 export const LOOTBOX_PRICE = 100;
@@ -17,6 +19,8 @@ export const LOOTBOX_ODDS: Readonly<Record<CosmeticRarity, number>> = Object.fre
 export interface LootboxServices {
     currency: CurrencyInventoryService;
     ledger: EventLedgerStorage;
+    walletAuth?: { sessionForPlayer(playerId: string): WalletSession | undefined };
+    nft?: CosmeticNftService;
 }
 
 export interface LootboxRollResult {
@@ -107,6 +111,16 @@ export async function openLootbox(accountId: string, services: LootboxServices, 
         balance = await services.currency.grant(accountId, refund, `lootbox_duplicate:${item.id}`);
     } else {
         await services.currency.grantOwnedItem(accountId, item.id, `lootbox:${LOOTBOX_BOX_ID}`);
+        const wallet = services.walletAuth?.sessionForPlayer(accountId)?.walletAddress;
+        if (wallet && services.nft) {
+            const nft = await services.nft.mintCosmetic(wallet, item.id);
+            await services.ledger.append({
+                type: 'cosmetic_nft_minted',
+                entityId: accountId,
+                timestamp: new Date().toISOString(),
+                payload: { source: 'lootbox', cosmeticId: item.id, walletAddress: wallet, ...nft },
+            });
+        }
     }
 
     const payload: LootboxRollResult = {

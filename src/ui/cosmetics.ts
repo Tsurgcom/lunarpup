@@ -6,6 +6,9 @@ import { setLocalEquippedCosmetics } from '../game/multiplayer.ts';
 interface InventoryPayload {
     accountId: string;
     balance: number;
+    tokenBalance: number | null;
+    tokenMint: string | null;
+    walletAddress: string | null;
     ownedIds: string[];
     equipped: EquippedCosmetics;
     catalog: CosmeticPackage[];
@@ -41,6 +44,7 @@ let lootboxOdds: LootboxOddsPayload | null = null;
 let lootboxResult: LootboxOpenPayload | null = null;
 let openingLootbox = false;
 let accountId = '';
+let activeCurrency: 'soft' | 'token' = 'soft';
 
 export function setupCosmeticsUI(): void {
     accountId = localStorage.getItem('lunarpup.cosmetics.accountId') || `pup-${crypto.randomUUID().slice(0, 8)}`;
@@ -78,7 +82,7 @@ async function loadInventory(): Promise<void> {
 }
 
 async function buy(cosmeticId: string): Promise<void> {
-    await postAction('/api/cosmetics/buy', { accountId, cosmeticId });
+    await postAction('/api/cosmetics/buy', { accountId, cosmeticId, currency: activeCurrency });
 }
 
 async function equip(cosmeticId: string, slot: string): Promise<void> {
@@ -166,12 +170,18 @@ function render(): void {
     }
 
     const owned = new Set(state.ownedIds);
+    const tokenReady = state.walletAddress && state.tokenBalance !== null;
+    const tokenLabel = tokenReady ? `${state.tokenBalance} devnet SPL` : 'Link wallet for SPL';
     panel.innerHTML = `
         <div class="cosmetics-header">
             <h2>Cosmetics</h2>
             <span class="cosmetics-pill">${state.balance} moon bones</span>
         </div>
-        <p class="cosmetics-account">Inventory ${escapeHtml(state.accountId)}</p>
+        <p class="cosmetics-account">Inventory ${escapeHtml(state.accountId)}${state.walletAddress ? ` · wallet ${escapeHtml(shortAddress(state.walletAddress))}` : ''}</p>
+        <div class="cosmetics-currency" role="group" aria-label="Shop currency">
+            <button class="cosmetics-button ${activeCurrency === 'soft' ? 'cosmetics-button-active' : ''}" type="button" data-currency-soft>Moon bones</button>
+            <button class="cosmetics-button ${activeCurrency === 'token' ? 'cosmetics-button-active' : ''}" type="button" data-currency-token ${tokenReady ? '' : 'disabled'}>${escapeHtml(tokenLabel)}</button>
+        </div>
         ${lootboxPanel()}
         <div class="cosmetics-list">
             ${state.catalog.map(item => cosmeticCard(item, owned.has(item.id), state!.equipped[item.definition.slot] === item.id)).join('')}
@@ -186,6 +196,14 @@ function render(): void {
         button.addEventListener('click', () => void equip(button.dataset.equip!, button.dataset.slot!));
     });
     panel.querySelector<HTMLButtonElement>('[data-lootbox-open]')?.addEventListener('click', () => void openLootbox());
+    panel.querySelector<HTMLButtonElement>('[data-currency-soft]')?.addEventListener('click', () => {
+        activeCurrency = 'soft';
+        render();
+    });
+    panel.querySelector<HTMLButtonElement>('[data-currency-token]')?.addEventListener('click', () => {
+        activeCurrency = 'token';
+        render();
+    });
 }
 
 function lootboxPanel(): string {
@@ -220,9 +238,11 @@ function lootboxPanel(): string {
 
 function cosmeticCard(item: CosmeticPackage, owned: boolean, equipped: boolean): string {
     const colors = item.definition.visual.colors.map(color => `<span class="cosmetics-swatch" style="background:${escapeHtml(color)}"></span>`).join('');
+    const canUseToken = Boolean(state?.walletAddress && state.tokenBalance !== null);
+    const priceLabel = activeCurrency === 'token' && canUseToken ? `${item.price} devnet SPL` : `${item.price} moon bones`;
     const action = owned
         ? `<button class="cosmetics-button" type="button" data-equip="${item.id}" data-slot="${item.definition.slot}" ${equipped ? 'disabled' : ''}>${equipped ? 'Equipped' : 'Equip'}</button>`
-        : `<button class="cosmetics-button" type="button" data-buy="${item.id}" ${loading ? 'disabled' : ''}>Buy ${item.price}</button>`;
+        : `<button class="cosmetics-button" type="button" data-buy="${item.id}" ${loading || (activeCurrency === 'token' && !canUseToken) ? 'disabled' : ''}>Buy ${priceLabel}</button>`;
     return `
         <article class="cosmetics-card">
             <div>
@@ -233,6 +253,10 @@ function cosmeticCard(item: CosmeticPackage, owned: boolean, equipped: boolean):
             ${action}
         </article>
     `;
+}
+
+function shortAddress(value: string): string {
+    return value.length <= 10 ? value : `${value.slice(0, 4)}…${value.slice(-4)}`;
 }
 
 function escapeHtml(value: string): string {

@@ -7,16 +7,20 @@ import { registerGamemodeModule } from './server/gamemodes.ts';
 import { registerLootboxModule } from './server/lootbox.ts';
 import { ModularRouter } from './server/router.ts';
 import { registerWalletModule } from './server/wallet.ts';
+import { createStorageServices } from './contracts/services.ts';
+import { registerLeaderboardModule } from './server/leaderboard.ts';
 
 export function createServerRouter(): ModularRouter<PlayerConnection> {
     const router = new ModularRouter<PlayerConnection>();
+    const storage = createStorageServices();
+    const walletAuth = registerWalletModule(router);
     registerRoomsModule(router);
     registerMultiplayerModule(router);
-    registerAgentEventsModule(router);
-    registerGamemodeModule(router);
-    registerWalletModule(router);
-    registerCosmeticsModule(router);
-    registerLootboxModule(router);
+    registerAgentEventsModule(router, { ledger: storage.eventLedger });
+    registerGamemodeModule(router, { ledger: storage.eventLedger });
+    registerCosmeticsModule(router, { currency: storage.currencyInventory, ledger: storage.eventLedger, walletAuth });
+    registerLootboxModule(router, { currency: storage.currencyInventory, ledger: storage.eventLedger, walletAuth });
+    registerLeaderboardModule(router, { ledger: storage.eventLedger });
     return router;
 }
 
@@ -37,16 +41,33 @@ function withCors(res: Response): Response {
     return res;
 }
 
+function isWebSocketUpgrade(req: Request): boolean {
+    return req.headers.get('upgrade')?.toLowerCase() === 'websocket';
+}
+
+function parseWebSocketPayload(message: string | Buffer | ArrayBuffer): unknown {
+    const source = typeof message === 'string'
+        ? message
+        : message instanceof ArrayBuffer
+            ? new TextDecoder().decode(message)
+            : message.toString();
+    try {
+        return JSON.parse(source);
+    } catch {
+        return message;
+    }
+}
+
 const server = Bun.serve<PlayerConnection>({
     port,
     async fetch(req, server) {
         if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
+        if (isWebSocketUpgrade(req) && server.upgrade(req, { data: undefined as unknown as PlayerConnection })) return undefined;
         const handled = await router.handleHttp(req, {
             server,
             upgrade: (data) => server.upgrade(req, { data: data ?? (undefined as unknown as PlayerConnection) }),
         });
         if (handled) return withCors(handled);
-        if (server.upgrade(req, { data: undefined as unknown as PlayerConnection })) return undefined;
         return withCors(new Response('Not found', { status: 404 }));
     },
     websocket: {
@@ -54,7 +75,7 @@ const server = Bun.serve<PlayerConnection>({
             ws.data = createInitialConnection(ws);
         },
         message(ws, message) {
-            router.dispatchWebSocket(ws, message);
+            router.dispatchWebSocket(ws, parseWebSocketPayload(message));
         },
         close(ws) {
             if (!ws.data.id) return;

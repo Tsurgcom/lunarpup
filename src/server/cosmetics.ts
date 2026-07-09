@@ -2,10 +2,15 @@ import { InsufficientFundsError, SqliteCurrencyInventoryService, SqliteEventLedg
 import { equippedWith, getCosmeticById, loadCosmeticCatalog, sanitizeEquippedCosmetics, type EquippedCosmetics } from '../cosmetics/registry.ts';
 import type { CosmeticSlot } from '../contracts/cosmetic.ts';
 import type { ModularRouter } from './router.ts';
+import type { SplTokenService, CosmeticNftService } from '../solana/interfaces.ts';
+import type { WalletSession } from './wallet.ts';
 
 interface CosmeticsServices {
     currency: CurrencyInventoryService;
     ledger: EventLedgerStorage;
+    walletAuth?: { sessionForPlayer(playerId: string): WalletSession | undefined };
+    token?: SplTokenService;
+    nft?: CosmeticNftService;
 }
 
 export function createCosmeticsServices(path?: string): CosmeticsServices {
@@ -27,6 +32,7 @@ export function registerCosmeticsModule<TConnection>(router: ModularRouter<TConn
         const body = await readJsonBody(request);
         const accountId = typeof body.accountId === 'string' ? body.accountId : '';
         const cosmeticId = typeof body.cosmeticId === 'string' ? body.cosmeticId : '';
+        const currency = body.currency === 'token' ? 'token' : 'soft';
         if (!accountId || !cosmeticId) return jsonResponse({ error: 'accountId and cosmeticId are required' }, 400);
 
         const cosmetic = await getCosmeticById(cosmeticId);
@@ -35,8 +41,16 @@ export function registerCosmeticsModule<TConnection>(router: ModularRouter<TConn
         const owned = new Set(await services.currency.listOwnedItems(accountId));
         if (!owned.has(cosmetic.id)) {
             try {
-                if (cosmetic.price > 0) services.currency.spend(accountId, cosmetic.price, `buy:${cosmetic.id}`);
-                services.currency.grantOwnedItem(accountId, cosmetic.id, 'cosmetic purchase');
+                const wallet = services.walletAuth?.sessionForPlayer(accountId)?.walletAddress;
+                const token = services.token;
+                if (currency === 'token') {
+                    if (!wallet || !token) return jsonResponse({ error: 'wallet_token_unavailable' }, 400);
+                    if (cosmetic.price > 0) await token.spend(wallet, cosmetic.price, `buy:${cosmetic.id}`);
+                } else if (cosmetic.price > 0) {
+                    await services.currency.spend(accountId, cosmetic.price, `buy:${cosmetic.id}`);
+                }
+                await services.currency.grantOwnedItem(accountId, cosmetic.id, currency === 'token' ? 'solana token cosmetic purchase' : 'cosmetic purchase');
+                if (wallet && services.nft) await mintAndRecordNft(accountId, wallet, cosmetic.id, 'purchase', services);
             } catch (error) {
                 if (error instanceof InsufficientFundsError) {
                     return jsonResponse({ error: 'insufficient_funds', balance: error.balance, required: error.required }, 402);
@@ -92,7 +106,20 @@ async function inventoryPayload(accountId: string, services: CosmeticsServices) 
         services.currency.getBalance(accountId),
         equippedFor(accountId, services.ledger),
     ]);
-    return { accountId, balance, ownedIds, equipped, catalog };
+    const wallet = services.walletAuth?.sessionForPlayer(accountId)?.walletAddress;
+    const tokenBalance = wallet && services.token ? await services.token.getBalance(wallet) : null;
+    return { accountId, balance, tokenBalance, tokenMint: services.token?.mintAddress ?? null, walletAddress: wallet ?? null, ownedIds, equipped, catalog };
+}
+
+async function mintAndRecordNft(accountId: string, walletAddress: string, cosmeticId: string, source: 'purchase' | 'lootbox', services: CosmeticsServices): Promise<void> {
+    if (!services.nft) return;
+    const result = await services.nft.mintCosmetic(walletAddress, cosmeticId);
+    await services.ledger.append({
+        type: 'cosmetic_nft_minted',
+        entityId: accountId,
+        timestamp: new Date().toISOString(),
+        payload: { source, cosmeticId, walletAddress, ...result },
+    });
 }
 
 function accountFromRequest(request: Request): string {

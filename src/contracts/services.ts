@@ -341,7 +341,7 @@ export function createStorageServices(options: { sqlite?: SqliteBackendOptions; 
         return { backend: 'postgres', currencyInventory, eventLedger };
     }
 
-    const path = options.sqlite?.path ?? defaultDbPath;
+    const path = options.sqlite?.path ?? process.env.TEST_DATABASE_URL ?? defaultDbPath;
     const eventLedger = new SqliteEventLedgerStorage({ path });
     const currencyInventory = new SqliteCurrencyInventoryService({ path, ledger: eventLedger });
     return { backend: 'sqlite', currencyInventory, eventLedger };
