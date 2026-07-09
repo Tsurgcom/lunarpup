@@ -4,7 +4,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const root = join(import.meta.dir, '..');
-const buildId = process.env.BUILD_ID ?? `${Date.now()}`;
+const buildId =
+    process.env.NETLIFY_DEPLOY_ID
+    ?? process.env.COMMIT_REF
+    ?? process.env.COMMIT_SHA
+    ?? (process.env.BUILD_ID && process.env.BUILD_ID !== '0' ? process.env.BUILD_ID : undefined)
+    ?? `${Date.now()}`;
 const version = { buildId };
 
 const build = Bun.spawnSync(
