@@ -12,12 +12,12 @@ Rule: every phase must preserve a runnable baseline. No redesign, new gameplay, 
 
 - [ ] Record current commit SHA and branch.
 - [x] Run `bun install` (Bun reported one cache permission warning; existing dependency graph remained usable).
-- [ ] Run `bun run dev` and verify browser game loads. Dev server reported `http://localhost:3000/`; browser smoke check still pending because the short-lived test process was unavailable to the browser.
+- [x] Run `bun run dev` and verify browser game loads. Browser DOM smoke test showed original HUD, tuning sliders, minimap, chat, and live terrain chunk count.
 - [x] Run `bun run build` and verify production build. Build completed and emitted split bundles.
 - [x] Run `bun run dev:server` and verify WebSocket server starts. Server reported `ws://localhost:3001`.
 - [ ] Test keyboard controls: accelerate, reverse, steer, jump, boost.
 - [ ] Test mouse camera drag and wheel zoom.
-- [ ] Test tuning sliders, copy, and reset.
+- [ ] Test tuning sliders, copy, and reset interactions. Controls are present; interaction replay still pending.
 - [ ] Test terrain chunk generation while travelling.
 - [ ] Test multiplayer join, remote player movement, leave, and reconnect behavior.
 - [ ] Capture baseline screenshots and a short gameplay recording.
