@@ -27,11 +27,11 @@ Target:
 - [x] R3F is default `index.html` app entry.
 - [x] R3F `Canvas` owns renderer and render loop.
 - [x] Existing Three.js simulation runs through R3F frame loop.
-- [x] Production controls, React tuning panel, HUD anchor, chat, minimap, tricks, and multiplayer bootstrap exist in R3F entry.
+- [x] Production controls, React tuning/trick/chat/minimap/multiplayer panels, HUD anchor, and multiplayer bootstrap exist in R3F entry.
 - [x] Build, typecheck, and unit tests passed before latest upstream sync.
 - [x] Latest upstream production fixes rebased: slope-aware jumps, jump teleport/clipping fixes, contributing/deploy policy.
 - [x] Browser smoke test after latest upstream rebase: HUD, controls, tuning sliders, terrain chunks, tricks, multiplayer panel, minimap, and chat render; no console errors.
-- [ ] Transitional modules still own physics/tricks, DOM-injected HUD/chat/minimap/multiplayer UI, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and tuning UI.
+- [ ] Transitional modules still own physics/tricks, speedometer/speed-lines/update-notice UI, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, tuning, tricks, chat, minimap, and multiplayer panels.
 
 ## Phase 0: production reference capture
 
@@ -72,7 +72,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Phase 4: React UI and state boundaries
 
-- [ ] Replace DOM-injection HUD, chat, minimap, multiplayer, and update notice with React components. React now owns the tuning panel and trick presentation; trick HUD updates use DOM refs outside the frame loop's React state. Verified by typecheck, unit tests, production build, and a local R3F browser smoke check (HUD mounted; no console errors).
+- [ ] Replace DOM-injection speedometer, speed lines, and update notice with React components. React owns tuning, tricks, chat, minimap, and multiplayer panels; frame-time updates use DOM refs outside React state. Verified by typecheck, unit tests, production build, and local R3F browser smoke checks.
 - [ ] Add Zustand only for coarse UI/session/settings state.
 - [ ] Keep speed, transforms, physics, terrain, and snapshots out of React state.
 - [ ] Add accessible settings, controls reference, connection state, and error states.
@@ -109,7 +109,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Current batch
 
-Replace the remaining DOM-injected UI with lifecycle-safe React components, one bounded surface at a time. Tuning is complete; next is HUD/trick presentation. Keep speed, transforms, terrain, and network snapshots outside React state.
+Replace remaining DOM-injected speedometer, speed lines, and update notice with lifecycle-safe React components. Tuning, tricks, chat, minimap, and multiplayer panels are complete. Keep speed, transforms, terrain, and network snapshots outside React state.
 
 ## Reference docs used
 
