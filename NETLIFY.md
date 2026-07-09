@@ -70,6 +70,26 @@ After claiming, connect the GitHub repo for continuous deployment.
 - **Not authenticated** — run `netlify login` to claim the drop site or create a permanent site.
 - **Claim or re-link** — anonymous deploys expire unless claimed; use `netlify init` for a permanent linked site.
 
+### Option C — GitHub Actions (this repo)
+
+`.github/workflows/ci.yml` runs on every PR and on pushes to `main`:
+
+1. `bun run typecheck`
+2. `bun test`
+3. `bun run build`
+4. **main:** production deploy to Netlify
+5. **PRs:** Netlify draft preview URL posted as a PR comment
+
+One-time repo secret setup (maintainer):
+
+```bash
+# Create a token at https://app.netlify.com/user/applications#personal-access-tokens
+gh secret set NETLIFY_AUTH_TOKEN --repo Tsurgcom/lunarpup
+gh secret set NETLIFY_SITE_ID --repo Tsurgcom/lunarpup --body "545570d4-9b21-4018-bc47-167a31557087"
+```
+
+After secrets are set, merges to `main` deploy automatically — no manual `netlify deploy --prod` needed.
+
 ## Multiplayer on Netlify — important limitations
 
 The game includes a **Bun WebSocket multiplayer server** (`src/server.ts`, default port **3001**). This **cannot** run on Netlify static hosting.
