@@ -62,7 +62,7 @@ function sampleHeights(cx: number, cz: number) {
     // Normalize heights into 0..1 in-place for drawing
     const span = Math.max(max - min, 1);
     for (let i = 0; i < data.length; i++) {
-        data[i] = (data[i] - min) / span;
+        data[i] = (data[i]! - min) / span;
     }
     return data;
 }

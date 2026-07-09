@@ -1,5 +1,12 @@
 #!/usr/bin/env bun
 
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+const root = join(import.meta.dir, '..');
+const version = { buildId: `${Date.now()}` };
+await writeFile(join(root, 'version.json'), JSON.stringify(version, null, 2));
+
 const game = Bun.spawn(['bun', '--hot', './index.html'], {
     stdout: 'inherit',
     stderr: 'inherit',

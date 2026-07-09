@@ -20,6 +20,7 @@ export async function bootstrap() {
         { setupMultiplayerUI, updateMultiplayerStatus, updateMultiplayerHint },
         { setupMinimap },
         { setupChatUI },
+        { setupUpdateNotice },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
@@ -32,6 +33,7 @@ export async function bootstrap() {
         import('../ui/multiplayer.ts'),
         import('../ui/minimap.ts'),
         import('../ui/chat.ts'),
+        import('../ui/updateNotice.ts'),
     ]);
 
     initScene(container);
@@ -51,6 +53,7 @@ export async function bootstrap() {
     setupMultiplayerUI();
     setupMinimap();
     setupChatUI(mpConfig.enabled, mpConfig.name);
+    setupUpdateNotice();
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
