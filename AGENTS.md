@@ -15,6 +15,7 @@
 ## Environment variables
 
 - `AGENT_EVENT_TOKEN`: required bearer token or `x-agent-event-token` value for `POST /agent/event`.
+- `EXTENSIONS`: comma-separated extension package names loaded from `content/extensions/`; `scripts/dev.ts` defaults to `agent-harness` for local dev.
 - `DATABASE_URL`: when set, persistence uses Postgres/Timescale instead of SQLite. Run `bun run db:migrate` before use. Leaderboards read `best_time_leaderboards_hourly` in this mode.
 - `TEST_DATABASE_URL`: SQLite database path for tests and smoke runs when `DATABASE_URL` is unset; Postgres integration tests also use it as a Postgres URL when explicitly configured for those tests.
 - `MAINNET_LAUNCH_CONFIRM`: must be exactly `YES_I_AM_SURE` before `scripts/solana/launch-mainnet.ts` will proceed to its interactive human confirmation.
@@ -29,7 +30,8 @@ CORS is centralized in `src/server.ts`; do not add per-module CORS headers.
 - `GET /rooms`: list lobby rooms.
 - `POST /wallet/challenge`: create a devnet wallet sign-in challenge.
 - `POST /wallet/verify`: verify the wallet signature and link the wallet to the player id.
-- `POST /agent/event`: authenticated agent event ingest with owner-scoped WebSocket delivery.
+- `POST /agent/event`: authenticated agent event ingest with owner-scoped WebSocket delivery, only when the `agent-harness` extension is enabled.
+- `GET /extensions`: lists enabled extension client entries, only registered when at least one extension is enabled.
 - `GET /api/cosmetics/catalog`: public cosmetic catalog.
 - `GET /api/cosmetics/inventory?accountId=<id>`: balance, linked wallet, token balance, owned cosmetics, equipped slots, and catalog.
 - `POST /api/cosmetics/buy`: `{ accountId, cosmeticId, currency?: "soft" | "token" }`; token purchases require a linked wallet and injected devnet SPL token service.
@@ -43,7 +45,15 @@ CORS is centralized in `src/server.ts`; do not add per-module CORS headers.
 - Default/multiplayer channel: legacy `{ type: "join" | "state" | "leave" | "chat" }` messages.
 - `room`: create, join, leave, list, and start gamemode lobby messages.
 - `gamemode`: `run_sample` messages; `reason: "finish"` feeds leaderboard results.
-- `agent-events`: subscribe with `{ channel: "agent-events", type: "subscribe", ownerKey }` for owner-scoped delivery.
+- `agent-events`: subscribe with `{ channel: "agent-events", type: "subscribe", ownerKey }` for owner-scoped delivery, only when the `agent-harness` extension is enabled.
+
+## Extensions
+
+- Extension packages live under `content/extensions/<name>/` and use `kind: "extension"` package manifests.
+- Optional manifest `serverModule` entries export `registerServer(router)`; optional `clientModule` entries export `setupClient()`.
+- The server loader reads `EXTENSIONS`, imports enabled server modules, exposes `GET /extensions`, and serves each enabled client entry.
+- The browser loader fetches `GET /extensions` after bootstrap and imports enabled client entries; core game bootstrap must not import extension UI directly.
+- `content/extensions/agent-harness/` owns the agent event endpoint, WebSocket channel, HUD, and Claude Code adapter.
 
 ## Adapters
 

@@ -22,7 +22,7 @@ bun install
 bun run dev
 ```
 
-Opens a hot-reloading dev server from `index.html`.
+Starts the browser game and API/WebSocket server. Local dev enables the `agent-harness` extension by default through `scripts/dev.ts`.
 
 Run the automated checks:
 
@@ -34,6 +34,25 @@ bun run smoke
 
 Enable multiplayer with URL parameters such as
 `?multiplayer&room=lunar-park&name=Pup123`. Override the API/WebSocket server with `?ws=ws://localhost:3001`.
+
+## Extensions
+
+Runtime extensions live in `content/extensions/<package>/`. Enable them on the server with `EXTENSIONS=package-a,package-b`; disabled extensions register no endpoints and ship no client code. `GET /extensions` lists enabled extensions that expose browser entries, and the browser loader imports each listed entry after game bootstrap.
+
+An extension package is a normal package manifest with `kind: "extension"` plus optional entry paths:
+
+```json
+{
+  "kind": "extension",
+  "displayName": "Example Extension",
+  "serverModule": "./server.ts",
+  "clientModule": "./client.ts"
+}
+```
+
+`serverModule` must export `registerServer(router)`. `clientModule` must export `setupClient()`. Keep package paths relative to the extension directory; the loader rejects paths outside the package root.
+
+`content/extensions/agent-harness/` is the first extension. It owns `POST /agent/event`, the `agent-events` WebSocket channel, the owner-key HUD row, and the Claude Code adapter under `content/extensions/agent-harness/adapters/claude-code/`.
 
 ## Production build
 
@@ -65,16 +84,18 @@ src/
   game/                # Scene, terrain, player, loop, input, tricks
   modes/               # Runtime gamemode packages, sampling, and results UI
   net/                 # getApiBaseUrl(), WebSocket client, shared protocol
-  ui/                  # Tuning, speed lines, multiplayer, cosmetics, agent HUD
+  ui/                  # Tuning, speed lines, multiplayer, cosmetics
   contracts/           # Runtime-validated contracts and storage interfaces
+  extensions/          # Generic client/server extension loaders
   cosmetics/           # Content-addressed cosmetic package registry
   solana/              # Devnet SPL token and Metaplex NFT adapters
   server/              # Bun HTTP/WebSocket modules: rooms, wallet, cosmetics,
-                       # lootbox, agent events, gamemodes, leaderboard
+                       # lootbox, gamemodes, leaderboard
   server.ts            # Bun server wiring; CORS is applied here for all HTTP responses
 content/
   cosmetics/           # Cosmetic manifests and definitions
   gamemodes/           # Gamemode manifests and params
+  extensions/          # Runtime extension packages such as agent-harness
 db/migrations/         # Timescale/Postgres schema and continuous aggregates
 docs/                  # Architecture, Solana, lootbox, persistence notes
 scripts/
