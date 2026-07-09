@@ -25,7 +25,7 @@ function useGameInput() {
     }, []);
 }
 
-function GameRuntime({ player, ready }: { player: VoxelDogParts; ready: MutableRefObject<boolean> }) {
+function GameRuntime({ playerRef, ready }: { playerRef: MutableRefObject<VoxelDogParts | null>; ready: MutableRefObject<boolean> }) {
     const { scene, camera, gl } = useThree();
     useFrame((_, delta) => {
         if (ready.current) stepGameFrame(Math.min(delta, 0.05), { updateCamera: false });
@@ -34,6 +34,9 @@ function GameRuntime({ player, ready }: { player: VoxelDogParts; ready: MutableR
     useGameInput();
 
     useEffect(() => {
+        const player = playerRef.current;
+        if (!player) return;
+
         let disposed = false;
         let cleanup: (() => void) | undefined;
 
@@ -53,22 +56,26 @@ function GameRuntime({ player, ready }: { player: VoxelDogParts; ready: MutableR
             ready.current = false;
             cleanup?.();
         };
-    }, [camera, gl, player, scene]);
+    }, [camera, gl, playerRef, scene]);
 
     return null;
 }
 
 function GameScene() {
-    const [player, setPlayer] = useState<VoxelDogParts | null>(null);
+    const playerRef = useRef<VoxelDogParts | null>(null);
+    const [playerReady, setPlayerReady] = useState(false);
     const ready = useRef(false);
-    const onPlayerReady = useCallback((parts: VoxelDogParts) => setPlayer(parts), []);
+    const onPlayerReady = useCallback((parts: VoxelDogParts) => {
+        playerRef.current = parts;
+        setPlayerReady(true);
+    }, []);
 
     return (
         <>
             <WorldEnvironment />
             <Player onReady={onPlayerReady} />
-            {player && <Terrain player={player} />}
-            {player && <GameRuntime player={player} ready={ready} />}
+            {playerReady && <Terrain player={playerRef.current!} />}
+            {playerReady && <GameRuntime playerRef={playerRef} ready={ready} />}
             <CameraRig ready={ready} />
         </>
     );

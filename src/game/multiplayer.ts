@@ -9,8 +9,12 @@ import {
 } from './remotePlayers.ts';
 import { updateMultiplayerStatus, updateMultiplayerPlayers } from '../ui/multiplayer.ts';
 import { appendChatMessage } from '../ui/chat.ts';
-import { setMultiplayerClient } from '../state.ts';
+import { multiplayerClient, setMultiplayerClient } from '../state.ts';
 import { tintLocalDog } from './player.ts';
+
+export function isLocalMultiplayerId(localId: string, playerId: string) {
+    return localId.length > 0 && playerId === localId;
+}
 
 export function initMultiplayer(config: {
     transport: 'ws' | 'http';
@@ -19,6 +23,10 @@ export function initMultiplayer(config: {
     room: string;
     name: string;
 }) {
+    multiplayerClient?.disconnect();
+    clearRemotePlayers();
+
+    let localId = '';
     let localName = config.name;
 
     const client = new MultiplayerClient({
@@ -31,19 +39,26 @@ export function initMultiplayer(config: {
             updateMultiplayerStatus(status, detail, config.room);
         },
         onWelcome: (id, color, players) => {
+            localId = id;
+            clearRemotePlayers();
             tintLocalDog(color);
-            for (const player of players) addRemotePlayer(player);
+            for (const player of players) {
+                if (!isLocalMultiplayerId(localId, player.id)) addRemotePlayer(player, localId);
+            }
             updateMultiplayerPlayers(localName, getRemotePlayerNames());
         },
         onPlayerJoined: (player) => {
-            addRemotePlayer(player);
+            if (isLocalMultiplayerId(localId, player.id)) return;
+            addRemotePlayer(player, localId);
             updateMultiplayerPlayers(localName, getRemotePlayerNames());
         },
         onPlayerLeft: (id) => {
+            if (isLocalMultiplayerId(localId, id)) return;
             removeRemotePlayer(id);
             updateMultiplayerPlayers(localName, getRemotePlayerNames());
         },
         onPlayerState: (id, state) => {
+            if (isLocalMultiplayerId(localId, id)) return;
             updateRemoteTarget(id, state);
         },
         onChat: (id, name, text) => {
@@ -54,10 +69,11 @@ export function initMultiplayer(config: {
     setMultiplayerClient(client);
     client.connect();
 
-    window.addEventListener('beforeunload', () => {
+    return () => {
         client.disconnect();
         clearRemotePlayers();
-    });
+        setMultiplayerClient(null);
+    };
 }
 
 export function buildLocalSnapshot(

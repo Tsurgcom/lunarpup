@@ -1,5 +1,5 @@
 import { groundClearance } from '../config.ts';
-import { physics, playerGroup } from '../state.ts';
+import { physics, playerGroup, setMultiplayerClient } from '../state.ts';
 import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
 
 import type { SceneHost } from './scene.ts';
@@ -31,6 +31,8 @@ export async function bootstrap(options: { r3fHost: SceneHost; r3fPlayer: VoxelD
 
     const removeCameraControls = setupCameraControls();
 
+    let disposeMultiplayer: (() => void) | undefined;
+
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
             updateMultiplayerStatus('error', 'Multiplayer server not configured');
@@ -41,7 +43,7 @@ export async function bootstrap(options: { r3fHost: SceneHost; r3fPlayer: VoxelD
             );
         } else {
             const { initMultiplayer } = await import('./multiplayer.ts');
-            initMultiplayer(mpConfig);
+            disposeMultiplayer = initMultiplayer(mpConfig);
             if (mpConfig.transport === 'http') {
                 updateMultiplayerHint('Multiplayer runs on Netlify (SSE + Blobs). Share this URL with friends.');
             }
@@ -52,5 +54,7 @@ export async function bootstrap(options: { r3fHost: SceneHost; r3fPlayer: VoxelD
 
     return () => {
         removeCameraControls();
+        disposeMultiplayer?.();
+        setMultiplayerClient(null);
     };
 }
