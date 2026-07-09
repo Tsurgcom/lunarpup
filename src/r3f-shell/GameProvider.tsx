@@ -10,7 +10,7 @@ import {
     type RefObject,
 } from 'react';
 import type { MultiplayerStatus } from '../net/client.ts';
-import { getMultiplayerConfig, isLocalDevHost } from '../net/protocol.ts';
+import { getMultiplayerConfig, isLocalDevHost, type MultiplayerConfig } from '../net/protocol.ts';
 import { createGameRuntime } from '../game/runtime.ts';
 import {
     findRemotePlayerByName,
@@ -37,7 +37,7 @@ type GameContextValue = {
     ready: RefObject<boolean>;
     remotePlayersRef: RefObject<Map<string, RemotePlayerRecord>>;
     remotePlayerIds: string[];
-    multiplayerConfig: ReturnType<typeof getMultiplayerConfig>;
+    multiplayerConfig: MultiplayerConfig | null;
     mpStatus: MultiplayerStatus;
     mpStatusDetail?: string;
     mpRoom?: string;
@@ -62,14 +62,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const ready = useRef(false);
     const remotePlayersRef = useRef(new Map<string, RemotePlayerRecord>());
     const [remotePlayerIds, setRemotePlayerIds] = useState<string[]>([]);
-    const multiplayerConfig = useMemo(() => getMultiplayerConfig(), []);
+    const [multiplayerConfig, setMultiplayerConfig] = useState<MultiplayerConfig | null>(null);
+
+    useEffect(() => {
+        void getMultiplayerConfig().then(setMultiplayerConfig);
+    }, []);
     const [mpStatus, setMpStatus] = useState<MultiplayerStatus>('disconnected');
     const [mpStatusDetail, setMpStatusDetail] = useState<string | undefined>();
     const [mpRoom, setMpRoom] = useState<string | undefined>();
     const [mpHint, setMpHint] = useState(
         'Add <code>?multiplayer&amp;room=your-room</code> to the URL',
     );
-    const [mpPlayers, setMpPlayers] = useState(`Just you (${multiplayerConfig.name})`);
+    const [mpPlayers, setMpPlayers] = useState('Just you');
     const [chatLines, setChatLines] = useState<ChatLine[]>([]);
     const lastOutgoingAt = useRef(0);
     const lastTpBroadcastAt = useRef(0);
@@ -118,7 +122,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         alignPlayerToTerrain(root, runtime.current.physics, runtime.current.scratch);
         ready.current = true;
 
-        if (!multiplayerConfig.enabled) return;
+        if (!multiplayerConfig?.enabled) return;
 
         const mpConfig = multiplayerConfig;
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
@@ -136,10 +140,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
         clearRemotePlayerRecords(remotePlayersRef.current);
         syncRemoteIds();
 
-        disconnectMultiplayer.current = initMultiplayer(
+        void initMultiplayer(
             runtime.current,
             parts,
-            mpConfig,
+            {
+                transport: mpConfig.transport,
+                wsUrl: mpConfig.wsUrl,
+                apiBase: mpConfig.apiBase,
+                roomId: mpConfig.roomId,
+                roomKey: mpConfig.roomKey,
+                roomName: mpConfig.roomName,
+                name: mpConfig.name,
+            },
             {
                 onStatus: (status, detail, room) => {
                     setMpStatus(status);
@@ -163,7 +175,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
                     syncRemoteIds();
                     refreshPlayerList(mpConfig.name);
                     if (mpConfig.transport === 'http') {
-                        setMpHint('Multiplayer runs on Netlify (SSE + Blobs). Share this URL with friends.');
+                        setMpHint('End-to-end encrypted. Share this exact URL (it carries the room key) to play together — the server can’t read names, positions, or chat.');
                     }
                 },
                 onPlayerJoined: (player) => {
@@ -185,7 +197,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
                     Object.assign(remote.target, state);
                 },
             },
-        );
+        ).then((disconnect) => {
+            disconnectMultiplayer.current = disconnect;
+        });
     }, [appendChatLine, multiplayerConfig, refreshPlayerList, syncRemoteIds]);
 
     useEffect(() => () => {
@@ -221,7 +235,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const handleTpCommand = useCallback((raw: string) => {
         const parts = raw.trim().split(/\s+/);
         const client = runtime.current.multiplayerClient;
-        const localName = multiplayerConfig.name;
+        const localName = multiplayerConfig?.name ?? 'Pup';
 
         const maybeBroadcastTp = (text: string) => {
             if (!client?.isConnected) return;
@@ -258,7 +272,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
 
         appendChatLine('system', 'Usage: /tp x z  or  /tp playername');
-    }, [appendChatLine, multiplayerConfig.name]);
+    }, [appendChatLine, multiplayerConfig]);
 
     const value = useMemo<GameContextValue>(() => ({
         runtime,

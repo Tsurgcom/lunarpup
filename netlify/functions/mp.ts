@@ -31,7 +31,9 @@ export default async (req: Request, _context: Context) => {
     try {
         switch (msg.type) {
             case 'join': {
-                const result = await joinRoom(msg.room, msg.name);
+                // `name` and `state` arrive as encrypted envelopes; the relay
+                // stores/forwards them without ever decrypting.
+                const result = await joinRoom(msg.room, msg.name, msg.state);
                 return Response.json({
                     type: 'welcome',
                     id: result.id,
@@ -45,7 +47,7 @@ export default async (req: Request, _context: Context) => {
                 if (!id) {
                     return Response.json({ error: 'Missing player id' }, { status: 400, headers: CORS });
                 }
-                const ok = await updatePlayerState(msg.room, id, msg.state);
+                const ok = await updatePlayerState(msg.room, id, msg.seq, msg.state);
                 return Response.json({ ok }, { status: ok ? 200 : 404, headers: CORS });
             }
             case 'leave': {
@@ -61,7 +63,7 @@ export default async (req: Request, _context: Context) => {
                 if (!id) {
                     return Response.json({ error: 'Missing player id' }, { status: 400, headers: CORS });
                 }
-                const chat = await appendChat(msg.room, id, msg.text);
+                const chat = await appendChat(msg.room, id, msg.payload);
                 if (!chat) {
                     return Response.json({ error: 'Player not in room' }, { status: 404, headers: CORS });
                 }

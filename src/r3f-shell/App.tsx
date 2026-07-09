@@ -15,7 +15,7 @@ function ChatPanelWrapper() {
     const { multiplayerConfig } = useGame();
     return (
         <ChatPanel
-            multiplayerEnabled={multiplayerConfig.enabled}
+            multiplayerEnabled={multiplayerConfig?.enabled ?? false}
         />
     );
 }

@@ -1,4 +1,5 @@
 import { MultiplayerClient } from '../net/client.ts';
+import { RoomCipher } from '../net/crypto.ts';
 import type { PlayerSnapshot } from '../net/protocol.ts';
 import type { MultiplayerStatus } from '../net/client.ts';
 import { tintVoxelDog } from './dogTint.ts';
@@ -59,29 +60,33 @@ export function findRemotePlayerByName(map: Map<string, RemotePlayerRecord>, nam
     return undefined;
 }
 
-export function initMultiplayer(
+export async function initMultiplayer(
     runtime: GameRuntime,
     parts: VoxelDogParts,
     config: {
         transport: 'ws' | 'http';
         wsUrl?: string | null;
         apiBase?: string;
-        room: string;
+        roomId: string;
+        roomKey: string;
+        roomName: string;
         name: string;
     },
     handlers: MultiplayerHandlers,
-): () => void {
+): Promise<() => void> {
     runtime.multiplayerClient?.disconnect();
 
     let localId = '';
+    const cipher = await RoomCipher.fromKey(config.roomKey);
 
     const client = new MultiplayerClient({
         transport: config.transport,
+        cipher,
         wsUrl: config.wsUrl ?? undefined,
         apiBase: config.apiBase,
-        room: config.room,
+        room: config.roomId,
         name: config.name,
-        onStatus: (status, detail) => handlers.onStatus(status, detail, config.room),
+        onStatus: (status, detail) => handlers.onStatus(status, detail, config.roomName),
         onWelcome: (id, color, players) => {
             localId = id;
             tintVoxelDog(parts.dog, color);
