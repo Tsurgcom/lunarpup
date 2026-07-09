@@ -31,7 +31,7 @@ Target:
 - [x] Build, typecheck, and unit tests passed before latest upstream sync.
 - [x] Latest upstream production fixes rebased: slope-aware jumps, jump teleport/clipping fixes, contributing/deploy policy.
 - [x] Browser smoke test after latest upstream rebase: HUD, controls, tuning sliders, terrain chunks, tricks, multiplayer panel, minimap, and chat render; no console errors.
-- [ ] Transitional modules still own physics/tricks, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels (tuning, tricks, chat, minimap, multiplayer, speedometer, speed lines, update notice).
+- [ ] Transitional modules still own terrain-coupled physics integration, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels. Jump/drive/trick simulation logic now lives in tested `playerPhysics` and `trickSimulation` modules.
 
 ## Phase 0: production reference capture
 
@@ -67,8 +67,8 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 - [x] Create `Player` R3F component with board, animal, wheels, tail, shadows, and trick pose refs.
 - [x] Create R3F `CameraRig`: existing follow, orbit drag, zoom, and speed-FOV math now runs in R3F `useFrame` after simulation.
 - [x] Move keyboard input listeners into a lifecycle-safe React hook. Camera listeners now also clean up with runtime lifecycle.
-- [ ] Move player physics and tricks into isolated simulation module with tests.
-- [ ] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering now belongs to R3F; camera math and physics still use transitional simulation modules.
+- [x] Move player physics and tricks into isolated simulation modules with tests. `trickSimulation.ts` owns airborne trick state/scoring; `playerPhysics.ts` owns jump buffer, coyote time, drive speed, heading, and suspension blending. Verified with `bun test` (33 passed), `bun run typecheck`, and `bun run build`.
+- [ ] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering belongs to R3F; `loop.ts` still integrates simulation with terrain and presentation.
 
 ## Phase 4: React UI and state boundaries
 
@@ -109,7 +109,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Current batch
 
-Phase 4 React UI migration is complete for the default R3F entry. Next: extract player physics/tricks into tested simulation modules (Phase 3), then remote-player R3F presentation and multiplayer lifecycle hardening (Phase 6).
+Phase 3 simulation extraction is complete for jump/drive/trick logic. Next: remote-player R3F presentation and multiplayer lifecycle hardening (Phase 6), then Phase 0 smoke checklist before removing the vanilla entry.
 
 ## Reference docs used
 
