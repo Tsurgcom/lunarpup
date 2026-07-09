@@ -28,6 +28,9 @@ export class MultiplayerClient {
     private connectTimeout: ReturnType<typeof setTimeout> | null = null;
     private closedByUser = false;
     private allowReconnect = true;
+    private lastChatSend = 0;
+    private lastChatTs = 0;
+    private seenChatKeys = new Set<string>();
 
     constructor(private options: MultiplayerClientOptions) {}
 
@@ -115,9 +118,13 @@ export class MultiplayerClient {
         this.sendWs({ type: 'state', state });
     }
 
-    sendChat(text: string) {
+    sendChat(text: string): boolean {
         const trimmed = text.trim().slice(0, 200);
-        if (!trimmed || !this.isConnected) return;
+        if (!trimmed || !this.isConnected) return false;
+
+        const now = Date.now();
+        if (now - this.lastChatSend < 1000) return false;
+        this.lastChatSend = now;
 
         if (this.options.transport === 'http') {
             void fetch(this.apiUrl(), {
@@ -130,10 +137,11 @@ export class MultiplayerClient {
                     text: trimmed,
                 } satisfies ClientMessage),
             });
-            return;
+            return true;
         }
 
         this.sendWs({ type: 'chat', text: trimmed });
+        return true;
     }
 
     private apiUrl() {
@@ -206,7 +214,8 @@ export class MultiplayerClient {
             this.setStatus('connected');
             this.options.onWelcome?.(welcome.id, welcome.color, welcome.players);
 
-            const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}`;
+            const since = this.lastChatTs > 0 ? `&since=${this.lastChatTs}` : '';
+            const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}${since}`;
             this.eventSource = new EventSource(streamUrl);
 
             this.eventSource.onmessage = (event) => {
@@ -287,9 +296,18 @@ export class MultiplayerClient {
             case 'state':
                 this.options.onPlayerState?.(msg.id, msg.state);
                 break;
-            case 'chat':
+            case 'chat': {
+                const key = `${msg.id}:${msg.ts}:${msg.text}`;
+                if (this.seenChatKeys.has(key)) break;
+                this.seenChatKeys.add(key);
+                if (this.seenChatKeys.size > 200) {
+                    this.seenChatKeys.clear();
+                    this.seenChatKeys.add(key);
+                }
+                this.lastChatTs = Math.max(this.lastChatTs, msg.ts);
                 this.options.onChat?.(msg.id, msg.name, msg.text, msg.ts);
                 break;
+            }
         }
     }
 }

@@ -11,6 +11,13 @@ let visible = false;
 let localName = 'You';
 
 const MAX_LOG_LINES = 60;
+const OUTGOING_MIN_INTERVAL_MS = 1000;
+const DEDUPE_WINDOW_MS = 3000;
+const TP_BROADCAST_INTERVAL_MS = 5000;
+
+let lastOutgoingAt = 0;
+let lastTpBroadcastAt = 0;
+const recentMessages: { text: string; at: number }[] = [];
 
 export function setupChatUI(mpEnabled: boolean, playerName: string) {
     localName = playerName;
@@ -53,15 +60,31 @@ export function bindChatClient(client: MultiplayerClient) {
 }
 
 export function appendChatMessage(id: string, name: string, text: string, isSelf = false) {
-    appendLocalMessage(isSelf ? 'self' : 'remote', `${name}: ${text}`);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    appendLocalMessage(isSelf ? 'self' : 'remote', `${name}: ${trimmed}`);
 }
 
 export function appendSystemMessage(text: string) {
-    appendLocalMessage('system', text);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    appendLocalMessage('system', trimmed);
+}
+
+function shouldShowMessage(text: string): boolean {
+    const now = Date.now();
+    const isDuplicate = recentMessages.some(
+        (entry) => entry.text === text && now - entry.at < DEDUPE_WINDOW_MS,
+    );
+    if (isDuplicate) return false;
+
+    recentMessages.push({ text, at: now });
+    if (recentMessages.length > 30) recentMessages.shift();
+    return true;
 }
 
 function appendLocalMessage(kind: 'self' | 'remote' | 'system', text: string) {
-    if (!logEl) return;
+    if (!logEl || !shouldShowMessage(text)) return;
     const line = document.createElement('div');
     line.className = `chat-line chat-${kind}`;
     line.textContent = text;
@@ -102,9 +125,9 @@ async function submitChat() {
     if (!inputEl) return;
     const text = inputEl.value.trim();
     if (!text) return;
-    inputEl.value = '';
 
     if (text.startsWith('/tp')) {
+        inputEl.value = '';
         handleTpCommand(text);
         return;
     }
@@ -115,7 +138,19 @@ async function submitChat() {
         return;
     }
 
-    client.sendChat(text);
+    const now = Date.now();
+    if (now - lastOutgoingAt < OUTGOING_MIN_INTERVAL_MS) {
+        appendSystemMessage('Slow down — one message per second.');
+        return;
+    }
+
+    if (!client.sendChat(text)) {
+        appendSystemMessage('Slow down — one message per second.');
+        return;
+    }
+
+    lastOutgoingAt = now;
+    inputEl.value = '';
 }
 
 function handleTpCommand(raw: string) {
@@ -130,9 +165,7 @@ function handleTpCommand(raw: string) {
             return;
         }
         teleportTo(remote.current.x, remote.current.z, `teleported to ${remote.name}`);
-        if (client?.isConnected) {
-            client.sendChat(`* ${localName} teleported to ${remote.name}`);
-        }
+        maybeBroadcastTp(client, `* ${localName} teleported to ${remote.name}`);
         return;
     }
 
@@ -144,13 +177,22 @@ function handleTpCommand(raw: string) {
             return;
         }
         teleportTo(x, z, `teleported to (${x.toFixed(0)}, ${z.toFixed(0)})`);
-        if (client?.isConnected) {
-            client.sendChat(`* ${localName} teleported to (${x.toFixed(0)}, ${z.toFixed(0)})`);
-        }
+        maybeBroadcastTp(client, `* ${localName} teleported to (${x.toFixed(0)}, ${z.toFixed(0)})`);
         return;
     }
 
     appendSystemMessage('Usage: /tp x z  or  /tp playername');
+}
+
+function maybeBroadcastTp(client: typeof multiplayerClient, text: string) {
+    if (!client?.isConnected) return;
+
+    const now = Date.now();
+    if (now - lastTpBroadcastAt < TP_BROADCAST_INTERVAL_MS) return;
+
+    if (!client.sendChat(text)) return;
+    lastTpBroadcastAt = now;
+    lastOutgoingAt = now;
 }
 
 function teleportTo(x: number, z: number, label: string) {

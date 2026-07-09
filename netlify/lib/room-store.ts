@@ -32,6 +32,8 @@ function chatKey(roomId: string) {
 }
 
 const MAX_CHAT_MESSAGES = 80;
+const CHAT_MIN_INTERVAL_MS = 1000;
+const CHAT_DEDUPE_WINDOW_MS = 3000;
 
 function sanitize(value: string) {
     return value.trim().slice(0, 64).replace(/[^a-zA-Z0-9_-]/g, '_') || DEFAULT_ROOM;
@@ -134,18 +136,26 @@ export async function appendChat(roomId: string, playerId: string, text: string)
     const trimmed = text.trim().slice(0, 200);
     if (!trimmed) return null;
 
-    const msg: ChatMessage = {
-        id: playerId,
-        name: index.players[playerId].name,
-        text: trimmed,
-        ts: Date.now(),
-    };
-
     const raw = await store().get(chatKey(room), { type: 'text' });
     let messages: ChatMessage[] = [];
     if (raw) {
         try { messages = JSON.parse(raw) as ChatMessage[]; } catch { messages = []; }
     }
+
+    const now = Date.now();
+    const lastFromPlayer = [...messages].reverse().find(m => m.id === playerId);
+    if (lastFromPlayer) {
+        if (now - lastFromPlayer.ts < CHAT_MIN_INTERVAL_MS) return null;
+        if (lastFromPlayer.text === trimmed && now - lastFromPlayer.ts < CHAT_DEDUPE_WINDOW_MS) return null;
+    }
+
+    const msg: ChatMessage = {
+        id: playerId,
+        name: index.players[playerId].name,
+        text: trimmed,
+        ts: now,
+    };
+
     messages.push(msg);
     if (messages.length > MAX_CHAT_MESSAGES) {
         messages = messages.slice(-MAX_CHAT_MESSAGES);

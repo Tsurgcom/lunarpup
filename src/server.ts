@@ -16,6 +16,7 @@ interface PlayerConnection {
     room: string;
     ws?: ServerWebSocket<PlayerConnection>;
     state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>;
+    lastChat?: { text: string; ts: number };
 }
 
 interface Room {
@@ -129,12 +130,19 @@ function handleChat(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 
     if (!text) return;
     const room = rooms.get(conn.room);
     if (!room) return;
+
+    const now = Date.now();
+    const recent = conn.lastChat;
+    if (recent && now - recent.ts < 1000) return;
+    if (recent && recent.text === text && now - recent.ts < 3000) return;
+    conn.lastChat = { text, ts: now };
+
     broadcast(room, {
         type: 'chat',
         id: conn.id,
         name: conn.name,
         text,
-        ts: Date.now(),
+        ts: now,
     });
 }
 
