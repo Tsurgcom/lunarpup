@@ -1,5 +1,6 @@
 dist
 dist-r3f
+*.log
 node_modules
 legacy
 .netlify
