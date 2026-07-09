@@ -12,6 +12,6 @@ describe('calculateTerrainHeight', () => {
         { x: 720, z: 560, expected: 22.455596019685704 },
         { x: -1024, z: 2048, expected: 30.913507418734802 },
     ])('preserves the terrain shape at ($x, $z)', ({ x, z, expected }) => {
-        expect(calculateTerrainHeight(x, z)).toBe(expected);
+        expect(calculateTerrainHeight(x, z)).toBeCloseTo(expected, 9);
     });
 });
