@@ -39,6 +39,32 @@ bun install && bunx tsc --noEmit && bun test
 Add tests for what you build. If your change has runtime behavior, say in the PR body how
 you verified it live (not just typecheck).
 
+## Preview your PR before marking it ready
+
+Every PR must be testable in a browser without the reviewer building it locally. Before
+you flip a draft to **ready for review**, deploy a preview of your branch to your own
+Netlify and put the URL in the PR description.
+
+Zero-setup (anonymous draft deploy — no account needed):
+
+```bash
+bun run build
+npx netlify-cli deploy --dir=dist --allow-anonymous
+```
+
+Or with your own Netlify account (one-time `npx netlify-cli login` + `npx netlify-cli init`,
+then per-PR):
+
+```bash
+npx netlify-cli deploy --build
+```
+
+Both print a unique draft URL — that's your PR preview. Details in `NETLIFY.md`.
+
+Note: Netlify only hosts the static game. The Bun WebSocket server doesn't run there, so
+multiplayer on a preview needs `?ws=<your-server>` pointed at a reachable server (or state
+that your PR is frontend-only).
+
 ## Overlapping files are normal — clobbering is not
 
 Two PRs touching the same file is fine when coordinated: agree on merge order in PR
