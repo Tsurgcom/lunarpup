@@ -139,13 +139,25 @@ function canCoyoteJump() {
     return !physics.isGrounded && physics.airTime * 1000 <= COYOTE_TIME_MS;
 }
 
-function applyJump(frameScale: number) {
+function applyJump() {
     physics.velocity.y = physics.jumpForce;
-    playerGroup.position.y += physics.jumpForce * frameScale;
     physics.isGrounded = false;
     physics.airTime = 0;
     consumeJumpRequest();
     startTrick();
+}
+
+function ensureGroundClearance(targetY: number) {
+    if (playerGroup.position.y < targetY) {
+        playerGroup.position.y = targetY;
+    }
+}
+
+function applySuspension(targetY: number, frameScale: number) {
+    const heightDelta = targetY - playerGroup.position.y;
+    const suspensionBlend = 1 - Math.pow(1 - physics.suspension, frameScale);
+    playerGroup.position.y += heightDelta * suspensionBlend;
+    if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
 }
 
 function handlePhysics(dt: number) {
@@ -169,38 +181,49 @@ function handlePhysics(dt: number) {
     }
 
     const now = performance.now();
-    const targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
+    let targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
 
     if (physics.isGrounded) {
         if (wantsJump(now)) {
-            applyJump(frameScale);
+            ensureGroundClearance(targetY);
+            applyJump();
         } else {
-            const heightDelta = targetY - playerGroup.position.y;
-            const suspensionBlend = 1 - Math.pow(1 - physics.suspension, frameScale);
-            playerGroup.position.y += heightDelta * suspensionBlend;
-            if (Math.abs(heightDelta) > 18) playerGroup.position.y = targetY;
+            applySuspension(targetY, frameScale);
             physics.velocity.y = 0;
         }
     } else {
         physics.airTime += dt;
         if (wantsJump(now) && canCoyoteJump()) {
-            applyJump(frameScale);
-        } else {
-            physics.velocity.y -= physics.gravity * frameScale;
-            playerGroup.position.y += physics.velocity.y * frameScale;
-            if (playerGroup.position.y <= targetY) {
+            applyJump();
+        }
+    }
+
+    if (!physics.isGrounded) {
+        physics.velocity.y -= physics.gravity * frameScale;
+        playerGroup.position.y += physics.velocity.y * frameScale;
+
+        targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
+        if (playerGroup.position.y <= targetY && physics.velocity.y <= 0) {
+            if (wantsJump(now)) {
+                playerGroup.position.y = targetY;
+                applyJump();
+            } else {
                 playerGroup.position.y = targetY;
                 physics.isGrounded = true;
+                physics.velocity.y = 0;
                 finishTrick();
-                if (wantsJump(now)) {
-                    applyJump(frameScale);
-                }
             }
         }
     }
 
     scratch.forwardVector.set(Math.sin(physics.heading), 0, Math.cos(physics.heading));
     playerGroup.position.addScaledVector(scratch.forwardVector, physics.speed * frameScale);
+
+    if (physics.isGrounded) {
+        targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
+        applySuspension(targetY, frameScale);
+        physics.velocity.y = 0;
+    }
 
     updateTerrainChunks();
     alignPlayerToTerrain(frameScale);
