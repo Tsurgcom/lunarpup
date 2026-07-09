@@ -21,6 +21,7 @@ export async function bootstrap() {
         { setupMinimap },
         { setupChatUI },
         { setupUpdateNotice },
+        { setupAgentHud },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
@@ -34,6 +35,7 @@ export async function bootstrap() {
         import('../ui/minimap.ts'),
         import('../ui/chat.ts'),
         import('../ui/updateNotice.ts'),
+        import('../ui/agentHud.ts'),
     ]);
 
     initScene(container);
@@ -54,6 +56,7 @@ export async function bootstrap() {
     setupMinimap();
     setupChatUI(mpConfig.enabled, mpConfig.name);
     setupUpdateNotice();
+    setupAgentHud();
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
