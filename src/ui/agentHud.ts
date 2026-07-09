@@ -31,6 +31,10 @@ let statusEl: HTMLDivElement | null = null;
 let notificationPermissionRequested = false;
 let audioContext: AudioContext | null = null;
 let socket: WebSocket | null = null;
+const OWNER_KEY_STORAGE = 'lunarpup.agentOwnerKey';
+let ownerKey = '';
+let ownerKeyEl: HTMLInputElement | null = null;
+let ownerCopyEl: HTMLButtonElement | null = null;
 
 function isAgentEventBroadcastMessage(value: unknown): value is AgentEventBroadcastMessage {
     if (!value || typeof value !== 'object') return false;
@@ -161,12 +165,22 @@ function handleAgentEvent(event: AgentEvent): void {
     }
 }
 
+function getOrCreateOwnerKey(): string {
+    const existing = window.localStorage.getItem(OWNER_KEY_STORAGE);
+    if (existing) return existing;
+    const bytes = new Uint8Array(24);
+    window.crypto.getRandomValues(bytes);
+    const key = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    window.localStorage.setItem(OWNER_KEY_STORAGE, key);
+    return key;
+}
+
 function connectAgentEvents(): void {
     const wsUrl = getWsUrl();
     if (!wsUrl || socket) return;
     socket = new WebSocket(wsUrl);
     socket.addEventListener('open', () => {
-        socket?.send(JSON.stringify({ channel: 'agent-events', type: 'subscribe' }));
+        socket?.send(JSON.stringify({ channel: 'agent-events', type: 'subscribe', ownerKey }));
     });
     socket.addEventListener('message', message => {
         try {
@@ -183,18 +197,36 @@ function connectAgentEvents(): void {
 }
 
 export function setupAgentHud(): void {
+    ownerKey = getOrCreateOwnerKey();
     panelEl = document.createElement('div');
     panelEl.id = 'agent-hud';
     panelEl.innerHTML = `
         <div class="agent-header">
             <h2>Agent harness</h2>
             <div id="agent-status" class="agent-status">Waiting for agent events</div>
+            <label class="agent-owner">
+                <span>Owner key</span>
+                <input id="agent-owner-key" type="text" readonly>
+                <button id="agent-owner-copy" type="button">Copy</button>
+            </label>
         </div>
         <div id="agent-session-list" class="agent-session-list"></div>
     `;
     document.body.appendChild(panelEl);
     statusEl = panelEl.querySelector('#agent-status');
     listEl = panelEl.querySelector('#agent-session-list');
+    ownerKeyEl = panelEl.querySelector('#agent-owner-key');
+    ownerCopyEl = panelEl.querySelector('#agent-owner-copy');
+    if (ownerKeyEl) ownerKeyEl.value = ownerKey;
+    ownerCopyEl?.addEventListener('click', async () => {
+        await navigator.clipboard?.writeText(ownerKey);
+        if (ownerCopyEl) {
+            ownerCopyEl.textContent = 'Copied';
+            window.setTimeout(() => {
+                if (ownerCopyEl) ownerCopyEl.textContent = 'Copy';
+            }, 1200);
+        }
+    });
     renderSessions();
     armNotificationPermissionRequest();
     connectAgentEvents();

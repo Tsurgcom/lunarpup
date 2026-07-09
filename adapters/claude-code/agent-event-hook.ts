@@ -55,6 +55,8 @@ async function main(): Promise<void> {
     const endpoint = process.env.AGENT_EVENT_ENDPOINT ?? 'http://localhost:3001/agent/event';
     const token = process.env.AGENT_EVENT_TOKEN;
     if (!token) throw new Error('AGENT_EVENT_TOKEN is required');
+    const ownerKey = process.env.AGENT_EVENT_OWNER_KEY;
+    if (!ownerKey) throw new Error('AGENT_EVENT_OWNER_KEY is required; copy it from the in-game Agent harness HUD');
 
     const payload = await readHookPayload();
     const type = eventTypeFor(payload);
@@ -65,6 +67,7 @@ async function main(): Promise<void> {
         project: projectName(payload.cwd),
         message: messageFor(payload, type),
         timestamp: new Date().toISOString(),
+        ownerKey,
     };
 
     const valid = validateAgentEvent(event);

@@ -11,7 +11,7 @@ This repo keeps feature seams in plain TypeScript modules so parallel work can a
 - `agent_needs_input`
 - `agent_done`
 
-Every event carries `harness`, `sessionId`, `project`, `message`, and ISO-compatible `timestamp`. `validateAgentEvent` is the runtime gate for untrusted JSON.
+Every event carries `harness`, `sessionId`, `project`, `message`, and ISO-compatible `timestamp`. Harness POSTs may include an `ownerKey`; the server uses it only for owner-scoped WebSocket delivery and stores only a SHA-256 hash of it in the ledger. `validateAgentEvent` is the runtime gate for untrusted JSON.
 
 ## Package manifests
 

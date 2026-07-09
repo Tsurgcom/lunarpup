@@ -1,4 +1,4 @@
-import { fail, isRecord, ok, readEnum, readString, type ValidationResult } from './validators.ts';
+import { fail, isRecord, ok, readEnum, readOptionalString, readString, type ValidationResult } from './validators.ts';
 
 export const agentEventTypes = ['agent_session_start', 'agent_status', 'agent_needs_input', 'agent_done'] as const;
 export type AgentEventType = (typeof agentEventTypes)[number];
@@ -10,6 +10,7 @@ export interface AgentEvent {
     project: string;
     message: string;
     timestamp: string;
+    ownerKey?: string;
 }
 
 export function validateAgentEvent(value: unknown): ValidationResult<AgentEvent> {
@@ -24,8 +25,12 @@ export function validateAgentEvent(value: unknown): ValidationResult<AgentEvent>
     if (!project.ok) return project;
     const message = readString(value, 'message');
     if (!message.ok) return message;
+    const ownerKey = readOptionalString(value, 'ownerKey');
+    if (!ownerKey.ok) return ownerKey;
     const timestamp = readString(value, 'timestamp');
     if (!timestamp.ok) return timestamp;
     if (Number.isNaN(Date.parse(timestamp.value))) return fail('timestamp must be an ISO-compatible date string');
-    return ok({ type: type.value, harness: harness.value, sessionId: sessionId.value, project: project.value, message: message.value, timestamp: timestamp.value });
+    const event: AgentEvent = { type: type.value, harness: harness.value, sessionId: sessionId.value, project: project.value, message: message.value, timestamp: timestamp.value };
+    if (ownerKey.value !== undefined) event.ownerKey = ownerKey.value;
+    return ok(event);
 }

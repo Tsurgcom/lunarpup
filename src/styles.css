@@ -464,6 +464,46 @@ h1 {
     color: rgba(255,255,255,0.68);
 }
 
+.agent-owner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.62);
+    text-transform: uppercase;
+}
+
+.agent-owner span {
+    grid-column: 1 / -1;
+    letter-spacing: 0.06em;
+}
+
+.agent-owner input {
+    min-width: 0;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    padding: 6px 8px;
+    background: rgba(0,0,0,0.22);
+    color: rgba(255,255,255,0.86);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
+}
+
+.agent-owner button {
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 8px;
+    padding: 6px 9px;
+    background: rgba(255,255,255,0.1);
+    color: #f8fbff;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.agent-owner button:hover {
+    background: rgba(255,255,255,0.16);
+}
+
 .agent-session-list {
     display: grid;
     gap: 8px;

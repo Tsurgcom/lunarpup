@@ -4,14 +4,15 @@ This adapter forwards Claude Code `SessionStart`, `Notification`, and `Stop` hoo
 
 ## Environment
 
-Set the same shared secret on the game server and the hook process:
+Set the same shared secret on the game server and the hook process. Also copy the owner key from the in-game Agent harness HUD into the hook process; it scopes notifications to only your browser session.
 
 ```sh
 export AGENT_EVENT_TOKEN="replace-with-a-long-random-token"
 export AGENT_EVENT_ENDPOINT="http://localhost:3001/agent/event"
+export AGENT_EVENT_OWNER_KEY="paste-the-owner-key-from-the-game-hud"
 ```
 
-`AGENT_EVENT_ENDPOINT` defaults to `http://localhost:3001/agent/event` when omitted.
+`AGENT_EVENT_ENDPOINT` defaults to `http://localhost:3001/agent/event` when omitted. `AGENT_EVENT_OWNER_KEY` is required.
 
 ## Claude Code hooks
 
@@ -26,7 +27,7 @@ Add this to your Claude Code `settings.json` hooks block. Use an absolute path i
         "hooks": [
           {
             "type": "command",
-            "command": "bun adapters/claude-code/agent-event-hook.ts"
+            "command": "AGENT_EVENT_OWNER_KEY=paste-the-owner-key-from-the-game-hud bun adapters/claude-code/agent-event-hook.ts"
           }
         ]
       }
@@ -37,7 +38,7 @@ Add this to your Claude Code `settings.json` hooks block. Use an absolute path i
         "hooks": [
           {
             "type": "command",
-            "command": "bun adapters/claude-code/agent-event-hook.ts"
+            "command": "AGENT_EVENT_OWNER_KEY=paste-the-owner-key-from-the-game-hud bun adapters/claude-code/agent-event-hook.ts"
           }
         ]
       }
@@ -48,7 +49,7 @@ Add this to your Claude Code `settings.json` hooks block. Use an absolute path i
         "hooks": [
           {
             "type": "command",
-            "command": "bun adapters/claude-code/agent-event-hook.ts"
+            "command": "AGENT_EVENT_OWNER_KEY=paste-the-owner-key-from-the-game-hud bun adapters/claude-code/agent-event-hook.ts"
           }
         ]
       }
@@ -57,4 +58,4 @@ Add this to your Claude Code `settings.json` hooks block. Use an absolute path i
 }
 ```
 
-The hook reads Claude Code's JSON hook payload from stdin, converts it to the shared `AgentEvent` contract, and POSTs it with `Authorization: Bearer $AGENT_EVENT_TOKEN`.
+The hook reads Claude Code's JSON hook payload from stdin, converts it to the shared `AgentEvent` contract, and POSTs it with `Authorization: Bearer $AGENT_EVENT_TOKEN` and `ownerKey: $AGENT_EVENT_OWNER_KEY`.
