@@ -693,6 +693,87 @@ h1 {
     font-size: 12px;
 }
 
+.lootbox-card {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px;
+    padding: 12px;
+    background: radial-gradient(circle at top left, rgba(255,198,255,0.18), rgba(76,201,240,0.08) 46%, rgba(255,255,255,0.06));
+}
+
+.lootbox-copy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lootbox-open-button {
+    min-width: 84px;
+}
+
+.lootbox-animation {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    min-height: 34px;
+    align-items: center;
+}
+
+.lootbox-animation span {
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    background: linear-gradient(135deg, #ffc6ff, #4cc9f0);
+    box-shadow: 0 0 18px rgba(76,201,240,0.42);
+    transform: rotate(45deg);
+}
+
+.lootbox-odds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.lootbox-odd {
+    border-radius: 999px;
+    padding: 4px 7px;
+    background: rgba(255,255,255,0.1);
+    font-size: 11px;
+    text-transform: capitalize;
+}
+
+.lootbox-result {
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+.lootbox-result-label,
+.lootbox-result-meta {
+    color: rgba(255,255,255,0.72);
+    font-size: 11px;
+}
+
+.lootbox-result-name {
+    margin: 2px 0;
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.lootbox-result-empty {
+    color: rgba(255,255,255,0.72);
+    font-size: 12px;
+}
+
+.lootbox-rarity-common { color: #d9f99d; }
+.lootbox-rarity-rare { color: #93c5fd; }
+.lootbox-rarity-epic { color: #d8b4fe; }
+.lootbox-rarity-legendary { color: #fbbf24; }
+
 .cosmetics-skeleton {
     height: 72px;
     border-radius: 12px;
@@ -707,8 +788,28 @@ h1 {
     to { background-position: -20% 0; }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+    .lootbox-animation-opening span {
+        animation: lootbox-pop 260ms ease-out 3 alternate;
+    }
+
+    .lootbox-animation-opening span:nth-child(2) {
+        animation-delay: 70ms;
+    }
+
+    .lootbox-animation-opening span:nth-child(3) {
+        animation-delay: 140ms;
+    }
+}
+
+@keyframes lootbox-pop {
+    from { transform: translateY(0) rotate(45deg) scale(1); }
+    to { transform: translateY(-8px) rotate(45deg) scale(1.22); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .cosmetics-skeleton {
+    .cosmetics-skeleton,
+    .lootbox-animation-opening span {
         animation: none;
     }
 }

@@ -11,10 +11,35 @@ interface InventoryPayload {
     catalog: CosmeticPackage[];
 }
 
+interface LootboxOddsPayload {
+    box: string;
+    price: number;
+    duplicateRefund: number;
+    odds: Record<string, number>;
+}
+
+interface LootboxOpenPayload {
+    box: string;
+    cost: number;
+    seedCommitment: string;
+    result: {
+        cosmeticId: string;
+        displayName: string;
+        rarity: string;
+        slot: string;
+        duplicate: boolean;
+    };
+    refund: number;
+    balance: number;
+}
+
 let panel: HTMLElement | null = null;
 let state: InventoryPayload | null = null;
 let errorText = '';
 let loading = false;
+let lootboxOdds: LootboxOddsPayload | null = null;
+let lootboxResult: LootboxOpenPayload | null = null;
+let openingLootbox = false;
 let accountId = '';
 
 export function setupCosmeticsUI(): void {
@@ -35,9 +60,14 @@ async function loadInventory(): Promise<void> {
     errorText = '';
     renderLoading();
     try {
-        const response = await fetch(`${getApiBaseUrl()}/api/cosmetics/inventory?accountId=${encodeURIComponent(accountId)}`);
-        if (!response.ok) throw new Error(`Inventory failed (${response.status})`);
-        state = await response.json() as InventoryPayload;
+        const [inventoryResponse, oddsResponse] = await Promise.all([
+            fetch(`${getApiBaseUrl()}/api/cosmetics/inventory?accountId=${encodeURIComponent(accountId)}`),
+            fetch(`${getApiBaseUrl()}/lootbox/odds`),
+        ]);
+        if (!inventoryResponse.ok) throw new Error(`Inventory failed (${inventoryResponse.status})`);
+        if (!oddsResponse.ok) throw new Error(`Lootbox odds failed (${oddsResponse.status})`);
+        state = await inventoryResponse.json() as InventoryPayload;
+        lootboxOdds = await oddsResponse.json() as LootboxOddsPayload;
         applyEquipped();
     } catch (error) {
         errorText = error instanceof Error ? error.message : String(error);
@@ -53,6 +83,30 @@ async function buy(cosmeticId: string): Promise<void> {
 
 async function equip(cosmeticId: string, slot: string): Promise<void> {
     await postAction('/api/cosmetics/equip', { accountId, cosmeticId, slot });
+}
+
+async function openLootbox(): Promise<void> {
+    if (!lootboxOdds) return;
+    openingLootbox = true;
+    lootboxResult = null;
+    errorText = '';
+    render();
+    try {
+        const response = await fetch(`${getApiBaseUrl()}/lootbox/open`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ accountId, box: lootboxOdds.box }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || `Lootbox failed (${response.status})`);
+        lootboxResult = payload as LootboxOpenPayload;
+        await loadInventory();
+    } catch (error) {
+        errorText = error instanceof Error ? error.message : String(error);
+    } finally {
+        openingLootbox = false;
+        render();
+    }
 }
 
 async function postAction(path: string, body: Record<string, string>): Promise<void> {
@@ -118,6 +172,7 @@ function render(): void {
             <span class="cosmetics-pill">${state.balance} moon bones</span>
         </div>
         <p class="cosmetics-account">Inventory ${escapeHtml(state.accountId)}</p>
+        ${lootboxPanel()}
         <div class="cosmetics-list">
             ${state.catalog.map(item => cosmeticCard(item, owned.has(item.id), state!.equipped[item.definition.slot] === item.id)).join('')}
         </div>
@@ -130,6 +185,37 @@ function render(): void {
     panel.querySelectorAll<HTMLButtonElement>('[data-equip]').forEach(button => {
         button.addEventListener('click', () => void equip(button.dataset.equip!, button.dataset.slot!));
     });
+    panel.querySelector<HTMLButtonElement>('[data-lootbox-open]')?.addEventListener('click', () => void openLootbox());
+}
+
+function lootboxPanel(): string {
+    if (!lootboxOdds) return '<section class="lootbox-card"><div class="cosmetics-skeleton" aria-hidden="true"></div></section>';
+    const odds = Object.entries(lootboxOdds.odds)
+        .map(([rarity, chance]) => `<span class="lootbox-odd lootbox-rarity-${escapeHtml(rarity)}">${escapeHtml(rarity)} ${(chance * 100).toFixed(0)}%</span>`)
+        .join('');
+    const result = lootboxResult
+        ? `<div class="lootbox-result lootbox-rarity-${escapeHtml(lootboxResult.result.rarity)}" role="status">
+            <div class="lootbox-result-label">${lootboxResult.result.duplicate ? 'Duplicate refund' : 'Unlocked cosmetic'}</div>
+            <div class="lootbox-result-name">${escapeHtml(lootboxResult.result.displayName)}</div>
+            <div class="lootbox-result-meta">${escapeHtml(lootboxResult.result.rarity)} · ${lootboxResult.result.slot}${lootboxResult.refund ? ` · +${lootboxResult.refund} refund` : ''}</div>
+        </div>`
+        : '<div class="lootbox-result lootbox-result-empty">Open a Moon Crate to reveal a cosmetic.</div>';
+    return `
+        <section class="lootbox-card" aria-busy="${openingLootbox}">
+            <div class="lootbox-copy">
+                <div>
+                    <div class="cosmetics-card-title">Moon Crate</div>
+                    <div class="cosmetics-meta">Server roll · ${lootboxOdds.price} moon bones · duplicate refund ${lootboxOdds.duplicateRefund}</div>
+                </div>
+                <button class="cosmetics-button lootbox-open-button" type="button" data-lootbox-open ${openingLootbox || loading ? 'disabled' : ''}>${openingLootbox ? 'Opening…' : 'Open'}</button>
+            </div>
+            <div class="lootbox-animation ${openingLootbox ? 'lootbox-animation-opening' : ''}" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="lootbox-odds" aria-label="Published lootbox odds">${odds}</div>
+            ${result}
+        </section>
+    `;
 }
 
 function cosmeticCard(item: CosmeticPackage, owned: boolean, equipped: boolean): string {
