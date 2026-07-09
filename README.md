@@ -69,3 +69,7 @@ index.html          # HTML shell
 dist/               # Build output (generated)
 legacy/             # Original saved HTML snapshot
 ```
+
+## Acknowledgments
+
+Thanks to **@dustydee** from the Hermes agent Discord server for feedback and inspiration.

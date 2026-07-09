@@ -216,6 +216,15 @@ export function getTerrainNormal(x: number, z: number) {
     return scratch.terrainNormal;
 }
 
+/** Signed distance from (x, y, z) above the terrain surface along its normal. */
+export function getHeightAboveTerrain(x: number, y: number, z: number) {
+    const terrainH = getTerrainHeight(x, z);
+    const normal = getTerrainNormal(x, z);
+    scratch.normalProbeA.set(x, terrainH, z);
+    scratch.normalProbeB.set(x, y, z).sub(scratch.normalProbeA);
+    return scratch.normalProbeB.dot(normal);
+}
+
 export function alignPlayerToTerrain(frameScale = 1) {
     const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z);
     scratch.baseForward.set(Math.sin(physics.heading), 0, Math.cos(physics.heading));

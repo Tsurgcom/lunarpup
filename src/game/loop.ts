@@ -17,6 +17,8 @@ import {
 import { groundClearance } from '../config.ts';
 import {
     getTerrainHeight,
+    getTerrainNormal,
+    getHeightAboveTerrain,
     updateTerrainChunks,
     alignPlayerToTerrain,
 } from './terrain.ts';
@@ -140,16 +142,20 @@ function canCoyoteJump() {
 }
 
 function applyJump() {
-    physics.velocity.y = physics.jumpForce;
+    const normal = getTerrainNormal(playerGroup.position.x, playerGroup.position.z);
+    physics.velocity.copy(normal).multiplyScalar(physics.jumpForce);
     physics.isGrounded = false;
     physics.airTime = 0;
     consumeJumpRequest();
     startTrick();
 }
 
-function ensureGroundClearance(targetY: number) {
-    if (playerGroup.position.y < targetY) {
-        playerGroup.position.y = targetY;
+function ensureGroundClearance() {
+    const { x, y, z } = playerGroup.position;
+    const heightAbove = getHeightAboveTerrain(x, y, z);
+    if (heightAbove < groundClearance) {
+        const normal = getTerrainNormal(x, z);
+        playerGroup.position.addScaledVector(normal, groundClearance - heightAbove);
     }
 }
 
@@ -185,11 +191,11 @@ function handlePhysics(dt: number) {
 
     if (physics.isGrounded) {
         if (wantsJump(now)) {
-            ensureGroundClearance(targetY);
+            ensureGroundClearance();
             applyJump();
         } else {
             applySuspension(targetY, frameScale);
-            physics.velocity.y = 0;
+            physics.velocity.set(0, 0, 0);
         }
     } else {
         physics.airTime += dt;
@@ -200,17 +206,21 @@ function handlePhysics(dt: number) {
 
     if (!physics.isGrounded) {
         physics.velocity.y -= physics.gravity * frameScale;
-        playerGroup.position.y += physics.velocity.y * frameScale;
+        playerGroup.position.addScaledVector(physics.velocity, frameScale);
 
-        targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
-        if (playerGroup.position.y <= targetY && physics.velocity.y <= 0) {
+        const { x, y, z } = playerGroup.position;
+        const normal = getTerrainNormal(x, z);
+        const heightAbove = getHeightAboveTerrain(x, y, z);
+        const velAlongNormal = physics.velocity.dot(normal);
+
+        if (heightAbove <= groundClearance && velAlongNormal <= 0) {
             if (wantsJump(now)) {
-                playerGroup.position.y = targetY;
+                ensureGroundClearance();
                 applyJump();
             } else {
-                playerGroup.position.y = targetY;
+                playerGroup.position.addScaledVector(normal, groundClearance - heightAbove);
                 physics.isGrounded = true;
-                physics.velocity.y = 0;
+                physics.velocity.set(0, 0, 0);
                 finishTrick();
             }
         }
@@ -222,7 +232,7 @@ function handlePhysics(dt: number) {
     if (physics.isGrounded) {
         targetY = getTerrainHeight(playerGroup.position.x, playerGroup.position.z) + groundClearance;
         applySuspension(targetY, frameScale);
-        physics.velocity.y = 0;
+        physics.velocity.set(0, 0, 0);
     }
 
     updateTerrainChunks();

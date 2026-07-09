@@ -199,7 +199,7 @@ function teleportTo(x: number, z: number, label: string) {
     playerGroup.position.x = x;
     playerGroup.position.z = z;
     playerGroup.position.y = getTerrainHeight(x, z) + groundClearance;
-    physics.velocity.y = 0;
+    physics.velocity.set(0, 0, 0);
     physics.isGrounded = true;
     physics.speed = 0;
     updateTerrainChunks(true);
