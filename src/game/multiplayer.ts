@@ -7,7 +7,7 @@ import {
     updateRemoteTarget,
     getRemotePlayerNames,
 } from './remotePlayers.ts';
-import { updateMultiplayerStatus, updateMultiplayerPlayers } from '../ui/multiplayer.ts';
+import { updateMultiplayerStatus, updateMultiplayerPlayers, updateRoomBrowser, updateMultiplayerHint } from '../ui/multiplayer.ts';
 import { appendChatMessage } from '../ui/chat.ts';
 import { setMultiplayerClient } from '../state.ts';
 import { tintLocalDog } from './player.ts';
@@ -34,6 +34,8 @@ export function initMultiplayer(config: {
             tintLocalDog(color);
             for (const player of players) addRemotePlayer(player);
             updateMultiplayerPlayers(localName, getRemotePlayerNames());
+            client.joinLobbyRoom(config.room, id);
+            client.listRooms();
         },
         onPlayerJoined: (player) => {
             addRemotePlayer(player);
@@ -48,6 +50,19 @@ export function initMultiplayer(config: {
         },
         onChat: (id, name, text) => {
             appendChatMessage(id, name, text, id === client.id);
+        },
+        onRoomList: (rooms) => {
+            updateRoomBrowser(rooms);
+        },
+        onRoomState: (roomId, gamemodeId, players) => {
+            if (roomId === config.room) {
+                updateMultiplayerHint(`${gamemodeId} lobby · ${players.length} pup${players.length === 1 ? '' : 's'} ready.`);
+            }
+        },
+        onGamemodeStart: (roomId, gamemodeId, hostId) => {
+            if (roomId === config.room) {
+                appendChatMessage(hostId, 'Host', `started ${gamemodeId}`, false);
+            }
         },
     });
 

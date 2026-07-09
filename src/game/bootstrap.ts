@@ -52,7 +52,20 @@ export async function bootstrap() {
     setSpeedLines(setupSpeedLines());
     setupTrickUI();
     setupTuningPanel();
-    setupMultiplayerUI();
+    setupMultiplayerUI({
+        enabled: mpConfig.enabled,
+        room: mpConfig.room,
+        name: mpConfig.name,
+        apiBase: mpConfig.apiBase,
+        wsUrl: mpConfig.wsUrl,
+        onJoinRoom: (roomId) => {
+            const url = new URL(location.href);
+            url.searchParams.set('multiplayer', '');
+            url.searchParams.set('room', roomId);
+            if (!url.searchParams.has('name')) url.searchParams.set('name', mpConfig.name);
+            location.href = url.href;
+        },
+    });
     setupMinimap();
     setupChatUI(mpConfig.enabled, mpConfig.name);
     setupUpdateNotice();

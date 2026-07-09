@@ -1,3 +1,4 @@
+import type { RoomClientMessage, RoomServerMessage, RoomSummary } from '../contracts/roomProtocol.ts';
 import type { ClientMessage, MultiplayerTransport, PlayerSnapshot, ServerMessage } from './protocol.ts';
 import { CONNECT_TIMEOUT_MS, STATE_SEND_INTERVAL_MS } from './protocol.ts';
 
@@ -16,6 +17,9 @@ export interface MultiplayerClientOptions {
     onPlayerLeft?: (id: string) => void;
     onPlayerState?: (id: string, state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>) => void;
     onChat?: (id: string, name: string, text: string, ts: number) => void;
+    onRoomList?: (rooms: RoomSummary[]) => void;
+    onRoomState?: (roomId: string, gamemodeId: string, players: string[]) => void;
+    onGamemodeStart?: (roomId: string, gamemodeId: string, hostId: string) => void;
 }
 
 export class MultiplayerClient {
@@ -113,6 +117,26 @@ export class MultiplayerClient {
         }
 
         this.sendWs({ type: 'state', state });
+    }
+
+    listRooms() {
+        this.sendRoomWs({ type: 'list_rooms' });
+    }
+
+    createRoom(roomId: string, gamemodeId: string, playerId = this.localId || this.options.name) {
+        this.sendRoomWs({ type: 'create_room', roomId, gamemodeId, playerId });
+    }
+
+    joinLobbyRoom(roomId: string, playerId = this.localId || this.options.name) {
+        this.sendRoomWs({ type: 'join_room', roomId, playerId });
+    }
+
+    leaveLobbyRoom(roomId: string, playerId = this.localId || this.options.name) {
+        this.sendRoomWs({ type: 'leave_room', roomId, playerId });
+    }
+
+    startGamemode(roomId = this.options.room, playerId = this.localId || this.options.name) {
+        this.sendRoomWs({ type: 'start_gamemode', roomId, playerId });
     }
 
     sendChat(text: string) {
@@ -258,14 +282,20 @@ export class MultiplayerClient {
         }
     }
 
+    private sendRoomWs(msg: RoomClientMessage) {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ channel: 'room', ...msg }));
+        }
+    }
+
     private setStatus(status: MultiplayerStatus, detail?: string) {
         this.options.onStatus?.(status, detail);
     }
 
     private handleMessage(raw: unknown) {
-        let msg: ServerMessage;
+        let msg: ServerMessage | RoomServerMessage;
         try {
-            msg = JSON.parse(String(raw)) as ServerMessage;
+            msg = JSON.parse(String(raw)) as ServerMessage | RoomServerMessage;
         } catch {
             return;
         }
@@ -289,6 +319,15 @@ export class MultiplayerClient {
                 break;
             case 'chat':
                 this.options.onChat?.(msg.id, msg.name, msg.text, msg.ts);
+                break;
+            case 'room_list':
+                this.options.onRoomList?.(msg.rooms);
+                break;
+            case 'room_state':
+                this.options.onRoomState?.(msg.roomId, msg.gamemodeId, msg.players);
+                break;
+            case 'start_gamemode':
+                this.options.onGamemodeStart?.(msg.roomId, msg.gamemodeId, msg.hostId);
                 break;
         }
     }
