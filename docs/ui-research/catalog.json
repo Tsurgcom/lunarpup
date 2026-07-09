@@ -1,0 +1,1782 @@
+{
+  "settings-options": [
+    {
+      "title": "Apply settings",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-apply-settings/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-apply-settings.mp4",
+      "tags": [
+        "Menu",
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-main-menu.mp4",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Visuals",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-visuals/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-visuals.mp4",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Controller",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-controller/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-controller-500x281.jpg",
+      "tags": [
+        "Settings"
+      ]
+    },
+    {
+      "title": "Audio",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-audio/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-audio-500x281.jpg",
+      "tags": [
+        "Settings"
+      ]
+    },
+    {
+      "title": "Options",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-options/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-options-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Controls",
+      "game": "Limbo",
+      "pageUrl": "https://interfaceingame.com/screenshots/limbo-controls/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/limbo/limbo-controls-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Gameplay",
+      "game": "Shadow Of The Tomb Raider",
+      "pageUrl": "https://interfaceingame.com/screenshots/shadow-of-the-tomb-raider-gameplay/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/shadow-of-the-tomb-raider/shadow-of-the-tomb-raider-gameplay.mp4",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Menu transition",
+      "game": "Frostpunk",
+      "pageUrl": "https://interfaceingame.com/screenshots/frostpunk-menu-transition/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/frostpunk/frostpunk-menu-transition.mp4",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Current time",
+      "game": "Genshin Impact Mobile",
+      "pageUrl": "https://interfaceingame.com/screenshots/genshin-impact-mobile-current-time/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/genshin-impact-mobile/genshin-impact-mobile-current-time-500x281.png",
+      "tags": [
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Button animation",
+      "game": "The Legend Of Zelda Breath Of The Wild",
+      "pageUrl": "https://interfaceingame.com/screenshots/the-legend-of-zelda-breath-of-the-wild-button-animation/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/the-legend-of-zelda-breath-of-the-wild/the-legend-of-zelda-breath-of-the-wild-button-animation.mp4",
+      "tags": [
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Graphics",
+      "game": "Alan Wake Ii",
+      "pageUrl": "https://interfaceingame.com/screenshots/alan-wake-ii-graphics/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/alan-wake-ii/alan-wake-ii-graphics-500x281.png",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Controller Map",
+      "game": "Sifu",
+      "pageUrl": "https://interfaceingame.com/screenshots/sifu-controller-map/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/sifu/sifu-controller-map-500x281.png",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Keyboard controls",
+      "game": "Crash Bandicoot N Sane Trilogy",
+      "pageUrl": "https://interfaceingame.com/screenshots/crash-bandicoot-n-sane-trilogy-keyboard-controls/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/crash-bandicoot-n-sane-trilogy/crash-bandicoot-n-sane-trilogy-keyboard-controls-500x281.jpg",
+      "tags": [
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Keyboard Map",
+      "game": "Sifu",
+      "pageUrl": "https://interfaceingame.com/screenshots/sifu-keyboard-map/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/sifu/sifu-keyboard-map-500x281.png",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Accessibility",
+      "game": "Doom Eternal",
+      "pageUrl": "https://interfaceingame.com/screenshots/doom-eternal-accessibility/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/doom-eternal/doom-eternal-accessibility-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Basic controls",
+      "game": "The Legend Of Zelda Breath Of The Wild",
+      "pageUrl": "https://interfaceingame.com/screenshots/the-legend-of-zelda-breath-of-the-wild-basic-controls/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/the-legend-of-zelda-breath-of-the-wild/the-legend-of-zelda-breath-of-the-wild-basic-controls-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Audio",
+      "game": "Steep",
+      "pageUrl": "https://interfaceingame.com/screenshots/steep-audio/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/steep/steep-audio-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Audio",
+      "game": "Risk Of Rain 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/risk-of-rain-2-audio/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/risk-of-rain-2/risk-of-rain-2-audio-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Settings",
+      "game": "Hello Neighbor",
+      "pageUrl": "https://interfaceingame.com/screenshots/hello-neighbor-settings/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hello-neighbor/hello-neighbor-settings-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Settings"
+      ]
+    }
+  ],
+  "hud": [
+    {
+      "title": "Death has taken you",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-death-has-taken-you/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-death-has-taken-you.mp4",
+      "tags": [
+        "Game over",
+        "In game",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Mission",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-mission/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-mission.mp4",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Progress",
+        "Quest"
+      ]
+    },
+    {
+      "title": "Powers",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-powers/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-powers-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Skill tree"
+      ]
+    },
+    {
+      "title": "Ping menu",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-ping-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-ping-menu-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Game over",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-game-over/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-game-over.mp4",
+      "tags": [
+        "Game over",
+        "In game",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Circle menu",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-circle-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-circle-menu.mp4",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Select weapon mods",
+      "game": "Control",
+      "pageUrl": "https://interfaceingame.com/screenshots/control-select-weapon-mods/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/control/control-select-weapon-mods-500x281.png",
+      "tags": [
+        "Inventory",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Inventory",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-inventory.mp4",
+      "tags": [
+        "Character",
+        "In game",
+        "Inventory",
+        "Menu",
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Choose a skill",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-choose-a-skill/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-choose-a-skill.mp4",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Skill tree"
+      ]
+    },
+    {
+      "title": "Level up",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-level-up/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-level-up.mp4",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Progress"
+      ]
+    },
+    {
+      "title": "Summary",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-summary/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-summary.mp4",
+      "tags": [
+        "Character",
+        "In game",
+        "Inventory",
+        "Menu",
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Minor civilization diplomacy",
+      "game": "Endless Space 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/endless-space-2-minor-civilization-diplomacy/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/endless-space-2/endless-space-2-minor-civilization-diplomacy-500x281.jpg",
+      "tags": [
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Map",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-map/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-map-500x281.jpg",
+      "tags": [
+        "In game",
+        "Map",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Inventory",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-inventory-500x281.jpg",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Acquired a map",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-acquired-a-map/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-acquired-a-map-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Dialogue",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-dialogue/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-dialogue-500x281.jpg",
+      "tags": [
+        "Dialogue",
+        "In game",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Game menu",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-game-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-game-menu-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Apply settings",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-apply-settings/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-apply-settings.mp4",
+      "tags": [
+        "Menu",
+        "Overlay",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Attack enemy",
+      "game": "Meteorfall Krumits Tale",
+      "pageUrl": "https://interfaceingame.com/screenshots/meteorfall-krumits-tale-attack-enemy/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/meteorfall-krumits-tale/meteorfall-krumits-tale-attack-enemy.mp4",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Choose a challenge",
+      "game": "Armello",
+      "pageUrl": "https://interfaceingame.com/screenshots/armello-choose-a-challenge/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/armello/armello-choose-a-challenge.mp4",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Quest"
+      ]
+    }
+  ],
+  "shop-store": [
+    {
+      "title": "Install upgrade",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-install-upgrade/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-install-upgrade-500x281.jpg",
+      "tags": [
+        "In game",
+        "Skill tree",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "Apex packs",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-apex-packs/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-apex-packs.mp4",
+      "tags": [
+        "Store"
+      ]
+    },
+    {
+      "title": "Battle pass",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-battle-pass/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-battle-pass-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Progress",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "Weapon skin",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-weapon-skin/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-weapon-skin.mp4",
+      "tags": [
+        "Inventory",
+        "Store"
+      ]
+    },
+    {
+      "title": "Vendor",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-vendor/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-vendor.mp4",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "Buy",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-buy/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-buy-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "Open loot boxes",
+      "game": "Overwatch",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-open-loot-boxes/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch/overwatch-open-loot-boxes.mp4",
+      "tags": [
+        "Store"
+      ]
+    },
+    {
+      "title": "Preview skin",
+      "game": "Overwatch",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-preview-skin/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch/overwatch-preview-skin.mp4",
+      "tags": [
+        "Inventory",
+        "Menu",
+        "Store"
+      ]
+    },
+    {
+      "title": "Purchase map",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-purchase-map/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-purchase-map-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Store"
+      ]
+    },
+    {
+      "title": "Purchase this item",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-purchase-this-item/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-purchase-this-item-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Store"
+      ]
+    },
+    {
+      "title": "Shop",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-shop/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-shop-500x281.png",
+      "tags": [
+        "Store",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Brawl Pass",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-brawl-pass/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-brawl-pass-500x281.png",
+      "tags": [
+        "Store",
+        "Progress",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Get Brawl Pass",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-get-brawl-pass/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-get-brawl-pass-500x281.png",
+      "tags": [
+        "Overlay",
+        "Store"
+      ]
+    },
+    {
+      "title": "Shop",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-shop-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-shop-2-500x281.png",
+      "tags": [
+        "Store"
+      ]
+    },
+    {
+      "title": "DLC",
+      "game": "Armello",
+      "pageUrl": "https://interfaceingame.com/screenshots/armello-dlc/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/armello/armello-dlc-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Store"
+      ]
+    },
+    {
+      "title": "Shop - Item Detail",
+      "game": "Toca Life World",
+      "pageUrl": "https://interfaceingame.com/screenshots/toca-life-world-shop-item-detail/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/toca-life-world/toca-life-world-shop-item-detail-500x281.jpg",
+      "tags": [
+        "Store"
+      ]
+    },
+    {
+      "title": "Shop - Game Items",
+      "game": "Toca Life World",
+      "pageUrl": "https://interfaceingame.com/screenshots/toca-life-world-shop-game-items/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/toca-life-world/toca-life-world-shop-game-items-500x281.jpg",
+      "tags": [
+        "Store",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Buy",
+      "game": "Valorant",
+      "pageUrl": "https://interfaceingame.com/screenshots/valorant-buy/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/valorant/valorant-buy-500x281.png",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Overlay",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "Shop",
+      "game": "Genshin Impact Mobile",
+      "pageUrl": "https://interfaceingame.com/screenshots/genshin-impact-mobile-shop/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/genshin-impact-mobile/genshin-impact-mobile-shop-500x281.png",
+      "tags": [
+        "Store",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Star boost",
+      "game": "Battlelands Royale",
+      "pageUrl": "https://interfaceingame.com/screenshots/battlelands-royale-star-boost/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/battlelands-royale/battlelands-royale-star-boost.mp4",
+      "tags": [
+        "Overlay",
+        "Store"
+      ]
+    }
+  ],
+  "inventory": [
+    {
+      "title": "Inventory",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-inventory.mp4",
+      "tags": [
+        "Character",
+        "In game",
+        "Inventory",
+        "Menu",
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Inventory",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-inventory-500x281.jpg",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Headwear transition",
+      "game": "Tom Clancys Ghost Recon Breakpoint",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-ghost-recon-breakpoint-headwear-transition/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-ghost-recon-breakpoint/tom-clancys-ghost-recon-breakpoint-headwear-transition.mp4",
+      "tags": [
+        "Character",
+        "Inventory",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Open box",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-open-box/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-open-box.mp4",
+      "tags": [
+        "Inventory",
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Attack enemy",
+      "game": "Meteorfall Krumits Tale",
+      "pageUrl": "https://interfaceingame.com/screenshots/meteorfall-krumits-tale-attack-enemy/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/meteorfall-krumits-tale/meteorfall-krumits-tale-attack-enemy.mp4",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Custom loadout",
+      "game": "Call Of Duty Modern Warfare",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-modern-warfare-custom-loadout/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-modern-warfare/call-of-duty-modern-warfare-custom-loadout.mp4",
+      "tags": [
+        "Inventory",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Armor",
+      "game": "The Legend Of Zelda Breath Of The Wild",
+      "pageUrl": "https://interfaceingame.com/screenshots/the-legend-of-zelda-breath-of-the-wild-armor/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/the-legend-of-zelda-breath-of-the-wild/the-legend-of-zelda-breath-of-the-wild-armor-500x281.jpg",
+      "tags": [
+        "Character",
+        "Inventory",
+        "Menu",
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Forge",
+      "game": "Moonlighter",
+      "pageUrl": "https://interfaceingame.com/screenshots/moonlighter-forge/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/moonlighter/moonlighter-forge-500x281.png",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Menu",
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Loot",
+      "game": "Genshin Impact Mobile",
+      "pageUrl": "https://interfaceingame.com/screenshots/genshin-impact-mobile-loot/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/genshin-impact-mobile/genshin-impact-mobile-loot-500x281.png",
+      "tags": [
+        "In game",
+        "Inventory"
+      ]
+    },
+    {
+      "title": "Inventory",
+      "game": "The Witcher 3 Wild Hunt",
+      "pageUrl": "https://interfaceingame.com/screenshots/the-witcher-3-wild-hunt-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/the-witcher-3-wild-hunt/the-witcher-3-wild-hunt-inventory-500x281.jpg",
+      "tags": [
+        "Character",
+        "Inventory",
+        "Menu",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Cards open",
+      "game": "Faeria",
+      "pageUrl": "https://interfaceingame.com/screenshots/faeria-cards-open/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/faeria/faeria-cards-open.mp4",
+      "tags": [
+        "Inventory"
+      ]
+    },
+    {
+      "title": "Notebook",
+      "game": "Moonlighter",
+      "pageUrl": "https://interfaceingame.com/screenshots/moonlighter-notebook/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/moonlighter/moonlighter-notebook-500x281.png",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Menu",
+        "Overlay",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Construction",
+      "game": "Frostpunk",
+      "pageUrl": "https://interfaceingame.com/screenshots/frostpunk-construction-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/frostpunk/frostpunk-construction.mp4",
+      "tags": [
+        "In game",
+        "Inventory",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Recipes inventory",
+      "game": "Animal Crossing New Horizons",
+      "pageUrl": "https://interfaceingame.com/screenshots/animal-crossing-new-horizons-recipes-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/animal-crossing-new-horizons/animal-crossing-new-horizons-recipes-inventory-500x281.jpg",
+      "tags": [
+        "Inventory",
+        "Menu",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Using an item",
+      "game": "Nierautomata",
+      "pageUrl": "https://interfaceingame.com/screenshots/nierautomata-using-an-item/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/nierautomata/nierautomata-using-an-item.mp4",
+      "tags": [
+        "Menu",
+        "Inventory"
+      ]
+    },
+    {
+      "title": "Character Inventory",
+      "game": "Toca Life World",
+      "pageUrl": "https://interfaceingame.com/screenshots/toca-life-world-character-inventory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/toca-life-world/toca-life-world-character-inventory-500x281.jpg",
+      "tags": [
+        "Inventory",
+        "In game"
+      ]
+    },
+    {
+      "title": "Resources",
+      "game": "Assassins Creed Valhalla",
+      "pageUrl": "https://interfaceingame.com/screenshots/assassins-creed-valhalla-resources/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/assassins-creed-valhalla/assassins-creed-valhalla-resources-500x281.png",
+      "tags": [
+        "Inventory",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Character Inventory",
+      "game": "Toca Life World",
+      "pageUrl": "https://interfaceingame.com/screenshots/toca-life-world-character-inventory-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/toca-life-world/toca-life-world-character-inventory.mp4",
+      "tags": [
+        "Character",
+        "Inventory"
+      ]
+    },
+    {
+      "title": "Open box",
+      "game": "Battlelands Royale",
+      "pageUrl": "https://interfaceingame.com/screenshots/battlelands-royale-open-box/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/battlelands-royale/battlelands-royale-open-box.mp4",
+      "tags": [
+        "Inventory",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Open Chest",
+      "game": "Clash Royale",
+      "pageUrl": "https://interfaceingame.com/screenshots/clash-royale-open-chest/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/clash-royale/clash-royale-open-chest.mp4",
+      "tags": [
+        "Inventory",
+        "Progress",
+        "Stats"
+      ]
+    }
+  ],
+  "lootbox-reward-gacha": [
+    {
+      "title": "Mission",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-mission/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-mission.mp4",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Progress",
+        "Quest"
+      ]
+    },
+    {
+      "title": "Mission complete",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-mission-complete/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-mission-complete.mp4",
+      "tags": [
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Apex packs",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-apex-packs/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-apex-packs.mp4",
+      "tags": [
+        "Store"
+      ]
+    },
+    {
+      "title": "Battle pass",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-battle-pass/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-battle-pass-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Progress",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "New mission",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-new-mission/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-new-mission.mp4",
+      "tags": [
+        "Menu",
+        "Map",
+        "Progress",
+        "Quest"
+      ]
+    },
+    {
+      "title": "Level up",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-level-up/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-level-up.mp4",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Progress"
+      ]
+    },
+    {
+      "title": "Open loot boxes",
+      "game": "Overwatch",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-open-loot-boxes/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch/overwatch-open-loot-boxes.mp4",
+      "tags": [
+        "Store"
+      ]
+    },
+    {
+      "title": "Match top player",
+      "game": "Overwatch",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-match-top-player/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch/overwatch-match-top-player.mp4",
+      "tags": [
+        "Character",
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Match summary",
+      "game": "Overwatch",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-match-summary/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch/overwatch-match-summary.mp4",
+      "tags": [
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Level completed",
+      "game": "Ruiner",
+      "pageUrl": "https://interfaceingame.com/screenshots/ruiner-level-completed-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/ruiner/ruiner-level-completed.mp4",
+      "tags": [
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Achievements",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-achievements/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-achievements-500x281.jpg",
+      "tags": [
+        "Progress"
+      ]
+    },
+    {
+      "title": "Memento",
+      "game": "Gris",
+      "pageUrl": "https://interfaceingame.com/screenshots/gris-memento/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/gris/gris-memento.mp4",
+      "tags": [
+        "In game",
+        "Progress"
+      ]
+    },
+    {
+      "title": "Character unlock",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-character-unlock-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-character-unlock.mp4",
+      "tags": [
+        "Character",
+        "Progress"
+      ]
+    },
+    {
+      "title": "Open box",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-open-box/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-open-box.mp4",
+      "tags": [
+        "Inventory",
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Brawl Pass",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-brawl-pass/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-brawl-pass-500x281.png",
+      "tags": [
+        "Store",
+        "Progress",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Quest reward",
+      "game": "Armello",
+      "pageUrl": "https://interfaceingame.com/screenshots/armello-quest-reward/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/armello/armello-quest-reward-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Progress",
+        "Quest"
+      ]
+    },
+    {
+      "title": "Weapon unlocks",
+      "game": "Call Of Duty Modern Warfare",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-modern-warfare-weapon-unlocks/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-modern-warfare/call-of-duty-modern-warfare-weapon-unlocks.mp4",
+      "tags": [
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Open Chest",
+      "game": "Clash Royale",
+      "pageUrl": "https://interfaceingame.com/screenshots/clash-royale-open-chest/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/clash-royale/clash-royale-open-chest.mp4",
+      "tags": [
+        "Inventory",
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Reward book",
+      "game": "Gwent The Witcher Card Game",
+      "pageUrl": "https://interfaceingame.com/screenshots/gwent-the-witcher-card-game-reward-book/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/gwent-the-witcher-card-game/gwent-the-witcher-card-game-reward-book.mp4",
+      "tags": [
+        "Menu",
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Daily rewards",
+      "game": "Rebel Racing",
+      "pageUrl": "https://interfaceingame.com/screenshots/rebel-racing-daily-rewards/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/rebel-racing/rebel-racing-daily-rewards-500x281.jpg",
+      "tags": [
+        "Overlay",
+        "Progress",
+        "Quest",
+        "Stats"
+      ]
+    }
+  ],
+  "lobby-matchmaking-room-list": [
+    {
+      "title": "Main menu",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-main-menu-500x281.jpg",
+      "tags": [
+        "Character",
+        "Lobby",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Select legend",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-select-legend/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-select-legend.mp4",
+      "tags": [
+        "Loading",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Docking in station",
+      "game": "Elite Dangerous",
+      "pageUrl": "https://interfaceingame.com/screenshots/elite-dangerous-docking-in-station/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/elite-dangerous/elite-dangerous-docking-in-station.mp4",
+      "tags": [
+        "In game",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-main-menu-500x281.png",
+      "tags": [
+        "Menu",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Lobby",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-lobby/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-lobby-500x281.png",
+      "tags": [
+        "Lobby",
+        "Character",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Friendly game",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-friendly-game/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-friendly-game-500x281.png",
+      "tags": [
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Character Selection ",
+      "game": "Destruction Allstars",
+      "pageUrl": "https://interfaceingame.com/screenshots/destruction-allstars-character-selection-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/destruction-allstars/destruction-allstars-character-selection.mp4",
+      "tags": [
+        "Character",
+        "Menu",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Loading transition",
+      "game": "League Of Legends Wild Rift",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-wild-rift-loading-transition/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends-wild-rift/league-of-legends-wild-rift-loading-transition.mp4",
+      "tags": [
+        "Loading",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Match found",
+      "game": "League Of Legends Wild Rift",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-wild-rift-match-found-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends-wild-rift/league-of-legends-wild-rift-match-found.mp4",
+      "tags": [
+        "Loading",
+        "Lobby",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Lobby",
+      "game": "Fortnite",
+      "pageUrl": "https://interfaceingame.com/screenshots/fortnite-lobby/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/fortnite/fortnite-lobby-500x281.png",
+      "tags": [
+        "Character",
+        "Lobby",
+        "Menu",
+        "Quest",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Choose your loadout",
+      "game": "League Of Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-choose-your-loadout/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends/league-of-legends-choose-your-loadout-500x281.jpg",
+      "tags": [
+        "Character",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Match beginning",
+      "game": "Call Of Duty Modern Warfare",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-modern-warfare-match-beginning/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-modern-warfare/call-of-duty-modern-warfare-match-beginning-500x281.jpg",
+      "tags": [
+        "Lobby",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Lobby",
+      "game": "Call Of Duty Mobile",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-mobile-lobby/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-mobile/call-of-duty-mobile-lobby-500x281.jpg",
+      "tags": [
+        "Character",
+        "Lobby",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Character select",
+      "game": "Under Night In Birth Exelatest",
+      "pageUrl": "https://interfaceingame.com/screenshots/under-night-in-birth-exelatest-character-select/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/under-night-in-birth-exelatest/under-night-in-birth-exelatest-character-select-500x281.jpg",
+      "tags": [
+        "Character",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Lobby",
+      "game": "Unrailed",
+      "pageUrl": "https://interfaceingame.com/screenshots/unrailed-lobby/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/unrailed/unrailed-lobby-500x281.jpg",
+      "tags": [
+        "Level selection",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Lobby",
+      "game": "Fall Guys Ultimate Knockout",
+      "pageUrl": "https://interfaceingame.com/screenshots/fall-guys-ultimate-knockout-lobby/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/fall-guys-ultimate-knockout/fall-guys-ultimate-knockout-lobby-500x281.png",
+      "tags": [
+        "Character",
+        "Lobby",
+        "Menu",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Create game",
+      "game": "Northgard",
+      "pageUrl": "https://interfaceingame.com/screenshots/northgard-create-game/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/northgard/northgard-create-game-500x281.jpg",
+      "tags": [
+        "Lobby",
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Lobby",
+      "game": "Valorant",
+      "pageUrl": "https://interfaceingame.com/screenshots/valorant-lobby/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/valorant/valorant-lobby-500x281.png",
+      "tags": [
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Computer level",
+      "game": "Super Smash Bros Ultimate",
+      "pageUrl": "https://interfaceingame.com/screenshots/super-smash-bros-ultimate-computer-level/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/super-smash-bros-ultimate/super-smash-bros-ultimate-computer-level-500x281.jpg",
+      "tags": [
+        "Character",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Warzone",
+      "game": "Call Of Duty Modern Warfare",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-modern-warfare-warzone/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-modern-warfare/call-of-duty-modern-warfare-warzone-500x281.jpg",
+      "tags": [
+        "Level selection",
+        "Lobby",
+        "Menu",
+        "Quest",
+        "Stats"
+      ]
+    }
+  ],
+  "leaderboard-results-score": [
+    {
+      "title": "Death has taken you",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-death-has-taken-you/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-death-has-taken-you.mp4",
+      "tags": [
+        "Game over",
+        "In game",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Game over",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-game-over/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-game-over-500x281.jpg",
+      "tags": [
+        "Game over",
+        "In game",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Game over",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-game-over/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-game-over.mp4",
+      "tags": [
+        "Game over",
+        "In game",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "World named enemies defeated",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-world-named-enemies-defeated/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-world-named-enemies-defeated-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Match summary",
+      "game": "Overwatch",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-match-summary/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch/overwatch-match-summary.mp4",
+      "tags": [
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Death",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-death/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-death.mp4",
+      "tags": [
+        "Game over",
+        "In game"
+      ]
+    },
+    {
+      "title": "Scoreboard",
+      "game": "Tom Clancys Ghost Recon Breakpoint",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-ghost-recon-breakpoint-scoreboard/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-ghost-recon-breakpoint/tom-clancys-ghost-recon-breakpoint-scoreboard-500x281.jpg",
+      "tags": [
+        "In game",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Killed in action",
+      "game": "Tom Clancys Ghost Recon Breakpoint",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-ghost-recon-breakpoint-killed-in-action/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-ghost-recon-breakpoint/tom-clancys-ghost-recon-breakpoint-killed-in-action-500x281.jpg",
+      "tags": [
+        "Game over"
+      ]
+    },
+    {
+      "title": "Club info",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-club-info/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-club-info-500x281.png",
+      "tags": [
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Game over",
+      "game": "Meteorfall Krumits Tale",
+      "pageUrl": "https://interfaceingame.com/screenshots/meteorfall-krumits-tale-game-over/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/meteorfall-krumits-tale/meteorfall-krumits-tale-game-over-500x281.jpg",
+      "tags": [
+        "Game over",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Combat report",
+      "game": "Valorant",
+      "pageUrl": "https://interfaceingame.com/screenshots/valorant-combat-report/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/valorant/valorant-combat-report-500x281.png",
+      "tags": [
+        "In game",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Champion leaderboard",
+      "game": "League Of Legends Wild Rift",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-wild-rift-champion-leaderboard/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends-wild-rift/league-of-legends-wild-rift-champion-leaderboard-500x281.png",
+      "tags": [
+        "Menu",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Game summary",
+      "game": "League Of Legends Wild Rift",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-wild-rift-game-summary/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends-wild-rift/league-of-legends-wild-rift-game-summary-500x281.png",
+      "tags": [
+        "Scoreboard",
+        "Stats",
+        "Progress"
+      ]
+    },
+    {
+      "title": "Summary",
+      "game": "Valorant",
+      "pageUrl": "https://interfaceingame.com/screenshots/valorant-summary/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/valorant/valorant-summary-500x281.png",
+      "tags": [
+        "Character",
+        "Menu",
+        "Progress",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Scoreboard",
+      "game": "League Of Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-scoreboard/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends/league-of-legends-scoreboard-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Victory",
+      "game": "Call Of Duty Mobile",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-mobile-victory/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-mobile/call-of-duty-mobile-victory-500x281.jpg",
+      "tags": [
+        "In game",
+        "Overlay",
+        "Progress",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Badminton",
+      "game": "Mario And Sonic At The Olympic Games Tokyo 2020",
+      "pageUrl": "https://interfaceingame.com/screenshots/mario-and-sonic-at-the-olympic-games-tokyo-2020-badminton/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/mario-and-sonic-at-the-olympic-games-tokyo-2020/mario-and-sonic-at-the-olympic-games-tokyo-2020-badminton-500x281.jpg",
+      "tags": [
+        "Progress",
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Friends score",
+      "game": "Call Of Duty Modern Warfare",
+      "pageUrl": "https://interfaceingame.com/screenshots/call-of-duty-modern-warfare-friends-score/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/call-of-duty-modern-warfare/call-of-duty-modern-warfare-friends-score-500x281.jpg",
+      "tags": [
+        "Scoreboard",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Winner",
+      "game": "Blazblue Cross Tag Battle",
+      "pageUrl": "https://interfaceingame.com/screenshots/blazblue-cross-tag-battle-winner/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/blazblue-cross-tag-battle/blazblue-cross-tag-battle-winner.mp4",
+      "tags": [
+        "Scoreboard"
+      ]
+    },
+    {
+      "title": "Game stats",
+      "game": "League Of Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/league-of-legends-game-stats/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/league-of-legends/league-of-legends-game-stats-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Scoreboard",
+        "Stats"
+      ]
+    }
+  ],
+  "notifications-toasts": [
+    {
+      "title": "Echo unlocked",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-echo-unlocked/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-echo-unlocked.mp4",
+      "tags": [
+        "In game"
+      ]
+    },
+    {
+      "title": "Age Confirmation Pop Up",
+      "game": "Toca Life World",
+      "pageUrl": "https://interfaceingame.com/screenshots/toca-life-world-age-confirmation-pop-up/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/toca-life-world/toca-life-world-age-confirmation-pop-up-500x281.jpg",
+      "tags": [
+        "Overlay",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Alert",
+      "game": "Flinthook",
+      "pageUrl": "https://interfaceingame.com/screenshots/flinthook-alert/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/flinthook/flinthook-alert.mp4",
+      "tags": [
+        "In game",
+        "Overlay"
+      ]
+    }
+  ],
+  "pause-menu": [
+    {
+      "title": "Pause menu",
+      "game": "Gris",
+      "pageUrl": "https://interfaceingame.com/screenshots/gris-pause-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/gris/gris-pause-menu-500x281.jpg",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Pause Menu ",
+      "game": "Need For Speed Heat",
+      "pageUrl": "https://interfaceingame.com/screenshots/need-for-speed-heat-pause-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/need-for-speed-heat/need-for-speed-heat-pause-menu.mp4",
+      "tags": [
+        "Menu"
+      ]
+    }
+  ],
+  "main-menu": [
+    {
+      "title": "Main menu",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-main-menu-500x281.jpg",
+      "tags": [
+        "Character",
+        "Lobby",
+        "Menu"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Endless Space 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/endless-space-2-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/endless-space-2/endless-space-2-main-menu-500x281.jpg",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Start game",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-start-game/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-start-game.mp4",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-main-menu-500x281.jpg",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Gris",
+      "pageUrl": "https://interfaceingame.com/screenshots/gris-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/gris/gris-main-menu-500x281.jpg",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-main-menu.mp4",
+      "tags": [
+        "Menu",
+        "Settings"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Detroit Become Human",
+      "pageUrl": "https://interfaceingame.com/screenshots/detroit-become-human-main-menu-2/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/detroit-become-human/detroit-become-human-main-menu.mp4",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Main menu",
+      "game": "Brawl Stars",
+      "pageUrl": "https://interfaceingame.com/screenshots/brawl-stars-main-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/brawl-stars/brawl-stars-main-menu-500x281.png",
+      "tags": [
+        "Menu",
+        "Lobby"
+      ]
+    },
+    {
+      "title": "Start game",
+      "game": "Felix The Reaper",
+      "pageUrl": "https://interfaceingame.com/screenshots/felix-the-reaper-start-game/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/felix-the-reaper/felix-the-reaper-start-game-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Start screen"
+      ]
+    },
+    {
+      "title": "Menu transition",
+      "game": "Armello",
+      "pageUrl": "https://interfaceingame.com/screenshots/armello-menu-transition/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/armello/armello-menu-transition.mp4",
+      "tags": [
+        "Menu"
+      ]
+    },
+    {
+      "title": "Game over",
+      "game": "Dishonored 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/dishonored-2-game-over/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/dishonored-2/dishonored-2-game-over-500x281.jpg",
+      "tags": [
+        "Game over",
+        "In game",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Destinations",
+      "game": "Destiny 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/destiny-2-destinations/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/destiny-2/destiny-2-destinations-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Map"
+      ]
+    },
+    {
+      "title": "Character",
+      "game": "Destiny 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/destiny-2-character/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/destiny-2/destiny-2-character-500x281.jpg",
+      "tags": [
+        "Character",
+        "Menu",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Collections",
+      "game": "Destiny 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/destiny-2-collections/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/destiny-2/destiny-2-collections-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Progress",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Ping menu",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-ping-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-ping-menu-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Battle pass",
+      "game": "Apex Legends",
+      "pageUrl": "https://interfaceingame.com/screenshots/apex-legends-battle-pass/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/apex-legends/apex-legends-battle-pass-500x281.jpg",
+      "tags": [
+        "Menu",
+        "Progress",
+        "Stats",
+        "Store"
+      ]
+    },
+    {
+      "title": "Map level",
+      "game": "Tom Clancys The Division 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/tom-clancys-the-division-2-map-level/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/tom-clancys-the-division-2/tom-clancys-the-division-2-map-level.mp4",
+      "tags": [
+        "Menu",
+        "Map"
+      ]
+    },
+    {
+      "title": "Achievements",
+      "game": "Overwatch 2",
+      "pageUrl": "https://interfaceingame.com/screenshots/overwatch-2-achievements/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/overwatch-2/overwatch-2-achievements-500x281.png",
+      "tags": [
+        "Menu",
+        "Stats"
+      ]
+    },
+    {
+      "title": "Game menu",
+      "game": "Hollow Knight",
+      "pageUrl": "https://interfaceingame.com/screenshots/hollow-knight-game-menu/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/hollow-knight/hollow-knight-game-menu-500x281.jpg",
+      "tags": [
+        "In game",
+        "Menu",
+        "Overlay"
+      ]
+    },
+    {
+      "title": "Databank",
+      "game": "Star Wars Jedi Fallen Order",
+      "pageUrl": "https://interfaceingame.com/screenshots/star-wars-jedi-fallen-order-databank/",
+      "mediaUrl": "https://interfaceingame.com/wp-content/uploads/star-wars-jedi-fallen-order/star-wars-jedi-fallen-order-databank-500x281.png",
+      "tags": [
+        "Menu"
+      ]
+    }
+  ]
+}
