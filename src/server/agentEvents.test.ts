@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { Server, ServerWebSocket } from 'bun';
 import type { AgentEvent } from '../contracts/agentEvents.ts';
 import type { EventLedgerStorage, LedgerEvent, LedgerQuery } from '../contracts/services.ts';
-import { registerAgentEventsModule } from './agentEvents.ts';
+import { registerAgentEventsModule } from '../../content/extensions/agent-harness/server.ts';
 import type { PlayerConnection } from './multiplayer.ts';
 import { ModularRouter } from './router.ts';
 

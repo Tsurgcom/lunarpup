@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { validateAgentEvent, type AgentEvent, type AgentEventType } from '../../src/contracts/agentEvents.ts';
+import { validateAgentEvent } from '../../../../../src/contracts/agentEvents.ts';
+import type { AgentEvent, AgentEventType } from '../../../../../src/contracts/agentEvents.ts';
 
 interface ClaudeHookPayload {
     hook_event_name?: string;

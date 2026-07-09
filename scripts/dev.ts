@@ -13,6 +13,7 @@ const game = Bun.spawn(['bun', '--hot', './index.html'], {
 });
 
 const server = Bun.spawn(['bun', '--hot', 'src/server.ts'], {
+    env: { ...process.env, EXTENSIONS: process.env.EXTENSIONS ?? 'agent-harness' },
     stdout: 'inherit',
     stderr: 'inherit',
 });

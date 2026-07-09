@@ -1,5 +1,5 @@
-import type { AgentEvent, AgentEventType } from '../contracts/agentEvents.ts';
-import { getWsUrl } from '../net/protocol.ts';
+import type { AgentEvent, AgentEventType } from '../../../src/contracts/agentEvents.ts';
+import { getWsUrl } from '../../../src/net/protocol.ts';
 
 type AgentStatus = 'running' | 'needs_input' | 'done';
 
@@ -156,6 +156,7 @@ function handleAgentEvent(event: AgentEvent): void {
         timestamp: event.timestamp,
         status: statusByType[event.type],
     });
+    if (panelEl?.hidden) panelEl.hidden = false;
     renderSessions();
 
     if (event.type === 'agent_needs_input') {
@@ -196,8 +197,9 @@ function connectAgentEvents(): void {
     });
 }
 
-export function setupAgentHud(): void {
+function setupAgentHud(): void {
     ownerKey = getOrCreateOwnerKey();
+    if (panelEl) return;
     panelEl = document.createElement('div');
     panelEl.id = 'agent-hud';
     panelEl.innerHTML = `
@@ -212,6 +214,7 @@ export function setupAgentHud(): void {
         </div>
         <div id="agent-session-list" class="agent-session-list"></div>
     `;
+    panelEl.hidden = true;
     document.body.appendChild(panelEl);
     statusEl = panelEl.querySelector('#agent-status');
     listEl = panelEl.querySelector('#agent-session-list');
@@ -227,7 +230,6 @@ export function setupAgentHud(): void {
             }, 1200);
         }
     });
-    renderSessions();
     armNotificationPermissionRequest();
     connectAgentEvents();
 }
@@ -236,4 +238,8 @@ declare global {
     interface Window {
         webkitAudioContext?: typeof AudioContext;
     }
+}
+
+export function setupClient(): void {
+    setupAgentHud();
 }

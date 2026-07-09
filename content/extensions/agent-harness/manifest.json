@@ -1,0 +1,13 @@
+{
+  "id": "8941a8086985b80b1865fe8978114f5780ddb3b1175367c23fe78a69b6414d70",
+  "kind": "extension",
+  "version": "1.0.0",
+  "author": "Lunar Pup",
+  "displayName": "Agent Harness",
+  "assetRefs": [],
+  "serverModule": "./server.ts",
+  "clientModule": "./client.ts",
+  "metadata": {
+    "description": "Claude Code agent event bridge and owner-scoped HUD"
+  }
+}

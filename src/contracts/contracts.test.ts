@@ -95,6 +95,21 @@ describe('runtime contract validators', () => {
         );
     });
 
+    test('accepts extension manifests with optional server and client entries', () => {
+        const withoutId: Omit<PackageManifest, 'id'> = {
+            kind: 'extension',
+            version: '1.0.0',
+            author: 'Moon Kennel',
+            displayName: 'Agent Harness',
+            assetRefs: [],
+            serverModule: './server.ts',
+            clientModule: './client.ts',
+        };
+        const manifest = { id: packageManifestId(withoutId), ...withoutId };
+
+        expect(expectOk(validatePackageManifest(manifest))).toEqual(manifest);
+    });
+
     test('validates room client commands and room server broadcasts', () => {
         expect(expectOk(validateRoomClientMessage({ type: 'create_room', roomId: 'moon-bowl', gamemodeId: 'checkpoint-race', playerId: 'pup-1' }))).toEqual({
             type: 'create_room',

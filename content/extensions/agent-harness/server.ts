@@ -1,8 +1,11 @@
 import type { ServerWebSocket } from 'bun';
-import { validateAgentEvent, type AgentEvent } from '../contracts/agentEvents.ts';
-import { SqliteEventLedgerStorage, type EventLedgerStorage } from '../contracts/services.ts';
-import type { PlayerConnection } from './multiplayer.ts';
-import type { ModularRouter } from './router.ts';
+import { validateAgentEvent } from '../../../src/contracts/agentEvents.ts';
+import type { AgentEvent } from '../../../src/contracts/agentEvents.ts';
+import { SqliteEventLedgerStorage } from '../../../src/contracts/services.ts';
+import type { EventLedgerStorage } from '../../../src/contracts/services.ts';
+import type { PlayerConnection } from '../../../src/server/multiplayer.ts';
+import type { ModularRouter } from '../../../src/server/router.ts';
+import type { ExtensionServerContext } from '../../../src/extensions/server.ts';
 
 const AGENT_EVENTS_TOPIC = 'agent-events';
 
@@ -108,4 +111,8 @@ export function registerAgentEventsModule(router: ModularRouter<PlayerConnection
         subscribers.add(ws);
         ws.send(JSON.stringify({ channel: AGENT_EVENTS_TOPIC, type: 'subscribed', ownerScoped: true }));
     });
+}
+
+export function registerServer(router: ModularRouter<PlayerConnection>, context: ExtensionServerContext): void {
+    registerAgentEventsModule(router, { ledger: context.storage.eventLedger });
 }

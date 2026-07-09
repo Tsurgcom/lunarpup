@@ -11,7 +11,7 @@ const dir = mkdtempSync(join(tmpdir(), 'lunarpup-smoke-'));
 const dbPath = join(dir, 'smoke.db');
 const base = `http://localhost:${port}`;
 const accountId = `smoke-${crypto.randomUUID().slice(0, 8)}`;
-const proc = Bun.spawn(['bun', 'src/server.ts'], { env: { ...process.env, PORT: String(port), AGENT_EVENT_TOKEN: token, TEST_DATABASE_URL: dbPath }, stdout: 'inherit', stderr: 'inherit' });
+const proc = Bun.spawn(['bun', 'src/server.ts'], { env: { ...process.env, PORT: String(port), AGENT_EVENT_TOKEN: token, TEST_DATABASE_URL: dbPath, EXTENSIONS: 'agent-harness' }, stdout: 'inherit', stderr: 'inherit' });
 
 try {
     await waitForServer();

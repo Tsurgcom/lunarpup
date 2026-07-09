@@ -1,7 +1,7 @@
 import { sha256Hex } from './sha256.ts';
 import { fail, isRecord, ok, readArray, readEnum, readRecordOfStrings, readString, type ValidationResult, type Validator } from './validators.ts';
 
-export const packageKinds = ['cosmetic', 'gamemode'] as const;
+export const packageKinds = ['cosmetic', 'gamemode', 'extension'] as const;
 export type PackageKind = (typeof packageKinds)[number];
 
 export interface AssetRef {
@@ -19,6 +19,8 @@ export interface PackageManifest {
     displayName: string;
     assetRefs: AssetRef[];
     metadata?: Record<string, string>;
+    serverModule?: string;
+    clientModule?: string;
 }
 
 const sha256Pattern = /^[a-f0-9]{64}$/;
@@ -75,7 +77,11 @@ export function validatePackageManifest(value: unknown): ValidationResult<Packag
         if (!parsed.ok) return parsed;
         metadata = parsed.value;
     }
-    const withoutId: Omit<PackageManifest, 'id'> = { kind: kind.value, version: version.value, author: author.value, displayName: displayName.value, assetRefs: assetRefs.value, metadata };
+    const serverModule = value.serverModule === undefined ? undefined : readString(value, 'serverModule');
+    if (serverModule && !serverModule.ok) return serverModule;
+    const clientModule = value.clientModule === undefined ? undefined : readString(value, 'clientModule');
+    if (clientModule && !clientModule.ok) return clientModule;
+    const withoutId: Omit<PackageManifest, 'id'> = { kind: kind.value, version: version.value, author: author.value, displayName: displayName.value, assetRefs: assetRefs.value, metadata, serverModule: serverModule?.value, clientModule: clientModule?.value };
     const expectedId = packageManifestId(withoutId);
     if (id.value !== expectedId) return fail(`id must be sha256 of canonical manifest JSON (${expectedId})`);
     return ok({ id: id.value, ...withoutId });

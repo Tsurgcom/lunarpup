@@ -1,6 +1,6 @@
 import { DEFAULT_WS_PORT } from './net/protocol.ts';
 import { createInitialConnection, registerMultiplayerModule, removePlayer, type PlayerConnection } from './server/multiplayer.ts';
-import { registerAgentEventsModule } from './server/agentEvents.ts';
+import { loadEnabledExtensions } from './extensions/server.ts';
 import { registerRoomsModule } from './server/rooms.ts';
 import { registerCosmeticsModule } from './server/cosmetics.ts';
 import { registerGamemodeModule } from './server/gamemodes.ts';
@@ -10,13 +10,13 @@ import { registerWalletModule } from './server/wallet.ts';
 import { createStorageServices } from './contracts/services.ts';
 import { registerLeaderboardModule } from './server/leaderboard.ts';
 
-export function createServerRouter(): ModularRouter<PlayerConnection> {
+export async function createServerRouter(): Promise<ModularRouter<PlayerConnection>> {
     const router = new ModularRouter<PlayerConnection>();
     const storage = createStorageServices();
     const walletAuth = registerWalletModule(router);
     registerRoomsModule(router);
     registerMultiplayerModule(router);
-    registerAgentEventsModule(router, { ledger: storage.eventLedger });
+    await loadEnabledExtensions(router, { storage });
     registerGamemodeModule(router, { ledger: storage.eventLedger });
     registerCosmeticsModule(router, { currency: storage.currencyInventory, ledger: storage.eventLedger, walletAuth });
     registerLootboxModule(router, { currency: storage.currencyInventory, ledger: storage.eventLedger, walletAuth });
@@ -24,7 +24,7 @@ export function createServerRouter(): ModularRouter<PlayerConnection> {
     return router;
 }
 
-const router = createServerRouter();
+const router = await createServerRouter();
 const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 
 // The game page is served from a different origin than this API server

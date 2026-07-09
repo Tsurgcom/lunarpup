@@ -21,7 +21,7 @@ export async function bootstrap() {
         { setupMinimap },
         { setupChatUI },
         { setupUpdateNotice },
-        { setupAgentHud },
+        { setupExtensions },
         { setupCosmeticsUI },
         { setupGamemodeUI },
     ] = await Promise.all([
@@ -37,7 +37,7 @@ export async function bootstrap() {
         import('../ui/minimap.ts'),
         import('../ui/chat.ts'),
         import('../ui/updateNotice.ts'),
-        import('../ui/agentHud.ts'),
+        import('../extensions/client.ts'),
         import('../ui/cosmetics.ts'),
         import('../modes/client.ts'),
     ]);
@@ -74,7 +74,7 @@ export async function bootstrap() {
     setupChatUI(mpConfig.enabled, mpConfig.name);
     setupCosmeticsUI();
     setupUpdateNotice();
-    setupAgentHud();
+    await setupExtensions();
     setupGamemodeUI();
 
     if (mpConfig.enabled) {
