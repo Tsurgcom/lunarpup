@@ -7,13 +7,15 @@ Rule: every phase must preserve a runnable baseline. No redesign, new gameplay, 
 ## Current baseline
 
 - Baseline commit: `771226329a9f4508fb6e56d0f7c3bc3af53d717a` on `main`.
-- Branch sync: rebased onto upstream commit `65b413f` (`Add Netlify multiplayer, minimap, and in-game chat with /tp`).
+- Branch sync: rebased onto upstream commit `c20235c` (`Reduce multiplayer chat spam with rate limits and dedupe`), including upstream Netlify versioning, chat, minimap, and aerial trick work.
 - Current working-tree change: this checklist only.
 
-- [ ] Record current commit SHA and branch.
+- [x] Record current commit SHA and branch.
 - [x] Run `bun install` (Bun reported one cache permission warning; existing dependency graph remained usable).
 - [x] Run `bun run dev` and verify browser game loads. Browser DOM smoke test showed original HUD, tuning sliders, minimap, chat, and live terrain chunk count.
-- [x] Run `bun run build` and verify production build. Build completed and emitted split bundles.
+- [x] Run `bun run build` and verify production build after latest upstream sync. Build completed and emitted split bundles.
+- [x] Run `bun test`: 7 tests pass.
+- [x] Run `bun run typecheck`: passes.
 - [x] Run `bun run dev:server` and verify WebSocket server starts. Server reported `ws://localhost:3001`.
 - [ ] Test keyboard controls: accelerate, reverse, steer, jump, boost.
 - [ ] Test mouse camera drag and wheel zoom.
@@ -48,7 +50,7 @@ Goal: create React infrastructure without using it to rewrite the game.
 - [x] Make R3F the default `index.html` entry.
 - [x] Preserve exact pre-migration shell as `index.vanilla.html` with `dev:vanilla` and `build:vanilla` fallback commands.
 - [x] TypeScript check passes after fixing upstream Bun/Three strictness errors.
-- [ ] Confirm vanilla game still runs unchanged in browser. Production build passes after upstream sync; browser smoke test remains pending.
+- [ ] Confirm vanilla game still runs unchanged in browser. Earlier smoke test passed; latest upstream parity replay still pending.
 - [ ] Do not move terrain, player, physics, UI, or network code yet.
 
 Exit gate: vanilla mode screenshot, controls, multiplayer, and production build match baseline. Current status: both vanilla and R3F builds pass after upstream sync; browser/gameplay verification pending.
@@ -201,7 +203,7 @@ Netlify static site
 ```
 
 - [ ] Deploy frontend to Netlify from GitHub.
-- [ ] Add `netlify.toml` with Bun-compatible build command/output.
+- [x] Add `netlify.toml` with Bun-compatible build command/output.
 - [ ] Keep WebSocket server on a persistent WebSocket-capable host.
 - [ ] Add production `VITE_WS_URL`/public runtime configuration.
 - [ ] Add CORS/origin validation.
