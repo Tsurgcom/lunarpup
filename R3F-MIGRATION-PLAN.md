@@ -8,11 +8,11 @@ Rule: every phase must preserve a runnable baseline. No redesign, new gameplay, 
 
 - Baseline commit: `771226329a9f4508fb6e56d0f7c3bc3af53d717a` on `main`.
 - Branch sync: rebased onto upstream commit `c20235c` (`Reduce multiplayer chat spam with rate limits and dedupe`), including upstream Netlify versioning, chat, minimap, and aerial trick work.
-- Current working-tree change: this checklist only.
+- Current working-tree change: R3F runtime-hook fix plus checklist update; commit before handoff.
 
 - [x] Record current commit SHA and branch.
 - [x] Run `bun install` (Bun reported one cache permission warning; existing dependency graph remained usable).
-- [x] Run `bun run dev` and verify browser game loads. Browser DOM smoke test showed original HUD, tuning sliders, minimap, chat, and live terrain chunk count.
+- [x] Run `bun run dev` and verify browser game loads. Fixed the R3F `useFrame` placement error (`Hooks can only be used within the Canvas component`); browser smoke now shows HUD, tuning sliders, minimap, chat, and live terrain chunk count with no console error.
 - [x] Run `bun run build` and verify production build after latest upstream sync. Build completed and emitted split bundles.
 - [x] Run `bun test`: 7 tests pass.
 - [x] Run `bun run typecheck`: passes.
@@ -40,7 +40,7 @@ Rule: every phase must preserve a runnable baseline. No redesign, new gameplay, 
 
 Goal: create React infrastructure without using it to rewrite the game.
 
-- [ ] Create `feat/r3f-shell` from clean `main`.
+- [x] Create `feat/r3f-shell` from clean `main`.
 - [x] Add React, React DOM, and Fiber only; no Vite migration.
 - [x] Keep current Bun entrypoint working.
 - [x] Add separate `dev:r3f` and `build:r3f` entrypoints.
@@ -59,7 +59,7 @@ Exit gate: vanilla mode screenshot, controls, multiplayer, and production build 
 
 Goal: let R3F own Canvas/renderer lifecycle while existing systems still own game behavior.
 
-- [ ] Create `src/r3f/App.tsx` and `src/r3f/GameCanvas.tsx`.
+- [x] Create the R3F shell in `src/r3f-shell/App.tsx` and `src/r3f-shell/GameCanvas.tsx`.
 - [x] Configure Canvas renderer settings to match current Three.js renderer.
 - [ ] Preserve antialiasing, pixel ratio cap, color space, tone mapping, shadows, fog, and camera defaults.
 - [x] Pass R3F scene, camera, and renderer references into an adapter.
