@@ -3,6 +3,7 @@ import { createInitialConnection, registerMultiplayerModule, removePlayer, type 
 import { registerAgentEventsModule } from './server/agentEvents.ts';
 import { registerRoomsModule } from './server/rooms.ts';
 import { registerCosmeticsModule } from './server/cosmetics.ts';
+import { registerGamemodeModule } from './server/gamemodes.ts';
 import { ModularRouter } from './server/router.ts';
 import { registerWalletModule } from './server/wallet.ts';
 
@@ -11,6 +12,7 @@ export function createServerRouter(): ModularRouter<PlayerConnection> {
     registerRoomsModule(router);
     registerMultiplayerModule(router);
     registerAgentEventsModule(router);
+    registerGamemodeModule(router);
     registerWalletModule(router);
     registerCosmeticsModule(router);
     return router;

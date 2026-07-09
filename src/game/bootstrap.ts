@@ -23,6 +23,7 @@ export async function bootstrap() {
         { setupUpdateNotice },
         { setupAgentHud },
         { setupCosmeticsUI },
+        { setupGamemodeUI },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
@@ -38,6 +39,7 @@ export async function bootstrap() {
         import('../ui/updateNotice.ts'),
         import('../ui/agentHud.ts'),
         import('../ui/cosmetics.ts'),
+        import('../modes/client.ts'),
     ]);
 
     initScene(container);
@@ -73,6 +75,7 @@ export async function bootstrap() {
     setupCosmeticsUI();
     setupUpdateNotice();
     setupAgentHud();
+    setupGamemodeUI();
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {
