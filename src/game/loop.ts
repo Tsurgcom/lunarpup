@@ -11,6 +11,7 @@ import {
     terrainChunks,
     skateboard,
     tail,
+    multiplayerClient,
 } from '../state.ts';
 import { groundClearance } from '../config.ts';
 import {
@@ -19,6 +20,8 @@ import {
     alignPlayerToTerrain,
 } from './terrain.ts';
 import { updateSpeedLines } from '../ui/speedLines.ts';
+import { updateRemotePlayers } from './remotePlayers.ts';
+import { buildLocalSnapshot } from './multiplayer.ts';
 
 export function setupCameraControls() {
     const canvas = renderer.domElement;
@@ -166,10 +169,28 @@ function handlePhysics() {
 }
 
 export function startGameLoop() {
+    let lastFrame = performance.now();
+
     function animate() {
         requestAnimationFrame(animate);
+        const now = performance.now();
+        const dt = Math.min((now - lastFrame) / 1000, 0.05);
+        lastFrame = now;
+
         handlePhysics();
         updateCamera();
+        updateRemotePlayers(dt);
+
+        if (multiplayerClient?.isConnected) {
+            multiplayerClient.sendState(buildLocalSnapshot(
+                playerGroup,
+                physics.heading,
+                physics.speed,
+                physics.isGrounded,
+                skateboard.rotation.x,
+                skateboard.rotation.z,
+            ));
+        }
 
         if (Math.abs(physics.speed) > 0.05) {
             const time = Date.now() * 0.015;

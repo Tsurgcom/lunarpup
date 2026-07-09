@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot ./index.html",
+    "dev": "bun scripts/dev.ts",
+    "dev:game": "bun --hot ./index.html",
+    "dev:server": "bun --hot src/server.ts",
     "build": "bun build ./index.html --outdir=dist --minify --splitting --target=browser",
     "preview": "bunx serve dist"
   },

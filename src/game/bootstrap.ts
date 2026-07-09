@@ -1,9 +1,12 @@
 import { groundClearance } from '../config.ts';
 import { physics, playerGroup, setSpeedLines } from '../state.ts';
+import { getMultiplayerConfig } from '../net/protocol.ts';
 
 export async function bootstrap() {
     const container = document.getElementById('canvas-container');
     if (!container) throw new Error('Missing #canvas-container');
+
+    const mpConfig = getMultiplayerConfig();
 
     const [
         { initScene, onWindowResize },
@@ -13,6 +16,7 @@ export async function bootstrap() {
         { setupTuningPanel },
         { setupSpeedLines },
         { bindInput },
+        { setupMultiplayerUI },
     ] = await Promise.all([
         import('./scene.ts'),
         import('./terrain.ts'),
@@ -21,6 +25,7 @@ export async function bootstrap() {
         import('../ui/tuning.ts'),
         import('../ui/speedLines.ts'),
         import('./input.ts'),
+        import('../ui/multiplayer.ts'),
     ]);
 
     initScene(container);
@@ -36,6 +41,12 @@ export async function bootstrap() {
     setupCameraControls();
     setSpeedLines(setupSpeedLines());
     setupTuningPanel();
+    setupMultiplayerUI();
+
+    if (mpConfig.enabled) {
+        const { initMultiplayer } = await import('./multiplayer.ts');
+        initMultiplayer(mpConfig);
+    }
 
     window.addEventListener('resize', onWindowResize);
 
