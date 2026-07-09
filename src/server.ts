@@ -114,6 +114,20 @@ function handleState(conn: PlayerConnection, msg: Extract<ClientMessage, { type:
     broadcast(room, { type: 'state', id: conn.id, state: msg.state }, conn.id);
 }
 
+function handleChat(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 'chat' }>) {
+    const text = msg.text.trim().slice(0, 200);
+    if (!text) return;
+    const room = rooms.get(conn.room);
+    if (!room) return;
+    broadcast(room, {
+        type: 'chat',
+        id: conn.id,
+        name: conn.name,
+        text,
+        ts: Date.now(),
+    });
+}
+
 const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 
 const server = Bun.serve<PlayerConnection>({
@@ -149,6 +163,8 @@ const server = Bun.serve<PlayerConnection>({
 
             if (parsed.type === 'state') {
                 handleState(ws.data, parsed);
+            } else if (parsed.type === 'chat') {
+                handleChat(ws.data, parsed);
             }
         },
         close(ws) {

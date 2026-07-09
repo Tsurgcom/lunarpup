@@ -1,3 +1,5 @@
 dist
 node_modules
 legacy
+.netlify
+deno.lock

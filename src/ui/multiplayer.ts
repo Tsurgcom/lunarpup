@@ -10,11 +10,16 @@ export function setupMultiplayerUI() {
         <h2>🐾 Multiplayer</h2>
         <div id="mp-status" class="mp-status mp-disconnected">Offline</div>
         <div id="mp-players" class="mp-players"></div>
-        <div class="mp-hint">Add <code>?multiplayer&room=your-room</code> to the URL</div>
+        <div class="mp-hint" id="mp-hint">Add <code>?multiplayer&room=your-room</code> to the URL</div>
     `;
     document.body.appendChild(panel);
     statusEl = panel.querySelector('#mp-status');
     playersEl = panel.querySelector('#mp-players');
+}
+
+export function updateMultiplayerHint(html: string) {
+    const hint = document.getElementById('mp-hint');
+    if (hint) hint.innerHTML = html;
 }
 
 export function updateMultiplayerStatus(status: MultiplayerStatus, detail?: string, room?: string) {
@@ -27,7 +32,7 @@ export function updateMultiplayerStatus(status: MultiplayerStatus, detail?: stri
         error: detail || 'Connection error',
     };
 
-    statusEl.textContent = labels[status];
+    statusEl.textContent = status === 'error' && detail ? detail : labels[status];
     statusEl.className = `mp-status mp-${status}`;
 }
 

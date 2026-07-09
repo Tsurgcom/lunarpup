@@ -20,6 +20,7 @@ import {
     alignPlayerToTerrain,
 } from './terrain.ts';
 import { updateSpeedLines } from '../ui/speedLines.ts';
+import { updateMinimap } from '../ui/minimap.ts';
 import { updateRemotePlayers } from './remotePlayers.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
 
@@ -180,6 +181,7 @@ export function startGameLoop() {
         handlePhysics();
         updateCamera();
         updateRemotePlayers(dt);
+        updateMinimap();
 
         if (multiplayerClient?.isConnected) {
             multiplayerClient.sendState(buildLocalSnapshot(

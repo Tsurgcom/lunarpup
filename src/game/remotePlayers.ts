@@ -53,6 +53,24 @@ export function getRemotePlayerNames(): string[] {
     return [...remotePlayers.values()].map(p => p.name);
 }
 
+export function findRemotePlayerByName(name: string): RemotePlayer | undefined {
+    const lower = name.toLowerCase();
+    for (const remote of remotePlayers.values()) {
+        if (remote.name.toLowerCase() === lower) return remote;
+    }
+    return undefined;
+}
+
+export function getRemotePlayerMarkers(): { id: string; name: string; color: number; x: number; z: number }[] {
+    return [...remotePlayers.values()].map(p => ({
+        id: p.id,
+        name: p.name,
+        color: p.target.color,
+        x: p.current.x,
+        z: p.current.z,
+    }));
+}
+
 export function getRemotePlayerCount(): number {
     return remotePlayers.size;
 }

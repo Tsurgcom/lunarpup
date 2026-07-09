@@ -8,14 +8,23 @@ import {
     getRemotePlayerNames,
 } from './remotePlayers.ts';
 import { updateMultiplayerStatus, updateMultiplayerPlayers } from '../ui/multiplayer.ts';
+import { appendChatMessage } from '../ui/chat.ts';
 import { setMultiplayerClient } from '../state.ts';
 import { tintLocalDog } from './player.ts';
 
-export function initMultiplayer(config: { wsUrl: string; room: string; name: string }) {
+export function initMultiplayer(config: {
+    transport: 'ws' | 'http';
+    wsUrl?: string | null;
+    apiBase?: string;
+    room: string;
+    name: string;
+}) {
     let localName = config.name;
 
     const client = new MultiplayerClient({
-        wsUrl: config.wsUrl,
+        transport: config.transport,
+        wsUrl: config.wsUrl ?? undefined,
+        apiBase: config.apiBase,
         room: config.room,
         name: config.name,
         onStatus: (status, detail) => {
@@ -36,6 +45,9 @@ export function initMultiplayer(config: { wsUrl: string; room: string; name: str
         },
         onPlayerState: (id, state) => {
             updateRemoteTarget(id, state);
+        },
+        onChat: (id, name, text) => {
+            appendChatMessage(id, name, text, id === client.id);
         },
     });
 

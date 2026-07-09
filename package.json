@@ -11,9 +11,12 @@
     "preview": "bunx serve dist"
   },
   "dependencies": {
+    "@netlify/blobs": "^10.7.0",
+    "@netlify/functions": "^5.1.2",
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@netlify/edge-functions": "^3.0.3",
     "@types/bun": "latest",
     "@types/three": "^0.185.1"
   },
