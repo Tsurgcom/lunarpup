@@ -1,17 +1,16 @@
 import * as THREE from 'three';
 import { speedLines } from '../state.ts';
 
-export function setupSpeedLines() {
-    const layer = document.getElementById('speed-lines');
-    if (!layer) return [];
+const LINE_COUNT = 46;
+
+export function createSpeedLines(layer: HTMLElement): HTMLDivElement[] {
     layer.replaceChildren();
 
     const lines: HTMLDivElement[] = [];
-    const count = 46;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < LINE_COUNT; i++) {
         const line = document.createElement('div');
         line.className = 'speed-line';
-        const angle = (i / count) * Math.PI * 2;
+        const angle = (i / LINE_COUNT) * Math.PI * 2;
         const radius = 10 + Math.random() * 36;
         const length = 8 + Math.random() * 16;
         line.dataset.angle = String(angle);
@@ -20,7 +19,18 @@ export function setupSpeedLines() {
         layer.appendChild(line);
         lines.push(line);
     }
+
     return lines;
+}
+
+export function bindSpeedLinesLayer(layer: HTMLElement): HTMLDivElement[] {
+    return createSpeedLines(layer);
+}
+
+export function setupSpeedLines() {
+    const layer = document.getElementById('speed-lines');
+    if (!layer) return [];
+    return createSpeedLines(layer);
 }
 
 export function updateSpeedLines(speedRatio: number, isBoosting: boolean) {

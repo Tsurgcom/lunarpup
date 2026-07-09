@@ -52,7 +52,6 @@ export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: Voxe
     alignPlayerToTerrain();
 
     const removeCameraControls = setupCameraControls();
-    setSpeedLines(setupSpeedLines());
     // React owns migrated UI surfaces in the R3F entry. Keep vanilla
     // self-contained while remaining legacy surfaces are migrated.
     if (!options.r3fHost) {
@@ -61,8 +60,9 @@ export async function bootstrap(options: { r3fHost?: SceneHost; r3fPlayer?: Voxe
         setupMultiplayerUI();
         setupMinimap();
         setupChatUI(mpConfig.enabled, mpConfig.name);
+        setSpeedLines(setupSpeedLines());
+        setupUpdateNotice();
     }
-    setupUpdateNotice();
 
     if (mpConfig.enabled) {
         if (mpConfig.transport === 'ws' && !mpConfig.wsUrl) {

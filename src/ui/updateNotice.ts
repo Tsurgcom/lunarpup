@@ -3,6 +3,7 @@ const POLL_INTERVAL_MS = 60_000;
 let loadedBuildId: string | null = null;
 let bannerEl: HTMLDivElement | null = null;
 let pollTimer: number | null = null;
+let reactNotifier: (() => void) | null = null;
 
 async function fetchBuildId(): Promise<string | null> {
     try {
@@ -16,6 +17,11 @@ async function fetchBuildId(): Promise<string | null> {
 }
 
 function showUpdateBanner() {
+    if (reactNotifier) {
+        reactNotifier();
+        return;
+    }
+
     if (bannerEl) return;
 
     bannerEl = document.createElement('div');
@@ -44,10 +50,27 @@ async function checkForUpdate() {
     }
 }
 
-export function setupUpdateNotice() {
+function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
     void checkForUpdate();
     pollTimer = window.setInterval(() => {
         void checkForUpdate();
     }, POLL_INTERVAL_MS);
+}
+
+export function bindUpdateNotice(onAvailable: () => void) {
+    reactNotifier = onAvailable;
+    startPolling();
+
+    return () => {
+        if (reactNotifier === onAvailable) reactNotifier = null;
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    };
+}
+
+export function setupUpdateNotice() {
+    startPolling();
 }
