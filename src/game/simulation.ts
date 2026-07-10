@@ -5,6 +5,7 @@ import {
     getHeightAboveTerrain,
     getRenderedTerrainChunkCount,
     alignPlayerToTerrain,
+    alignPlayerHeadingInAir,
     getTerrainHeight,
 } from './terrain.ts';
 import { buildLocalSnapshot } from './multiplayer.ts';
@@ -14,6 +15,7 @@ import {
     canCoyoteJump,
     canReengageHover,
     computeAirAcceleration,
+    computeAirHoverAssist,
     computeHoverAcceleration,
     consumeJumpRequest,
     getGroundSpeed,
@@ -43,8 +45,18 @@ function tiltBoardToTerrain(runtime: GameRuntime, groundSpeed: number, frameScal
     );
     const turnLean = (keys.a ? 1 : 0) + (keys.d ? -1 : 0);
     const tiltSmoothing = 1 - Math.pow(1 - physics.tiltSmoothing, frameScale);
-    parts.skateboard.rotation.x = THREE.MathUtils.lerp(parts.skateboard.rotation.x, -speedLean * 0.08, tiltSmoothing);
-    parts.skateboard.rotation.z = THREE.MathUtils.lerp(parts.skateboard.rotation.z, turnLean * 0.14, tiltSmoothing);
+    parts.skateboard.rotation.x = THREE.MathUtils.lerp(parts.skateboard.rotation.x, -speedLean * 0.1, tiltSmoothing);
+    parts.skateboard.rotation.z = THREE.MathUtils.lerp(parts.skateboard.rotation.z, turnLean * 0.16, tiltSmoothing);
+}
+
+function tiltBoardInAir(runtime: GameRuntime, frameScale: number) {
+    const { physics, keys, parts } = runtime;
+    if (!parts || physics.isGrounded) return;
+
+    const pitchLean = (keys.w ? 1 : 0) + (keys.s ? -0.65 : 0);
+    const tiltSmoothing = 1 - Math.pow(1 - physics.tiltSmoothing * 1.4, frameScale);
+    parts.skateboard.rotation.x = THREE.MathUtils.lerp(parts.skateboard.rotation.x, -pitchLean * 0.14, tiltSmoothing);
+    parts.skateboard.rotation.z = THREE.MathUtils.lerp(parts.skateboard.rotation.z, 0, tiltSmoothing);
 }
 
 function applyJump(runtime: GameRuntime) {
@@ -122,13 +134,39 @@ function stepAirborne(
     now: number,
 ) {
     const { physics, jumpInput, scratch } = runtime;
+    const contact = sampleGroundContact(playerGroup.position, physics.velocity, scratch);
+    getHeadingForward(physics.heading, scratch.slopeForward);
 
-    computeAirAcceleration(physics, physics.velocity, scratch.acceleration);
+    computeAirAcceleration(
+        physics,
+        physics.velocity,
+        driveInput,
+        scratch.slopeForward,
+        scratch,
+    );
+
+    if (isHoverEngaged(contact.heightAbove, physics.maxHoverRange) && physics.airHoverAssist > 0) {
+        computeAirHoverAssist(
+            physics,
+            contact.heightAbove,
+            hoverClearance,
+            contact.velAlongNormal,
+            contact.normal,
+            scratch.normalAcceleration,
+        );
+        scratch.acceleration.add(scratch.normalAcceleration);
+    }
+
     integrateVelocity(physics.velocity, scratch.acceleration, frameScale);
     playerGroup.position.addScaledVector(physics.velocity, frameScale);
 
-    const contact = sampleGroundContact(playerGroup.position, physics.velocity, scratch);
-    if (!canReengageHover(contact.heightAbove, physics.maxHoverRange, contact.velAlongNormal)) {
+    const updated = sampleGroundContact(playerGroup.position, physics.velocity, scratch);
+    if (!canReengageHover(
+        updated.heightAbove,
+        physics.maxHoverRange,
+        updated.velAlongNormal,
+        physics.hoverLandingSpeed,
+    )) {
         return;
     }
 
@@ -140,13 +178,14 @@ function stepAirborne(
     physics.isGrounded = true;
     finishTrick(runtime);
 
+    getSlopeForward(physics.heading, updated.normal, scratch);
     computeHoverAcceleration(
         physics,
         physics.velocity,
         driveInput,
-        contact.normal,
+        updated.normal,
         scratch.slopeForward,
-        contact.heightAbove,
+        updated.heightAbove,
         hoverClearance,
         scratch,
     );
@@ -210,9 +249,14 @@ function animateHoverPads(
     parts: NonNullable<GameRuntime['parts']>,
     hoverPulse: number,
     isGrounded: boolean,
+    inHoverZone: boolean,
     frameScale: number,
 ) {
-    const pulseStrength = isGrounded ? Math.min(Math.abs(hoverPulse) * 1.6, 1.4) : 0.15;
+    const pulseStrength = isGrounded
+        ? Math.min(Math.abs(hoverPulse) * 1.6, 1.4)
+        : inHoverZone
+            ? 0.55
+            : 0.15;
     const time = Date.now() * 0.012;
     for (const child of parts.skateboard.children) {
         if (child.userData.hoverPad !== true) continue;
@@ -221,19 +265,22 @@ function animateHoverPads(
         child.scale.y = bob;
         const material = (child as THREE.Mesh).material;
         if (material instanceof THREE.MeshStandardMaterial) {
-            material.emissiveIntensity = isGrounded ? 0.35 + pulseStrength * 0.45 : 0.08;
+            material.emissiveIntensity = isGrounded
+                ? 0.35 + pulseStrength * 0.45
+                : inHoverZone
+                    ? 0.28
+                    : 0.08;
         }
         child.rotation.y += hoverPulse * 0.35 * frameScale;
     }
 }
 
-function handlePhysics(runtime: GameRuntime, dt: number): { groundSpeed: number; hoverPulse: number } {
+function handlePhysics(runtime: GameRuntime, dt: number): { groundSpeed: number; hoverPulse: number; inHoverZone: boolean } {
     const playerGroup = getPlayerRoot(runtime);
-    if (!playerGroup || !runtime.parts) return { groundSpeed: 0, hoverPulse: 0 };
+    if (!playerGroup || !runtime.parts) return { groundSpeed: 0, hoverPulse: 0, inHoverZone: false };
 
     const { physics, keys, scratch, frameHud } = runtime;
     const frameScale = dt * 60;
-    physics.heading = stepHeading(physics.heading, physics.rotationSpeed, keys.a, keys.d, frameScale);
 
     const isBoosting = keys.shift && keys.w;
     const driveInput = { forward: keys.w, reverse: keys.s, boosting: isBoosting };
@@ -241,6 +288,16 @@ function handlePhysics(runtime: GameRuntime, dt: number): { groundSpeed: number;
 
     updateTravelForward(physics, playerGroup.position, scratch);
     handleJumpIntent(runtime, playerGroup, now, dt);
+
+    const turnMultiplier = physics.isGrounded ? 1 : physics.airTurnMultiplier;
+    physics.heading = stepHeading(
+        physics.heading,
+        physics.rotationSpeed,
+        keys.a,
+        keys.d,
+        frameScale,
+        turnMultiplier,
+    );
 
     if (!physics.isGrounded) {
         stepAirborne(runtime, playerGroup, driveInput, frameScale, now);
@@ -250,13 +307,17 @@ function handlePhysics(runtime: GameRuntime, dt: number): { groundSpeed: number;
 
     const displaySpeed = getGroundSpeed(physics.velocity, scratch.slopeForward);
     const contact = sampleGroundContact(playerGroup.position, physics.velocity, scratch);
+    const inHoverZone = isHoverEngaged(contact.heightAbove, physics.maxHoverRange);
     const hoverPulse = physics.isGrounded
         ? getHoverPadPulse(physics.velocity, contact.normal, scratch.slopeForward, scratch.tangentVelocity)
-        : 0;
+        : getHoverPadPulse(physics.velocity, contact.normal, scratch.slopeForward, scratch.tangentVelocity) * 0.65;
 
     if (physics.isGrounded) {
         alignPlayerToTerrain(playerGroup, physics, scratch, frameScale);
         tiltBoardToTerrain(runtime, displaySpeed, frameScale);
+    } else {
+        alignPlayerHeadingInAir(playerGroup, physics, scratch, frameScale);
+        tiltBoardInAir(runtime, frameScale);
     }
 
     const speedRatio = getSpeedRatio(physics, displaySpeed);
@@ -266,14 +327,14 @@ function handlePhysics(runtime: GameRuntime, dt: number): { groundSpeed: number;
     frameHud.updateSpeedLines?.(speedRatio, isBoosting);
     frameHud.redrawMinimap?.();
 
-    return { groundSpeed: displaySpeed, hoverPulse };
+    return { groundSpeed: displaySpeed, hoverPulse, inHoverZone };
 }
 
 export function stepSimulation(runtime: GameRuntime, dt: number) {
     if (!runtime.parts) return;
 
     updateTrick(runtime, dt);
-    const { groundSpeed, hoverPulse } = handlePhysics(runtime, dt);
+    const { groundSpeed, hoverPulse, inHoverZone } = handlePhysics(runtime, dt);
 
     if (runtime.multiplayerClient?.isConnected) {
         const playerGroup = getPlayerRoot(runtime)!;
@@ -289,10 +350,10 @@ export function stepSimulation(runtime: GameRuntime, dt: number) {
 
     const { parts } = runtime;
     const frameScale = dt * 60;
-    if (Math.abs(hoverPulse) > 0.03 || runtime.physics.isGrounded) {
+    if (Math.abs(hoverPulse) > 0.03 || runtime.physics.isGrounded || inHoverZone) {
         const time = Date.now() * 0.015;
         parts.tail.rotation.z = Math.sin(time) * 0.4;
-        animateHoverPads(parts, hoverPulse, runtime.physics.isGrounded, frameScale);
+        animateHoverPads(parts, hoverPulse, runtime.physics.isGrounded, inHoverZone, frameScale);
     }
 }
 

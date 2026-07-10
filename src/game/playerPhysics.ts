@@ -28,6 +28,20 @@ export type HoverPhysicsParams = Pick<
     | 'driftThreshold'
     | 'boostMultiplier'
     | 'boostAccelMultiplier'
+    | 'airThrustMultiplier'
+    | 'airSteerGrip'
+    | 'airHoverAssist'
+>;
+
+export type ArcadeAirPhysicsParams = Pick<
+    PhysicsState,
+    | 'mass'
+    | 'thrustForce'
+    | 'airDrag'
+    | 'gravity'
+    | 'boostAccelMultiplier'
+    | 'airThrustMultiplier'
+    | 'airSteerGrip'
 >;
 
 export function wantsJump(input: JumpInputState, now: number) {
@@ -48,10 +62,12 @@ export function stepHeading(
     turnLeft: boolean,
     turnRight: boolean,
     frameScale: number,
+    turnMultiplier = 1,
 ) {
     let next = heading;
-    if (turnLeft) next += rotationSpeed * frameScale;
-    if (turnRight) next -= rotationSpeed * frameScale;
+    const turnRate = rotationSpeed * turnMultiplier * frameScale;
+    if (turnLeft) next += turnRate;
+    if (turnRight) next -= turnRate;
     return next;
 }
 
@@ -228,15 +244,67 @@ export function computeHoverAcceleration(
 }
 
 export function computeAirAcceleration(
-    physics: Pick<HoverPhysicsParams, 'gravity' | 'airDrag'>,
+    physics: ArcadeAirPhysicsParams,
     velocity: THREE.Vector3,
+    input: DriveInput,
+    airForward: THREE.Vector3,
+    scratch: { acceleration: THREE.Vector3; tangentVelocity: THREE.Vector3 },
+) {
+    const { acceleration, tangentVelocity } = scratch;
+    acceleration.set(0, -physics.gravity, 0);
+
+    tangentVelocity.set(velocity.x, 0, velocity.z);
+    const horizontalSpeed = tangentVelocity.length();
+    const forwardSpeed = getGroundSpeed(velocity, airForward);
+
+    if (horizontalSpeed > 1e-6 && physics.airSteerGrip > 0) {
+        const lateralX = tangentVelocity.x - airForward.x * forwardSpeed;
+        const lateralZ = tangentVelocity.z - airForward.z * forwardSpeed;
+        const lateralSpeed = Math.hypot(lateralX, lateralZ);
+        if (lateralSpeed > 1e-6) {
+            acceleration.x -= (lateralX / lateralSpeed) * physics.airSteerGrip;
+            acceleration.z -= (lateralZ / lateralSpeed) * physics.airSteerGrip;
+        }
+    }
+
+    if (input.forward || input.reverse) {
+        const thrustAccel = (physics.thrustForce / physics.mass)
+            * physics.airThrustMultiplier
+            * (input.boosting ? physics.boostAccelMultiplier : 1);
+
+        if (input.forward) {
+            acceleration.x += airForward.x * thrustAccel;
+            acceleration.z += airForward.z * thrustAccel;
+        }
+        if (input.reverse) {
+            acceleration.x -= airForward.x * thrustAccel * 0.75;
+            acceleration.z -= airForward.z * thrustAccel * 0.75;
+        }
+    }
+
+    if (physics.airDrag > 0 && velocity.lengthSq() > 1e-8) {
+        acceleration.addScaledVector(velocity, -physics.airDrag);
+    }
+
+    return acceleration;
+}
+
+export function computeAirHoverAssist(
+    physics: Pick<HoverPhysicsParams, 'mass' | 'hoverStiffness' | 'hoverDamping' | 'maxHoverForce'> & Pick<PhysicsState, 'airHoverAssist'>,
+    heightAbove: number,
+    hoverClearance: number,
+    velAlongNormal: number,
+    normal: THREE.Vector3,
     out: THREE.Vector3,
 ) {
-    out.set(0, -physics.gravity, 0);
-    if (physics.airDrag > 0 && velocity.lengthSq() > 1e-8) {
-        out.addScaledVector(velocity, -physics.airDrag);
-    }
-    return out;
+    const error = hoverClearance - heightAbove;
+    const rawAccel = (physics.hoverStiffness * error - physics.hoverDamping * velAlongNormal) / physics.mass;
+    const assist = physics.airHoverAssist;
+    const clampedAccel = Math.max(
+        -physics.maxHoverForce * assist / physics.mass,
+        Math.min(physics.maxHoverForce * assist / physics.mass, rawAccel * assist),
+    );
+    return out.copy(normal).multiplyScalar(clampedAccel);
 }
 
 export function applyJumpVelocity(
@@ -270,7 +338,7 @@ export function canReengageHover(
     heightAbove: number,
     maxHoverRange: number,
     velAlongNormal: number,
-    landingVelThreshold = 0.12,
+    landingVelThreshold = 0.22,
 ) {
     return heightAbove <= maxHoverRange && velAlongNormal <= landingVelThreshold;
 }
@@ -278,7 +346,7 @@ export function canReengageHover(
 export function lostHoverContact(
     heightAbove: number,
     maxHoverRange: number,
-    margin = 0.08,
+    margin = 0.18,
 ) {
     return heightAbove > maxHoverRange + margin;
 }

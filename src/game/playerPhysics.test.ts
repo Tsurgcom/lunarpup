@@ -5,6 +5,7 @@ import {
     canCoyoteJump,
     canReengageHover,
     computeAirAcceleration,
+    computeAirHoverAssist,
     computeHoverAcceleration,
     computeHoverDriveAcceleration,
     computeHoverNormalAcceleration,
@@ -73,6 +74,9 @@ describe('playerPhysics hover helpers', () => {
         driftThreshold: 0.14,
         boostMultiplier: 1.85,
         boostAccelMultiplier: 2.2,
+        airThrustMultiplier: 0.82,
+        airSteerGrip: 0.022,
+        airHoverAssist: 0.55,
     };
 
     const scratch = {
@@ -197,11 +201,31 @@ describe('playerPhysics hover helpers', () => {
         expect(velocity.y).toBeCloseTo(0.08);
     });
 
-    test('air acceleration applies gravity and drag', () => {
+    test('air acceleration applies gravity, thrust, and steer', () => {
         const velocity = new THREE.Vector3(0, 0, 0.5);
-        const acceleration = computeAirAcceleration(basePhysics, velocity, new THREE.Vector3());
+        const airForward = new THREE.Vector3(0, 0, 1);
+        const acceleration = computeAirAcceleration(
+            basePhysics,
+            velocity,
+            { forward: true, reverse: false, boosting: false },
+            airForward,
+            scratch,
+        );
         expect(acceleration.y).toBeLessThan(0);
-        expect(acceleration.z).toBeLessThan(0);
+        expect(acceleration.z).toBeGreaterThan(0);
+    });
+
+    test('air hover assist pushes up when falling inside hover range', () => {
+        const normal = new THREE.Vector3(0, 1, 0);
+        const assist = computeAirHoverAssist(
+            basePhysics,
+            0.3,
+            hoverClearance,
+            -0.1,
+            normal,
+            new THREE.Vector3(),
+        );
+        expect(assist.y).toBeGreaterThan(0);
     });
 
     test('downhill coast increases speed without thrust', () => {
@@ -268,7 +292,8 @@ describe('playerPhysics hover helpers', () => {
     test('reengages hover when descending into range', () => {
         expect(canReengageHover(0.9, 1.0, 0.05)).toBe(true);
         expect(canReengageHover(1.2, 1.0, 0.05)).toBe(false);
-        expect(canReengageHover(0.9, 1.0, 0.2)).toBe(false);
+        expect(canReengageHover(0.9, 1.0, 0.3, 0.22)).toBe(false);
+        expect(canReengageHover(0.9, 1.0, 0.18, 0.22)).toBe(true);
     });
 
     test('turns left and right independently', () => {

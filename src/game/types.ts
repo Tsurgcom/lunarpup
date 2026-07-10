@@ -48,6 +48,11 @@ export interface PhysicsState {
     driftThreshold: number;
     boostMultiplier: number;
     boostAccelMultiplier: number;
+    airThrustMultiplier: number;
+    airTurnMultiplier: number;
+    airSteerGrip: number;
+    airHoverAssist: number;
+    hoverLandingSpeed: number;
     cameraBaseFov: number;
     cameraMaxFov: number;
     heading: number;

@@ -31,7 +31,7 @@ Target:
 - [x] Build, typecheck, and unit tests passed before latest upstream sync.
 - [x] Latest upstream production fixes rebased: slope-aware jumps, jump teleport/clipping fixes, contributing/deploy policy.
 - [x] Browser smoke test after latest upstream rebase: HUD, controls, tuning sliders, terrain chunks, tricks, multiplayer panel, minimap, and chat render; no console errors.
-- [x] Transitional modules still own terrain-coupled physics integration, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels. Jump/drive/trick simulation logic lives in tested `playerPhysics` (Newtonian F=ma with slope gravity) and `trickSimulation` modules.
+- [x] Transitional modules still own terrain-coupled physics integration, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels. Jump/drive/trick simulation logic lives in tested `playerPhysics` (hover spring–damper, thrust, drift grip) and `trickSimulation` modules.
 - [x] Legacy removal batch: deleted `state.ts`, `src/ui/*`, `bootstrap.ts`, `loop.ts`, `scene.ts`, imperative `player.ts`/`remotePlayers.ts`. Simulation lives in `game/simulation.ts` + `game/runtime.ts`; UI in `r3f-shell/` with `GameProvider`; remote players in `RemotePlayers.tsx`. Verified with `bun run typecheck`, `bun test` (34 passed), and `bun run build`.
 
 ## Phase 0: production reference capture
@@ -65,7 +65,7 @@ Goal: R3F owns all static scene presentation.
 
 Goal: R3F owns local player presentation and camera rig; shared simulation stays frame-time mutable.
 
-- [x] Create `Player` R3F component with board, animal, wheels, tail, shadows, and trick pose refs.
+- [x] Create `Player` R3F component with hoverboard deck, hover pads, animal, tail, shadows, and trick pose refs.
 - [x] Create R3F `CameraRig`: existing follow, orbit drag, zoom, and speed-FOV math now runs in R3F `useFrame` after simulation.
 - [x] Move keyboard input listeners into a lifecycle-safe React hook. Camera listeners now also clean up with runtime lifecycle.
 - [x] Move player physics and tricks into isolated simulation modules with tests. `trickSimulation.ts` owns airborne trick state/scoring; `playerPhysics.ts` owns jump buffer, coyote time, heading, hover spring–damper suspension, thrust/drift locomotion, and impulse jumps. Verified with `bun test`, `bun run typecheck`, and `bun run build`.

@@ -35,6 +35,7 @@ export function App() {
                             <span className="key">▼</span> / <span className="key">S</span> Brake / Reverse<br />
                             <span className="key">◀</span> <span className="key">▶</span> / <span className="key">A</span> <span className="key">D</span> Steer<br />
                             <span className="key">Spacebar</span> Hover Burst (Jump)<br />
+                            <span className="key">Mid-air</span> Steer + thrust still work in jumps<br />
                             <span className="key">Shift</span> Boost<br />
                             <span className="key">Mouse drag</span> Orbit Camera<br />
                             <span className="key">Wheel</span> Zoom In / Out

@@ -110,3 +110,15 @@ export function alignPlayerToTerrain(
     const tiltSmoothing = 1 - Math.pow(1 - physics.tiltSmoothing, frameScale);
     playerGroup.quaternion.slerp(scratch.targetPlayerQuat, tiltSmoothing);
 }
+
+export function alignPlayerHeadingInAir(
+    playerGroup: THREE.Group,
+    physics: PhysicsState,
+    scratch: { upAxis: THREE.Vector3; targetPlayerQuat: THREE.Quaternion },
+    frameScale = 1,
+) {
+    scratch.upAxis.set(0, 1, 0);
+    scratch.targetPlayerQuat.setFromAxisAngle(scratch.upAxis, physics.heading);
+    const tiltSmoothing = 1 - Math.pow(1 - physics.tiltSmoothing * 1.3, frameScale);
+    playerGroup.quaternion.slerp(scratch.targetPlayerQuat, tiltSmoothing);
+}
