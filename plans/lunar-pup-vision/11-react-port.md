@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P0
 COMPLEXITY: high
 TOUCHES: merge of origin/main (React Three Fiber rewrite) into our integration main; src/r3f-shell/, src/ui/, src/game/, src/net/client.ts, package.json

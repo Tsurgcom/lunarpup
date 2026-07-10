@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P1
 COMPLEXITY: high
 TOUCHES: src/ui/, src/styles.css, index.html
@@ -120,3 +120,10 @@ model-routing guidance for this codebase, actually implementing this overhaul (t
 token system, the settings confirm/revert flow, the two new screens, and the visual
 unification pass) is taste-sensitive UI/UX work and should go to a high-taste model
 (opus-4.8 or fable-5), not be executed directly from this research pass.
+
+## Resolution
+
+Shipped across three landed units: ui-tokens-menus (tokens.css, diegetic main menu,
+orbit pause menu), ui-reskin (panel token refactor, settings confirm/auto-revert,
+decelerating lootbox reel, toasts), and panel-redesign (concern 12: HUD-only play +
+focused intent views). Browser-approved; PRs #22, #27, #29.
