@@ -35,6 +35,21 @@ open — the world is already dimmed behind the view). Preview must never mutate
 equipped state until the player confirms. All new views obey the intent-layer rules from
 concern 12 (one at a time, menu-grade typography, reduced-motion).
 
+## Motion & feel (from docs/ui-research/emilkowalski-skills-assessment.md)
+
+Emil Kowalski's skills (MIT; author of Sonner/Vaul) — adopt as guidance, not a library.
+Our tokens.css already matches most of his easing/duration philosophy. Confirmed gaps to
+close in this pass:
+
+- **Press feedback everywhere**: `.lp-button`, `.main-menu-item`, `.pause-item` (and all
+  new interactive elements) have hover/focus but NO tactile `:active` state. Add
+  `transform: scale(0.97)` (token-driven) on press — highest feel-per-line change in the
+  game. Respect `prefers-reduced-motion`.
+- Apply his interaction rules to the new shop/character/inventory controls: hover intent,
+  focus-visible rings, and consistent transition timing from the motion tokens.
+- Optionally copy the 4 MIT skill files into `.claude/skills/` (with LICENSE) for reuse —
+  flagged for the operator, not done here.
+
 ## Done when
 
 Esc works on every screen (tested); menu-opened views return to menu; one Multiplayer
