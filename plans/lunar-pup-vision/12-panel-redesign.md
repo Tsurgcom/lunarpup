@@ -1,4 +1,4 @@
-STATUS: open
+STATUS: closed
 PRIORITY: P1
 COMPLEXITY: high
 TOUCHES: src/r3f-shell/ panels, src/ui/, src/styles.css, tokens.css
@@ -72,3 +72,10 @@ chat in multiplayer). Every other element reachable in ≤2 inputs as a focused 
 Hold-Tab roster and hold-M map work. First-run legend shows once. `?dev=1` gates the raw
 tuning panel. Browser screenshots of play / shop / rooms / settings / multiplayer-play
 approved against this doc; gate + smoke green.
+
+## Resolution
+
+landed 20e55ea (d17248e+0b84236+0ef73ab): intent-view controller with hotkey routing,
+HUD-only play, focused Shop/Rooms/Settings views, presence/roster, chrome-free chat,
+first-run legend, ?dev=1 gate. 177 tests + smoke green; orchestrator browser-approved
+play/shop/rooms/settings screenshots against this spec (zero console errors).
