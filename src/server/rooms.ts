@@ -18,6 +18,10 @@ interface LobbyRoom {
 
 const lobbyRooms = new Map<string, LobbyRoom>();
 const memberRoomByPlayerId = new Map<string, string>();
+export const MAX_LOBBY_ROOMS = Number(process.env.MAX_LOBBY_ROOMS) || 50;
+export const MAX_LOBBY_MEMBERS = Number(process.env.MAX_LOBBY_MEMBERS) || 16;
+const MAX_ROOM_ID_LENGTH = 64;
+const MAX_GAMEMODE_ID_LENGTH = 64;
 
 function parsePayload(payload: unknown): unknown {
     if (typeof payload === 'string' || payload instanceof Buffer) {
@@ -57,9 +61,16 @@ function summaries(): RoomSummary[] {
     return [...byId.values()].sort((a, b) => a.roomId.localeCompare(b.roomId));
 }
 
-function getLobbyRoom(roomId: string, gamemodeId = 'free-skate', hostId = ''): LobbyRoom {
+function validId(value: string, maxLength: number): boolean {
+    return value.length > 0
+        && value.length <= maxLength
+        && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value);
+}
+
+function getOrCreateLobbyRoom(roomId: string, gamemodeId = 'free-skate', hostId = ''): LobbyRoom | null {
     let room = lobbyRooms.get(roomId);
     if (!room) {
+        if (lobbyRooms.size >= MAX_LOBBY_ROOMS) return null;
         room = { roomId, gamemodeId, hostId, members: new Map() };
         lobbyRooms.set(roomId, room);
     }
@@ -77,7 +88,8 @@ function leaveCurrentRoom(playerId: string): LobbyRoom | null {
     return room;
 }
 
-function joinRoom(ws: ServerWebSocket<PlayerConnection>, room: LobbyRoom, playerId: string): void {
+function joinRoom(ws: ServerWebSocket<PlayerConnection>, room: LobbyRoom, playerId: string): boolean {
+    if (!room.members.has(playerId) && room.members.size >= MAX_LOBBY_MEMBERS) return false;
     const previous = leaveCurrentRoom(playerId);
     if (previous) {
         broadcast(previous, roomState(previous));
@@ -87,6 +99,7 @@ function joinRoom(ws: ServerWebSocket<PlayerConnection>, room: LobbyRoom, player
     memberRoomByPlayerId.set(playerId, room.roomId);
     if (!room.hostId) room.hostId = playerId;
     broadcast(room, roomState(room));
+    return true;
 }
 
 function handleRoomMessage(ws: ServerWebSocket<PlayerConnection>, message: RoomClientMessage): void {
@@ -97,19 +110,27 @@ function handleRoomMessage(ws: ServerWebSocket<PlayerConnection>, message: RoomC
 
     const roomId = message.roomId.trim();
     const playerId = ws.data.connectionId;
-    if (!roomId || !playerId) return;
+    if (!validId(roomId, MAX_ROOM_ID_LENGTH) || !playerId) return;
 
     if (message.type === 'create_room') {
         const gamemodeId = message.gamemodeId.trim() || 'free-skate';
-        const room = getLobbyRoom(roomId, gamemodeId, playerId);
+        if (!validId(gamemodeId, MAX_GAMEMODE_ID_LENGTH)) return;
+        const existing = lobbyRooms.get(roomId);
+        if (existing) {
+            joinRoom(ws, existing, playerId);
+            return;
+        }
+        const room = getOrCreateLobbyRoom(roomId, gamemodeId, playerId);
+        if (!room) return;
         room.gamemodeId = gamemodeId;
         room.hostId = playerId;
         joinRoom(ws, room, playerId);
         return;
     }
 
-    const room = getLobbyRoom(roomId);
     if (message.type === 'join_room') {
+        const room = getOrCreateLobbyRoom(roomId);
+        if (!room) return;
         joinRoom(ws, room, playerId);
         return;
     }
@@ -125,6 +146,8 @@ function handleRoomMessage(ws: ServerWebSocket<PlayerConnection>, message: RoomC
     }
 
     if (message.type === 'start_gamemode') {
+        const room = lobbyRooms.get(roomId);
+        if (!room) return;
         if (!room.members.has(playerId) || room.hostId !== playerId) return;
         broadcast(room, {
             type: 'start_gamemode',

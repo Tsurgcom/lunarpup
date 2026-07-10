@@ -46,7 +46,7 @@ SSE authorization, and CI/deployment changes from upstream are retained. Public 
 browse/create affordances are disabled until Concern 22 can preserve the required secret
 fragment key end to end.
 
-Evidence: `bun run typecheck`, 189 passing tests (one opt-in Postgres test skipped),
+Evidence: `bun run typecheck`, 192 passing tests (one opt-in Postgres test skipped),
 `bun run smoke`, `bun run build`, and `git diff --check` pass. Headless Chromium verified
 a fresh solo boot and accelerating run, Shop/Rooms/Settings navigation, and two clients
 sharing an encrypted casual room with zero console/page errors. The pre-existing
@@ -59,3 +59,6 @@ disconnect/host-transfer cleanup, propagated post-join cosmetic revisions, and m
 async multiplayer initialization generation-owned and abortable. Focused regressions
 cover keyed invite construction, forged telemetry without economy mutation, cosmetic
 revision sync, ghost-member cleanup/host transfer, and stale async resolution disposal.
+The follow-up review also verified that non-creating room commands cannot allocate state,
+lobby/member caps fail closed, and catalog readiness re-applies cosmetics to peers that
+mounted before package definitions finished loading.

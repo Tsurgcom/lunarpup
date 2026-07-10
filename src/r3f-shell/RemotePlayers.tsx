@@ -1,11 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { RemotePlayerRecord } from '../game/types.ts';
 import { deckColorFromDog } from '../game/dogTint.ts';
 import { VoxelDogModel, type VoxelDogModelHandle } from './VoxelDogModel.tsx';
-import { applyRemoteCosmetics } from '../game/cosmetics.ts';
+import {
+    applyRemoteCosmetics,
+    getCosmeticCatalogRevision,
+    subscribeCosmeticCatalog,
+} from '../game/cosmetics.ts';
 
-function RemotePlayer({ record }: { record: RemotePlayerRecord }) {
+function RemotePlayer({ record, catalogRevision }: { record: RemotePlayerRecord; catalogRevision: number }) {
     const modelRef = useRef<VoxelDogModelHandle>(null);
 
     useFrame((_, dt) => {
@@ -31,7 +35,7 @@ function RemotePlayer({ record }: { record: RemotePlayerRecord }) {
         const model = modelRef.current;
         if (!model) return;
         applyRemoteCosmetics(model, record.current.cosmetics);
-    }, [record, record.cosmeticsRevision]);
+    }, [catalogRevision, record, record.cosmeticsRevision]);
 
     return (
         <VoxelDogModel
@@ -43,10 +47,14 @@ function RemotePlayer({ record }: { record: RemotePlayerRecord }) {
 }
 
 export function RemotePlayers({ records }: { records: RemotePlayerRecord[] }) {
+    const [catalogRevision, setCatalogRevision] = useState(getCosmeticCatalogRevision);
+
+    useEffect(() => subscribeCosmeticCatalog(setCatalogRevision), []);
+
     return (
         <>
             {records.map((record) => (
-                <RemotePlayer key={record.id} record={record} />
+                <RemotePlayer key={record.id} record={record} catalogRevision={catalogRevision} />
             ))}
         </>
     );

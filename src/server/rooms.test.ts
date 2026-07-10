@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 import type { ServerWebSocket } from 'bun';
 import type { RoomServerMessage } from '../contracts/roomProtocol.ts';
 import { createInitialConnection, type PlayerConnection } from './multiplayer.ts';
-import { registerRoomsModule, removeRoomMembershipsForConnection, resetRoomsForTests } from './rooms.ts';
+import {
+    MAX_LOBBY_MEMBERS,
+    MAX_LOBBY_ROOMS,
+    registerRoomsModule,
+    removeRoomMembershipsForConnection,
+    resetRoomsForTests,
+} from './rooms.ts';
 import { ModularRouter } from './router.ts';
 
 function makeWs(id = '') {
@@ -128,5 +134,44 @@ describe('rooms module', () => {
 
         const listed = await router.handleHttp(new Request('http://localhost/rooms'), { server: {} as never, upgrade: () => false });
         expect(await listed?.json()).toEqual({ rooms: [] });
+    });
+
+    test('leave/start floods and invalid ids never allocate ghost rooms', async () => {
+        const router = new ModularRouter<PlayerConnection>();
+        registerRoomsModule(router);
+        const socket = makeWs('flooder');
+
+        for (let index = 0; index < MAX_LOBBY_ROOMS + 10; index += 1) {
+            sendRoom(router, socket.ws, { type: 'leave_room', roomId: `leave-${index}`, playerId: 'ignored' });
+            sendRoom(router, socket.ws, { type: 'start_gamemode', roomId: `start-${index}`, playerId: 'ignored' });
+        }
+        sendRoom(router, socket.ws, { type: 'join_room', roomId: 'x'.repeat(65), playerId: 'ignored' });
+
+        const listed = await router.handleHttp(new Request('http://localhost/rooms'), { server: {} as never, upgrade: () => false });
+        expect(await listed?.json()).toEqual({ rooms: [] });
+    });
+
+    test('caps lobby count and membership without evicting current members', async () => {
+        const router = new ModularRouter<PlayerConnection>();
+        registerRoomsModule(router);
+
+        for (let index = 0; index < MAX_LOBBY_ROOMS + 3; index += 1) {
+            const socket = makeWs(`host-${index}`);
+            sendRoom(router, socket.ws, { type: 'create_room', roomId: `room-${index}`, gamemodeId: 'free-skate', playerId: 'ignored' });
+        }
+        const listedAtCap = await router.handleHttp(new Request('http://localhost/rooms'), { server: {} as never, upgrade: () => false });
+        const atCap = await listedAtCap?.json() as { rooms: Array<{ roomId: string }> };
+        expect(atCap.rooms).toHaveLength(MAX_LOBBY_ROOMS);
+        expect(atCap.rooms.some((room) => room.roomId === `room-${MAX_LOBBY_ROOMS}`)).toBe(false);
+
+        resetRoomsForTests();
+        const host = makeWs('member-0');
+        sendRoom(router, host.ws, { type: 'create_room', roomId: 'full-room', gamemodeId: 'free-skate', playerId: 'ignored' });
+        for (let index = 1; index <= MAX_LOBBY_MEMBERS; index += 1) {
+            const socket = makeWs(`member-${index}`);
+            sendRoom(router, socket.ws, { type: 'join_room', roomId: 'full-room', playerId: 'ignored' });
+        }
+        const listedMembers = await router.handleHttp(new Request('http://localhost/rooms'), { server: {} as never, upgrade: () => false });
+        expect(await listedMembers?.json()).toEqual({ rooms: [{ roomId: 'full-room', gamemodeId: 'free-skate', playerCount: MAX_LOBBY_MEMBERS }] });
     });
 });

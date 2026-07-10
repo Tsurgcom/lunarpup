@@ -9,9 +9,22 @@ interface AppliedCosmeticHandle {
 
 const localHandles: AppliedCosmeticHandle[] = [];
 let knownCatalog: CosmeticPackage[] = [];
+let catalogRevision = 0;
+const catalogListeners = new Set<(revision: number) => void>();
 
 export function setKnownCosmeticCatalog(catalog: CosmeticPackage[]): void {
     knownCatalog = catalog;
+    catalogRevision += 1;
+    for (const listener of catalogListeners) listener(catalogRevision);
+}
+
+export function getCosmeticCatalogRevision(): number {
+    return catalogRevision;
+}
+
+export function subscribeCosmeticCatalog(listener: (revision: number) => void): () => void {
+    catalogListeners.add(listener);
+    return () => catalogListeners.delete(listener);
 }
 
 const remoteHandles = new WeakMap<THREE.Group, AppliedCosmeticHandle[]>();
