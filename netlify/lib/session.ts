@@ -52,6 +52,16 @@ async function hmacKey(): Promise<CryptoKey> {
     );
 }
 
+/**
+ * Throw NOW if the session secret is unusable (production without MP_SESSION_SECRET),
+ * so a caller can fail closed BEFORE performing any storage mutation. `issueSessionToken`
+ * validates the same way, but it runs after `joinRoom` has already written blobs — calling
+ * this first keeps an unconfigured production deploy from creating billable state.
+ */
+export function assertSessionSecret(): void {
+    resolveSecret();
+}
+
 export async function issueSessionToken(room: string, id: string): Promise<string> {
     const payload: SessionPayload = { room, id, exp: Date.now() + TOKEN_TTL_MS };
     const payloadB64 = bytesToBase64url(new TextEncoder().encode(JSON.stringify(payload)));
