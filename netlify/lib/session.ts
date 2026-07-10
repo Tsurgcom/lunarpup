@@ -2,14 +2,46 @@ import { bytesToBase64url, base64urlToBytes } from './base64url.ts';
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
+const DEV_SECRET = 'lunarpup-dev-session-secret';
+
 interface SessionPayload {
     room: string;
     id: string;
     exp: number;
 }
 
+/**
+ * Resolve the HMAC secret, failing closed in production.
+ *
+ * The dev fallback is a public constant (this file ships in a public repo), so
+ * signing production tokens with it would let anyone forge a session for any
+ * {room, id} — the exact impersonation SEC-1/SEC-8 close. In a deployed context
+ * (Netlify, or NODE_ENV=production) an unset MP_SESSION_SECRET is therefore a
+ * hard error rather than a silent downgrade; locally it warns once and uses the
+ * dev constant so `bun run dev` still works.
+ */
+function resolveSecret(): string {
+    const configured = process.env.MP_SESSION_SECRET?.trim();
+    if (configured) return configured;
+
+    const isProd = process.env.NETLIFY === 'true'
+        || process.env.CONTEXT === 'production'
+        || process.env.NODE_ENV === 'production';
+    if (isProd) {
+        throw new Error('MP_SESSION_SECRET is required in production — refusing to sign session tokens with the public dev fallback secret.');
+    }
+
+    if (!warnedAboutDevSecret) {
+        warnedAboutDevSecret = true;
+        console.warn('[session] MP_SESSION_SECRET is unset — using the public DEV secret. Session tokens are forgeable; set MP_SESSION_SECRET before any real deployment.');
+    }
+    return DEV_SECRET;
+}
+
+let warnedAboutDevSecret = false;
+
 async function hmacKey(): Promise<CryptoKey> {
-    const raw = process.env.MP_SESSION_SECRET ?? 'lunarpup-dev-session-secret';
+    const raw = resolveSecret();
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
     return crypto.subtle.importKey(
         'raw',
