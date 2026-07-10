@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { getLocalPose } from "./localPose";
 import { SkateDog } from "./SkateDog";
 import { getPeer, getPeerIds, subscribeRoster } from "./peerStore";
-import { curvedSurfaceY, unwrapToward } from "./terrain";
 
 export function RemotePlayers() {
   const peerIds = useSyncExternalStore(
@@ -50,7 +48,7 @@ function RemotePup({ peerId }: { peerId: string }) {
     });
   }, [peerId]);
 
-  useFrame(({ camera }, dt) => {
+  useFrame((_, dt) => {
     const snap = getPeer(peerId);
     const g = ref.current;
     if (!snap || !g) return;
@@ -64,18 +62,8 @@ function RemotePup({ peerId }: { peerId: string }) {
       setStyle({ fur: snap.fur, accent: snap.accent, ghost });
     }
 
-    const local = getLocalPose();
-    const x = unwrapToward(snap.x, local.x);
-    const z = unwrapToward(snap.z, local.z);
-    // Sit on the same curved crust the terrain shader draws.
-    const y = curvedSurfaceY(
-      x,
-      z,
-      snap.y,
-      camera.position.x,
-      camera.position.z,
-    );
-    target.current.pos.set(x, y, z);
+    // Snapshots are moon-centered Cartesian — no toroidal unwrap.
+    target.current.pos.set(snap.x, snap.y, snap.z);
     euler.current.set(snap.pitch, snap.yaw, snap.roll, "YXZ");
     target.current.quat.setFromEuler(euler.current);
 
@@ -86,7 +74,7 @@ function RemotePup({ peerId }: { peerId: string }) {
       return;
     }
 
-    // If the nearest image jumped (rare), snap instead of lerping across the moon.
+    // Far jump (teleport) — snap instead of lerping through the moon.
     if (g.position.distanceToSquared(target.current.pos) > 40 * 40) {
       g.position.copy(target.current.pos);
       g.quaternion.copy(target.current.quat);

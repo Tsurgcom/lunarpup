@@ -9,8 +9,8 @@ import {
   subscribeRoster,
 } from "./peerStore";
 import {
-  CHART_HALF,
-  chartHitToWorld,
+  CHART_RADIUS,
+  chartHitToDir,
   createMoonChartGeometry,
   worldToChart,
 } from "./terrain";
@@ -27,7 +27,7 @@ export function LunarMap({ selfId }: LunarMapProps) {
       <div className="hud__map-canvas">
         <Canvas
           dpr={[1, 1.5]}
-          camera={{ position: [0, 2.35, 1.55], fov: 38, near: 0.05, far: 20 }}
+          camera={{ position: [0, 0.4, 2.6], fov: 38, near: 0.05, far: 20 }}
           gl={{ antialias: true, alpha: true }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -43,8 +43,9 @@ export function LunarMap({ selfId }: LunarMapProps) {
 }
 
 function LunarMapScene({ selfId }: { selfId: string }) {
-  const chart = useMemo(() => createMoonChartGeometry(CHART_HALF, 120), []);
+  const chart = useMemo(() => createMoonChartGeometry(CHART_RADIUS, 4), []);
   const drag = useRef({ active: false, x: 0, y: 0, moved: false });
+  const hitDir = useRef(new THREE.Vector3());
 
   const onChartPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -69,8 +70,8 @@ function LunarMapScene({ selfId }: { selfId: string }) {
     drag.current.active = false;
     if (!wasClick) return;
     e.stopPropagation();
-    const hit = chartHitToWorld(e.point);
-    requestTeleport(hit.x, hit.z);
+    chartHitToDir(e.point, hitDir.current);
+    requestTeleport(hitDir.current.x, hitDir.current.y, hitDir.current.z);
   };
 
   return (
@@ -97,16 +98,14 @@ function LunarMapScene({ selfId }: { selfId: string }) {
       </mesh>
 
       <SelfMarker />
-      <PeerMarkers selfId={selfId} onWarp={requestTeleport} />
+      <PeerMarkers selfId={selfId} />
 
       <OrbitControls
         enablePan={false}
         enableDamping
         dampingFactor={0.08}
-        minDistance={1.4}
-        maxDistance={4.2}
-        minPolarAngle={0.18}
-        maxPolarAngle={Math.PI / 2.35}
+        minDistance={1.6}
+        maxDistance={4.5}
         rotateSpeed={0.65}
         zoomSpeed={0.85}
         target={[0, 0, 0]}
@@ -123,8 +122,8 @@ function SelfMarker() {
     const m = mesh.current;
     if (!m) return;
     const pose = getLocalPose();
-    worldToChart(pose.x, pose.z, tmp.current);
-    tmp.current.y += 0.035;
+    worldToChart(pose.x, pose.y, pose.z, tmp.current);
+    tmp.current.multiplyScalar(1.04);
     m.position.copy(tmp.current);
   });
 
@@ -141,13 +140,7 @@ function SelfMarker() {
   );
 }
 
-function PeerMarkers({
-  selfId,
-  onWarp,
-}: {
-  selfId: string;
-  onWarp: (x: number, z: number) => void;
-}) {
+function PeerMarkers({ selfId }: { selfId: string }) {
   const peerIds = useSyncExternalStore(
     subscribeRoster,
     getPeerIds,
@@ -157,32 +150,22 @@ function PeerMarkers({
   return (
     <>
       {peerIds.map((id) =>
-        id === selfId ? null : (
-          <PeerMarker key={id} peerId={id} onWarp={onWarp} />
-        ),
+        id === selfId ? null : <PeerMarker key={id} peerId={id} />,
       )}
     </>
   );
 }
 
-function PeerMarker({
-  peerId,
-  onWarp,
-}: {
-  peerId: string;
-  onWarp: (x: number, z: number) => void;
-}) {
+function PeerMarker({ peerId }: { peerId: string }) {
   const mesh = useRef<THREE.Mesh>(null);
   const tmp = useRef(new THREE.Vector3());
-  const accent = useRef("#7eb6ff");
 
   useFrame(() => {
     const snap = getPeer(peerId);
     const m = mesh.current;
     if (!snap || !m) return;
-    accent.current = snap.accent;
-    worldToChart(snap.x, snap.z, tmp.current);
-    tmp.current.y += 0.04;
+    worldToChart(snap.x, snap.y, snap.z, tmp.current);
+    tmp.current.multiplyScalar(1.045);
     m.position.copy(tmp.current);
     const mat = m.material as THREE.MeshStandardMaterial;
     if (mat.color.getStyle() !== snap.accent) {
@@ -198,7 +181,7 @@ function PeerMarker({
         e.stopPropagation();
         const snap = getPeer(peerId);
         if (!snap) return;
-        onWarp(snap.x, snap.z);
+        requestTeleport(snap.x, snap.y, snap.z);
       }}
     >
       <sphereGeometry args={[0.042, 12, 12]} />

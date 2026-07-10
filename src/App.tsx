@@ -14,7 +14,7 @@ const keyMap = [
   { name: "left", keys: ["ArrowLeft", "KeyA"] },
   { name: "right", keys: ["ArrowRight", "KeyD"] },
   { name: "jump", keys: ["Space"] },
-  { name: "brake", keys: ["ShiftLeft", "ShiftRight"] },
+  { name: "jetpack", keys: ["ShiftLeft", "ShiftRight"] },
 ];
 
 type Phase = "menu" | "playing" | "paused";
@@ -130,7 +130,7 @@ export function App() {
         <Canvas
           shadows
           dpr={[1, 1.75]}
-          camera={{ position: [0, 8, 22], fov: 68, near: 0.1, far: 320 }}
+          camera={{ position: [0, 20, 170], fov: 68, near: 0.1, far: 1600 }}
           gl={{ antialias: true, toneMappingExposure: 1.05 }}
         >
           <World

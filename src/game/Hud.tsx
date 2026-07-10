@@ -53,10 +53,10 @@ export function Hud({
       </div>
 
       <div className="hud__help">
-        <kbd>W</kbd> push · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>S</kbd> brake
-        · <kbd>Space</kbd> ollie · <kbd>Esc</kbd> pause
+        <kbd>W</kbd> push · <kbd>S</kbd> brake · <kbd>A</kbd>/<kbd>D</kbd> turn
+        · <kbd>Space</kbd> ollie · <kbd>Shift</kbd> jetpack · <kbd>Esc</kbd> pause
         <br />
-        Point the board, then push. Open another tab to skate together.
+        Wheels need the ground. Hold Shift — W/S fire fore/aft thrusters.
       </div>
     </div>
   );

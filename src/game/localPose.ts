@@ -1,4 +1,4 @@
-/** Module-level local pup pose — map + wrap-aware remotes read this each frame. */
+/** Module-level local pup pose — map + remotes read this each frame. */
 
 export type LocalPose = {
   x: number;
@@ -7,7 +7,7 @@ export type LocalPose = {
   yaw: number;
 };
 
-const pose: LocalPose = { x: 0, y: 0, z: 14, yaw: Math.PI };
+const pose: LocalPose = { x: 0, y: 8.4, z: 70, yaw: 0 };
 
 export function setLocalPose(
   x: number,

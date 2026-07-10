@@ -1,4 +1,4 @@
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -15,17 +15,11 @@ import {
   type BodyState,
   type ControlInput,
 } from "./physics";
-import {
-  curvedSurfaceY,
-  sampleHeight,
-  sampleNormal,
-  unwrapToward,
-  wrapCoord,
-} from "./terrain";
+import { sampleNormalDir, surfacePoint } from "./terrain";
 import { consumeTeleport } from "./teleport";
 import type { PlayerSnapshot } from "./types";
 
-type Controls = "forward" | "back" | "left" | "right" | "jump" | "brake";
+type Controls = "forward" | "back" | "left" | "right" | "jump" | "jetpack";
 
 type PlayerProps = {
   fur: string;
@@ -49,9 +43,8 @@ export function Player({
   onSpeed,
 }: PlayerProps) {
   const group = useRef<THREE.Group>(null);
-  const bodyRef = useRef<BodyState>(createBody(0, 14));
+  const bodyRef = useRef<BodyState>(createBody());
   const [, getKeys] = useKeyboardControls<Controls>();
-  const { camera } = useThree();
 
   const forward = useRef(new THREE.Vector3());
   const right = useRef(new THREE.Vector3());
@@ -63,12 +56,12 @@ export function Player({
   const hudAcc = useRef(0);
   const syncAcc = useRef(0);
   const jumpHeld = useRef(false);
+  const warpDir = useRef(new THREE.Vector3());
 
   useEffect(() => {
-    bodyRef.current = createBody(0, 14);
+    bodyRef.current = createBody();
   }, []);
 
-  // Push ghost/solid state to peers immediately on pause toggle.
   useEffect(() => {
     syncAcc.current = 1;
   }, [paused]);
@@ -81,13 +74,14 @@ export function Player({
     if (active && !paused) {
       const warp = consumeTeleport();
       if (warp) {
-        // Stay on the current unwrap sheet so warps don't feel like a world reset.
-        const x = unwrapToward(wrapCoord(warp.x), b.pos.x);
-        const z = unwrapToward(wrapCoord(warp.z), b.pos.z);
-        b.pos.set(x, sampleHeight(x, z) + BOARD_CLEARANCE, z);
+        warpDir.current.set(warp.x, warp.y, warp.z).normalize();
+        if (warpDir.current.lengthSq() < 1e-8) {
+          warpDir.current.set(0, 0, 1);
+        }
+        surfacePoint(warpDir.current, BOARD_CLEARANCE, b.pos);
         b.vel.set(0, 0, 0);
         b.grounded = true;
-        sampleNormal(x, z, b.normal);
+        sampleNormalDir(warpDir.current, b.normal);
         b.normalForce = MASS * G;
       }
 
@@ -102,7 +96,7 @@ export function Player({
         left: keys.left,
         right: keys.right,
         jump: jumpPressed,
-        brake: keys.brake || keys.back,
+        jetpack: keys.jetpack,
       };
 
       stepBody(b, input, dt);
@@ -114,24 +108,17 @@ export function Player({
       const lean = (keys.left ? 1 : 0) - (keys.right ? 1 : 0);
       leanQ.current.setFromAxisAngle(forward.current, lean * 0.22);
       targetQuat.current.premultiply(leanQ.current);
-      quat.current.slerp(targetQuat.current, 1 - Math.exp(-14 * dt));
+      // Follow surface tilt tightly while grounded — lag here reads as a
+      // fixed-world rotation and digs the deck into bowl walls.
+      const follow = b.grounded ? 1 - Math.exp(-28 * dt) : 1 - Math.exp(-14 * dt);
+      quat.current.slerp(targetQuat.current, follow);
     } else {
       jumpHeld.current = false;
     }
 
     const dog = group.current;
     if (dog) {
-      dog.position.set(
-        b.pos.x,
-        curvedSurfaceY(
-          b.pos.x,
-          b.pos.z,
-          b.pos.y,
-          camera.position.x,
-          camera.position.z,
-        ),
-        b.pos.z,
-      );
+      dog.position.copy(b.pos);
       dog.quaternion.copy(quat.current);
     }
 
@@ -152,9 +139,9 @@ export function Player({
       syncAcc.current = 0;
       euler.current.setFromQuaternion(quat.current, "YXZ");
       onSnapshot({
-        x: wrapCoord(b.pos.x),
+        x: b.pos.x,
         y: b.pos.y,
-        z: wrapCoord(b.pos.z),
+        z: b.pos.z,
         yaw: euler.current.y,
         pitch: euler.current.x,
         roll: euler.current.z,

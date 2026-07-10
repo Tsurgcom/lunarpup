@@ -2,104 +2,174 @@ import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
 import {
   ANCHOR_CRATERS,
-  CHART_HALF,
-  CURVATURE_RADIUS,
   LUNAR_GENERATORS,
-  MOON_HALF,
-  MOON_SIZE,
-  chartHitToWorld,
-  curvatureDrop,
-  sampleHeight,
-  sampleNormal,
+  MOON_CIRCUMFERENCE,
+  MOON_RADIUS,
+  SPAWN_DIR,
+  createFaceGeometry,
+  faceSubdiv,
+  facesNear,
+  geodesicDistance,
+  getIcoFaces,
+  sampleHeightDir,
+  sampleNormalDir,
+  surfacePoint,
   worldToChart,
-  worldToChartScale,
-  wrapCoord,
-  wrapDelta,
 } from "./terrain";
 
-describe("finite lunar surface", () => {
+describe("spherical lunar surface", () => {
   test("generators are registered", () => {
     expect(LUNAR_GENERATORS.length).toBeGreaterThanOrEqual(4);
     expect(LUNAR_GENERATORS.map((g) => g.name)).toContain("craterField");
     expect(LUNAR_GENERATORS.map((g) => g.name)).toContain("anchorBowls");
   });
 
-  test("world wraps onto a finite moon", () => {
-    expect(wrapCoord(MOON_HALF)).toBeCloseTo(-MOON_HALF, 8);
-    expect(wrapCoord(-MOON_HALF - 1)).toBeCloseTo(MOON_HALF - 1, 8);
-    expect(wrapCoord(0)).toBe(0);
-    expect(Math.abs(wrapDelta(MOON_HALF - 1, -MOON_HALF + 1))).toBeLessThan(3);
+  test("circumference is equal in every great-circle direction", () => {
+    expect(MOON_CIRCUMFERENCE).toBe(960);
+    expect(2 * Math.PI * MOON_RADIUS).toBeCloseTo(MOON_CIRCUMFERENCE, 10);
   });
 
-  test("height matches across the wrap seam", () => {
-    const a = sampleHeight(MOON_HALF - 0.5, 12);
-    const b = sampleHeight(-MOON_HALF - 0.5, 12);
-    expect(a).toBeCloseTo(b, 5);
+  test("geodesic distance matches arc length on the unit sphere scaled by R", () => {
+    const a = new THREE.Vector3(1, 0, 0);
+    const b = new THREE.Vector3(0, 1, 0);
+    expect(geodesicDistance(a, b)).toBeCloseTo((Math.PI / 2) * MOON_RADIUS, 6);
   });
 
-  test("anchor bowl still digs the spawn crater", () => {
-    const rim = sampleHeight(18, 0);
-    const floor = sampleHeight(0, 0);
-    expect(floor).toBeLessThan(rim - 3);
+  test("anchor bowl digs the spawn crater", () => {
+    const floor = sampleHeightDir(SPAWN_DIR);
+    const axis = new THREE.Vector3()
+      .crossVectors(SPAWN_DIR, new THREE.Vector3(0, 1, 0))
+      .normalize();
+    const rimDir = SPAWN_DIR.clone()
+      .applyAxisAngle(axis, 16 / MOON_RADIUS)
+      .normalize();
+    const rim = sampleHeightDir(rimDir);
+    expect(floor).toBeLessThan(rim - 2.5);
     expect(ANCHOR_CRATERS[0]?.depth).toBeGreaterThan(5);
   });
 
   test("normals stay unit length on procedural ground", () => {
-    const n = sampleNormal(120, -80);
+    const dir = new THREE.Vector3(0.4, 0.3, 0.8).normalize();
+    const n = sampleNormalDir(dir);
     expect(n.length()).toBeCloseTo(1, 5);
-    expect(n.y).toBeGreaterThan(0.2);
+    expect(n.dot(dir)).toBeGreaterThan(0);
   });
 
-  test("curvature drop increases with viewer distance", () => {
-    const near = curvatureDrop(10, 0, 0, 0);
-    const far = curvatureDrop(100, 0, 0, 0);
-    expect(far).toBeGreaterThan(near);
-    expect(near).toBeCloseTo((10 * 10) / (2 * CURVATURE_RADIUS), 5);
-    expect(MOON_SIZE).toBe(480);
+  test("crater walls tilt away from the radial", () => {
+    const east = new THREE.Vector3(0, 1, 0).cross(SPAWN_DIR).normalize();
+    const wall = SPAWN_DIR.clone()
+      .applyAxisAngle(east, 10 / MOON_RADIUS)
+      .normalize();
+    const n = sampleNormalDir(wall);
+    const tiltDeg =
+      (Math.acos(THREE.MathUtils.clamp(n.dot(wall), -1, 1)) * 180) / Math.PI;
+    expect(tiltDeg).toBeGreaterThan(15);
+    expect(n.dot(wall)).toBeLessThan(0.98);
   });
 
-  test("chart maps world XZ 1:1", () => {
-    const s = worldToChartScale();
-    expect(s).toBeCloseTo((CHART_HALF * 2) / MOON_SIZE, 10);
-
-    const samples: Array<[number, number]> = [
-      [0, 14],
-      [120, -80],
-      [MOON_HALF - 5, 0],
-      [-40, MOON_HALF - 8],
-    ];
-    for (const [x, z] of samples) {
-      const p = worldToChart(x, z, new THREE.Vector3(), 0);
-      expect(p.x).toBeCloseTo(wrapCoord(x) * s, 6);
-      expect(p.z).toBeCloseTo(wrapCoord(z) * s, 6);
-      const back = chartHitToWorld(p);
-      expect(wrapDelta(back.x, wrapCoord(x))).toBeCloseTo(0, 4);
-      expect(wrapDelta(back.z, wrapCoord(z))).toBeCloseTo(0, 4);
-    }
+  test("surface point sits near moon radius plus height", () => {
+    const p = surfacePoint(SPAWN_DIR);
+    const h = sampleHeightDir(SPAWN_DIR);
+    expect(p.length()).toBeCloseTo(MOON_RADIUS + h, 5);
   });
 
-  test("chart pin stays continuous across the date-line seam", () => {
-    const out = new THREE.Vector3();
-    const prev = new THREE.Vector3();
-    let maxJump = 0;
-    const z = 20;
-    // Walk just inside the +X edge, then continue from the -X image.
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40;
-      const x =
-        t < 0.5
-          ? MOON_HALF - 8 + t * 16
-          : -MOON_HALF + (t - 0.5) * 16;
-      worldToChart(x, z, out, 0);
-      if (i > 0) {
-        // Wrapped chart coords jump at the seam — that is correct for a
-        // square chart. Continuity is in world space via wrapDelta.
-        const dx = wrapDelta(out.x / worldToChartScale(), prev.x / worldToChartScale());
-        const dz = wrapDelta(out.z / worldToChartScale(), prev.z / worldToChartScale());
-        maxJump = Math.max(maxJump, Math.hypot(dx, dz) * worldToChartScale());
+  test("icosphere chunks cover the sphere", () => {
+    const faces = getIcoFaces();
+    expect(faces.length).toBe(20 * 4 ** 2);
+    const near = facesNear(SPAWN_DIR);
+    expect(near.length).toBeGreaterThan(8);
+    expect(near.length).toBeLessThan(faces.length);
+  });
+
+  test("clipmap LOD densifies faces under the viewer", () => {
+    const faces = getIcoFaces();
+    let nearest = faces[0]!;
+    let best = -2;
+    for (const f of faces) {
+      const d = f.centroid.dot(SPAWN_DIR);
+      if (d > best) {
+        best = d;
+        nearest = f;
       }
-      prev.copy(out);
     }
-    expect(maxJump).toBeLessThan(0.05);
+    const nearSub = faceSubdiv(SPAWN_DIR, nearest);
+    const farFace = faces.find((f) => f.centroid.dot(SPAWN_DIR) < 0)!;
+    const farSub = faceSubdiv(SPAWN_DIR, farFace);
+    expect(nearSub).toBeGreaterThan(farSub);
+    expect(nearSub).toBeGreaterThanOrEqual(32);
+  });
+
+  test("face geometry has displaced vertices", () => {
+    const face = getIcoFaces()[0]!;
+    const geo = createFaceGeometry(face, 3);
+    const pos = geo.attributes.position!;
+    expect(pos.count).toBeGreaterThan(6);
+    const v = new THREE.Vector3(pos.getX(0), pos.getY(0), pos.getZ(0));
+    expect(v.length()).toBeGreaterThan(MOON_RADIUS * 0.85);
+    geo.dispose();
+  });
+
+  test("chart maps world positions onto a globe", () => {
+    const p = surfacePoint(SPAWN_DIR);
+    const c = worldToChart(p.x, p.y, p.z, new THREE.Vector3(), 0);
+    expect(c.length()).toBeCloseTo(1, 5);
+    expect(c.dot(SPAWN_DIR)).toBeGreaterThan(0.98);
+  });
+
+  test("far-side terrain stays free of antipode spikes", () => {
+    const anti = SPAWN_DIR.clone().negate();
+    let minH = Infinity;
+    let maxTilt = 0;
+    const east = new THREE.Vector3(0, 1, 0).cross(anti).normalize();
+    const north = new THREE.Vector3().crossVectors(anti, east).normalize();
+    for (let a = 0; a < 32; a++) {
+      const ang = (a / 32) * Math.PI * 2;
+      const dir = anti
+        .clone()
+        .addScaledVector(east, Math.cos(ang) * 0.08)
+        .addScaledVector(north, Math.sin(ang) * 0.08)
+        .normalize();
+      const h = sampleHeightDir(dir);
+      const n = sampleNormalDir(dir);
+      const tilt =
+        (Math.acos(THREE.MathUtils.clamp(n.dot(dir), -1, 1)) * 180) / Math.PI;
+      minH = Math.min(minH, h);
+      maxTilt = Math.max(maxTilt, tilt);
+    }
+    expect(minH).toBeGreaterThan(-10);
+    expect(maxTilt).toBeLessThan(55);
+  });
+
+  test("heightfield has no cliffs anywhere on the sphere", () => {
+    // Walk many short steps; a cell-pop discontinuity jumps several units.
+    const step = 0.25;
+    let maxJump = 0;
+    let maxTilt = 0;
+    const axes = [
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(1, 1, 0).normalize(),
+      new THREE.Vector3(1, 0, 1).normalize(),
+      new THREE.Vector3(0, 1, 1).normalize(),
+    ];
+    for (const axis of axes) {
+      let prev = sampleHeightDir(SPAWN_DIR);
+      for (let s = step; s < Math.PI * MOON_RADIUS; s += step) {
+        const dir = SPAWN_DIR.clone()
+          .applyAxisAngle(axis, s / MOON_RADIUS)
+          .normalize();
+        const h = sampleHeightDir(dir);
+        maxJump = Math.max(maxJump, Math.abs(h - prev));
+        prev = h;
+        const n = sampleNormalDir(dir);
+        const tilt =
+          (Math.acos(THREE.MathUtils.clamp(n.dot(dir), -1, 1)) * 180) /
+          Math.PI;
+        maxTilt = Math.max(maxTilt, tilt);
+      }
+    }
+    expect(maxJump).toBeLessThan(0.85);
+    expect(maxTilt).toBeLessThan(50);
   });
 });
