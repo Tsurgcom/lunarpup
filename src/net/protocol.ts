@@ -60,12 +60,12 @@ export interface EncryptedPlayerSnapshot {
 
 export type ClientMessage =
     | { type: 'join'; room: string; name: EncryptedEnvelope; state: EncryptedEnvelope; seq: number }
-    | { type: 'state'; room?: string; id?: string; seq: number; state: EncryptedEnvelope }
-    | { type: 'leave'; room?: string; id?: string }
-    | { type: 'chat'; room?: string; id?: string; payload: EncryptedEnvelope };
+    | { type: 'state'; room?: string; id?: string; token?: string; seq: number; state: EncryptedEnvelope }
+    | { type: 'leave'; room?: string; id?: string; token?: string }
+    | { type: 'chat'; room?: string; id?: string; token?: string; payload: EncryptedEnvelope };
 
 export type ServerMessage =
-    | { type: 'welcome'; id: string; color: number; room: string; players: EncryptedPlayerSnapshot[] }
+    | { type: 'welcome'; id: string; color: number; room: string; players: EncryptedPlayerSnapshot[]; token?: string }
     | { type: 'player_joined'; player: EncryptedPlayerSnapshot }
     | { type: 'player_left'; id: string }
     | { type: 'state'; id: string; seq: number; state: EncryptedEnvelope }

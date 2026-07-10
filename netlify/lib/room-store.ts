@@ -4,8 +4,11 @@ import type { ChatMessage, EncryptedEnvelope, EncryptedPlayerSnapshot } from './
 
 const STORE_NAME = 'lunarpup-mp';
 const PLAYER_TTL_MS = 45_000;
-const POLL_MS = 50;
+const POLL_MS = 100;
+const ROOM_INDEX_KEY = 'rooms/index';
+const ROOM_INDEX_TTL_MS = 60 * 60 * 1000;
 export const MAX_ROOM_PLAYERS = 32;
+export const MAX_ROOMS = 50;
 
 export { POLL_MS };
 
@@ -21,6 +24,18 @@ export class RoomFullError extends Error {
         super('Room is full');
         this.name = 'RoomFullError';
     }
+}
+
+export class RoomCapError extends Error {
+    constructor() {
+        super('Room capacity exceeded');
+        this.name = 'RoomCapError';
+    }
+}
+
+interface RoomIndexEntry {
+    id: string;
+    lastActive: number;
 }
 
 function store() {
@@ -68,12 +83,43 @@ async function writeIndex(roomId: string, index: RoomIndex) {
     await store().set(roomKey(roomId), JSON.stringify(index));
 }
 
+async function readRoomIndex(): Promise<RoomIndexEntry[]> {
+    const raw = await store().get(ROOM_INDEX_KEY, { type: 'text' });
+    if (!raw) return [];
+    try {
+        return JSON.parse(raw) as RoomIndexEntry[];
+    } catch {
+        return [];
+    }
+}
+
+async function writeRoomIndex(entries: RoomIndexEntry[]) {
+    await store().set(ROOM_INDEX_KEY, JSON.stringify(entries));
+}
+
+async function touchRoomIndex(roomId: string) {
+    const now = Date.now();
+    const pruned = (await readRoomIndex()).filter((entry) => now - entry.lastActive < ROOM_INDEX_TTL_MS);
+    const existing = pruned.find((entry) => entry.id === roomId);
+    if (existing) {
+        existing.lastActive = now;
+        await writeRoomIndex(pruned);
+        return;
+    }
+    if (pruned.length >= MAX_ROOMS) {
+        throw new RoomCapError();
+    }
+    pruned.push({ id: roomId, lastActive: now });
+    await writeRoomIndex(pruned);
+}
+
 export async function joinRoom(
     roomId: string,
     name: EncryptedEnvelope,
     state: EncryptedEnvelope,
 ) {
     const room = sanitize(roomId);
+    await touchRoomIndex(room);
     const index = await readIndex(room);
     await pruneStalePlayers(room, index);
 

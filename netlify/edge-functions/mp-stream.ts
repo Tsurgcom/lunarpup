@@ -1,16 +1,22 @@
 import type { Config, Context } from '@netlify/edge-functions';
 import { POLL_MS, readRoomSnapshots, readChatSince } from '../lib/room-store.ts';
+import { verifySessionToken } from '../lib/session.ts';
 import type { ServerMessage } from '../lib/protocol.ts';
 
 export default async (request: Request, _context: Context) => {
     const url = new URL(request.url);
     const room = url.searchParams.get('room')?.trim();
     const playerId = url.searchParams.get('id')?.trim();
+    const token = url.searchParams.get('token')?.trim();
     const sinceParam = url.searchParams.get('since');
     const sinceTs = sinceParam ? Number(sinceParam) : 0;
 
-    if (!room || !playerId) {
-        return new Response('Missing room or id', { status: 400 });
+    if (!room || !playerId || !token) {
+        return new Response('Missing room, id, or session token', { status: 400 });
+    }
+
+    if (!await verifySessionToken(token, room, playerId)) {
+        return new Response('Invalid session', { status: 403 });
     }
 
     const encoder = new TextEncoder();

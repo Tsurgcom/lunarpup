@@ -24,6 +24,7 @@ interface PlayerConnection {
     ws: ServerWebSocket<PlayerConnection>;
     stateEnvelope: EncryptedEnvelope;
     seq: number;
+    lastStateAt: number;
 }
 
 interface Room {
@@ -33,9 +34,29 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
-function getRoom(roomId: string): Room {
+const ALLOWED_ORIGINS = (
+    process.env.ALLOWED_ORIGINS
+    ?? 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000'
+).split(',').map((origin) => origin.trim()).filter(Boolean);
+
+const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 50;
+const GLOBAL_MAX_CONNECTIONS = Number(process.env.GLOBAL_MAX_CONNECTIONS) || 200;
+const MIN_STATE_INTERVAL_MS = Number(process.env.MIN_STATE_INTERVAL_MS) || 20;
+const MAX_PAYLOAD_LENGTH = 1 << 16;
+const IDLE_TIMEOUT = 60;
+
+let openSockets = 0;
+
+function isOriginAllowed(req: Request): boolean {
+    const origin = req.headers.get('origin');
+    if (!origin) return true;
+    return ALLOWED_ORIGINS.includes(origin);
+}
+
+function getRoom(roomId: string): Room | null {
     let room = rooms.get(roomId);
     if (!room) {
+        if (rooms.size >= MAX_ROOMS) return null;
         room = { players: new Map(), usedColors: new Set() };
         rooms.set(roomId, room);
     }
@@ -62,6 +83,7 @@ function pendingConnection(): PlayerConnection {
         ws: undefined as unknown as ServerWebSocket<PlayerConnection>,
         stateEnvelope: { iv: '', data: '' },
         seq: 0,
+        lastStateAt: 0,
     };
 }
 
@@ -89,8 +111,18 @@ function removePlayer(conn: PlayerConnection) {
 }
 
 function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMessage, { type: 'join' }>) {
+    if (openSockets > GLOBAL_MAX_CONNECTIONS) {
+        ws.close(1013, 'Server full');
+        return;
+    }
+
     const roomId = msg.room.trim() || DEFAULT_ROOM;
     const room = getRoom(roomId);
+    if (!room) {
+        ws.close(1013, 'Room capacity exceeded');
+        return;
+    }
+
     const id = crypto.randomUUID();
     const color = pickColor(room);
 
@@ -102,6 +134,7 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMe
         ws,
         stateEnvelope: msg.state,
         seq: msg.seq,
+        lastStateAt: 0,
     };
 
     ws.data = conn;
@@ -121,6 +154,10 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMe
 }
 
 function handleState(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 'state' }>) {
+    const now = Date.now();
+    if (now - conn.lastStateAt < MIN_STATE_INTERVAL_MS) return;
+    conn.lastStateAt = now;
+
     conn.stateEnvelope = msg.state;
     conn.seq = msg.seq;
     const room = rooms.get(conn.room);
@@ -144,13 +181,24 @@ const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 const server = Bun.serve<PlayerConnection>({
     port,
     fetch(req, server) {
-        if (server.upgrade(req, { data: pendingConnection() })) return undefined;
+        if (req.headers.get('upgrade')?.toLowerCase() === 'websocket') {
+            if (!isOriginAllowed(req)) {
+                return new Response('Forbidden', { status: 403 });
+            }
+            if (openSockets >= GLOBAL_MAX_CONNECTIONS) {
+                return new Response('Too many connections', { status: 503 });
+            }
+            if (server.upgrade(req, { data: pendingConnection() })) return undefined;
+        }
         return new Response('Lunar Pup multiplayer relay (E2E encrypted)', {
             headers: { 'Content-Type': 'text/plain' },
         });
     },
     websocket: {
+        maxPayloadLength: MAX_PAYLOAD_LENGTH,
+        idleTimeout: IDLE_TIMEOUT,
         open(ws) {
+            openSockets++;
             ws.data.ws = ws;
         },
         message(ws, message) {
@@ -172,6 +220,7 @@ const server = Bun.serve<PlayerConnection>({
             }
         },
         close(ws) {
+            openSockets = Math.max(0, openSockets - 1);
             if (!ws.data.id) return;
             console.log(`[-] player ${ws.data.id} left room "${ws.data.room}"`);
             removePlayer(ws.data);

@@ -93,6 +93,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 - [x] Set room capacity (`32`) and validate finite replicated state.
 - [x] Capture WebSocket client-message protocol validation in `src/net/protocol.test.ts` (valid join/state/chat/leave payloads; malformed, unknown, and non-finite state rejection). Verified with `bun test`, `bun run typecheck`, and `bun run build`.
+- [x] Harden multiplayer relays per security audit (#19): WS origin allow-list, room/connection caps, per-connection state rate limit, `maxPayloadLength`/`idleTimeout`, signed Netlify session tokens (bind `id`+`room`), CORS allow-list, global Blobs room cap, slower SSE poll (100 ms), client-side decrypted-state sanitization, and Netlify security headers. Verified with `bun test` (37 passed), `bun run typecheck`, `bun run build`, and `scripts/e2e-relay-test.ts`.
 - [ ] Add heartbeat, stale cleanup, reconnect/backoff, room rejoin, message size limits, and rate limits.
 - [ ] Add remote-player interpolation component.
 - [ ] Decide/implement authoritative room server: evaluate Colyseus first; keep raw WebSocket only if custom protocol gets full lifecycle/tests.

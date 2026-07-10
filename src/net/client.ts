@@ -1,6 +1,7 @@
 import type { ClientMessage, EncryptedPlayerSnapshot, MultiplayerTransport, PlayerSnapshot, ServerMessage } from './protocol.ts';
 import { CONNECT_TIMEOUT_MS, STATE_SEND_INTERVAL_MS } from './protocol.ts';
 import { RoomCipher, stateFingerprint } from './crypto.ts';
+import { sanitizePlayerState } from './stateSanitize.ts';
 
 export type MultiplayerStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -34,6 +35,7 @@ export class MultiplayerClient {
     private eventSource: EventSource | null = null;
     private localId = '';
     private localColor = 0xffb703;
+    private sessionToken = '';
     private lastSend = 0;
     private seq = 0;
     private lastFingerprint = '';
@@ -81,11 +83,12 @@ export class MultiplayerClient {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
         this.clearConnectTimeout();
 
-        if (this.options.transport === 'http' && this.localId) {
+        if (this.options.transport === 'http' && this.localId && this.sessionToken) {
             const body = JSON.stringify({
                 type: 'leave',
                 room: this.options.room,
                 id: this.localId,
+                token: this.sessionToken,
             } satisfies ClientMessage);
             const url = this.apiUrl();
             if (navigator.sendBeacon) {
@@ -105,6 +108,7 @@ export class MultiplayerClient {
         this.eventSource?.close();
         this.eventSource = null;
         this.localId = '';
+        this.sessionToken = '';
         this.setStatus('disconnected');
     }
 
@@ -131,6 +135,7 @@ export class MultiplayerClient {
                         type: 'state',
                         room: this.options.room,
                         id: this.localId,
+                        token: this.sessionToken,
                         seq,
                         state: envelope,
                     } satisfies ClientMessage),
@@ -166,6 +171,7 @@ export class MultiplayerClient {
                         type: 'chat',
                         room: this.options.room,
                         id: this.localId,
+                        token: this.sessionToken,
                         payload,
                     } satisfies ClientMessage),
                 });
@@ -200,6 +206,7 @@ export class MultiplayerClient {
         this.ws.addEventListener('close', () => {
             this.clearConnectTimeout();
             this.localId = '';
+            this.sessionToken = '';
             if (!this.closedByUser && this.allowReconnect) {
                 this.setStatus('disconnected', 'Reconnecting…');
                 this.scheduleReconnect();
@@ -226,7 +233,7 @@ export class MultiplayerClient {
     }
 
     private async connectHttp(isReconnect = false) {
-        if (isReconnect && this.localId) {
+        if (isReconnect && this.localId && this.sessionToken) {
             await fetch(this.apiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -234,11 +241,13 @@ export class MultiplayerClient {
                     type: 'leave',
                     room: this.options.room,
                     id: this.localId,
+                    token: this.sessionToken,
                 } satisfies ClientMessage),
             }).catch(() => undefined);
             this.eventSource?.close();
             this.eventSource = null;
             this.localId = '';
+            this.sessionToken = '';
         }
 
         this.connectTimeout = setTimeout(() => {
@@ -273,6 +282,10 @@ export class MultiplayerClient {
 
             this.localId = welcome.id;
             this.localColor = welcome.color;
+            this.sessionToken = welcome.token ?? '';
+            if (!this.sessionToken) {
+                throw new Error('Join response missing session token');
+            }
             this.clearConnectTimeout();
             this.setStatus('connected');
 
@@ -280,7 +293,7 @@ export class MultiplayerClient {
             this.options.onWelcome?.(welcome.id, welcome.color, players);
 
             const since = this.lastChatTs > 0 ? `&since=${this.lastChatTs}` : '';
-            const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}${since}`;
+            const streamUrl = `/api/mp/stream?room=${encodeURIComponent(this.options.room)}&id=${encodeURIComponent(welcome.id)}&token=${encodeURIComponent(this.sessionToken)}${since}`;
             this.eventSource = new EventSource(streamUrl);
 
             this.eventSource.onmessage = (event) => {
@@ -292,6 +305,7 @@ export class MultiplayerClient {
                 this.eventSource?.close();
                 this.eventSource = null;
                 this.localId = '';
+                this.sessionToken = '';
                 if (this.allowReconnect) {
                     this.setStatus('disconnected', 'Reconnecting…');
                     this.scheduleReconnect();
@@ -327,6 +341,7 @@ export class MultiplayerClient {
         this.eventSource?.close();
         this.eventSource = null;
         this.localId = '';
+        this.sessionToken = '';
         this.setStatus('error', message);
     }
 
@@ -353,7 +368,7 @@ export class MultiplayerClient {
         const name = await this.options.cipher.decrypt<string>(p.name);
         const state = await this.options.cipher.decrypt<Omit<PlayerSnapshot, 'id' | 'name' | 'color'>>(p.state);
         if (name === null || state === null) return null;
-        return { id: p.id, color: p.color, name, ...state };
+        return { id: p.id, color: p.color, name, ...sanitizePlayerState(state) };
     }
 
     private async handleMessage(raw: unknown) {
@@ -387,7 +402,7 @@ export class MultiplayerClient {
             case 'state': {
                 if (msg.id === this.localId) break;
                 const state = await this.options.cipher.decrypt<Omit<PlayerSnapshot, 'id' | 'name' | 'color'>>(msg.state);
-                if (state) this.options.onPlayerState?.(msg.id, state);
+                if (state) this.options.onPlayerState?.(msg.id, sanitizePlayerState(state));
                 break;
             }
             case 'chat': {
