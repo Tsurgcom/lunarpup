@@ -1,0 +1,79 @@
+import type { MultiplayerStatus } from "./multiplayer";
+
+type HudProps = {
+  roomId: string;
+  draftRoom: string;
+  onDraftRoom: (v: string) => void;
+  onJoin: () => void;
+  peerCount: number;
+  selfId: string;
+  speed: number;
+  status: MultiplayerStatus;
+  statusDetail: string;
+};
+
+export function Hud({
+  roomId,
+  draftRoom,
+  onDraftRoom,
+  onJoin,
+  peerCount,
+  selfId,
+  speed,
+  status,
+  statusDetail,
+}: HudProps) {
+  return (
+    <div className="hud">
+      <div className="hud__brand">
+        <h1>Lunar Pup</h1>
+        <p>Skate the crater bowls. Low gravity. High vibes.</p>
+      </div>
+
+      <div className="hud__panel">
+        <label htmlFor="room">Room</label>
+        <div className="hud__row">
+          <input
+            id="room"
+            value={draftRoom}
+            onChange={(e) => onDraftRoom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onJoin();
+            }}
+            spellCheck={false}
+          />
+          <button type="button" onClick={onJoin}>
+            Join
+          </button>
+        </div>
+        <div className="hud__meta">
+          <div>
+            live room <strong>{roomId}</strong>
+          </div>
+          <div>
+            pups nearby <strong>{peerCount}</strong>
+          </div>
+          <div>
+            net <strong data-status={status}>{status}</strong>
+            <span> — {statusDetail}</span>
+          </div>
+          <div>
+            you <strong>{selfId.slice(0, 6)}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="hud__speed">
+        <span>{speed.toFixed(0)}</span>
+        <small>m/s</small>
+      </div>
+
+      <div className="hud__help">
+        <kbd>W</kbd> push · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>S</kbd> brake
+        · <kbd>Space</kbd> ollie
+        <br />
+        Point the board, then push. Open another tab to skate together.
+      </div>
+    </div>
+  );
+}
