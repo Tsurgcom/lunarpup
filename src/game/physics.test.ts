@@ -28,6 +28,8 @@ const idle: ControlInput = {
   back: false,
   left: false,
   right: false,
+  pitchUp: false,
+  pitchDown: false,
   jump: false,
   jetpack: false,
 };
@@ -291,5 +293,115 @@ describe("newtonian physics on a sphere", () => {
     expect(MASS * G).toBeGreaterThan(0);
     expect(MU_ROLL).toBeGreaterThan(0);
     expect(MU_ROLL).toBeLessThan(1);
+  });
+
+  test("lean eases in and recovers instead of snapping", () => {
+    const body = createBody();
+    body.vel.set(0, 0, 0);
+
+    stepBody(body, { ...idle, left: true }, 1 / 60);
+    expect(body.lean).toBeGreaterThan(0);
+    expect(body.lean).toBeLessThan(0.35);
+
+    for (let i = 0; i < 90; i++) {
+      stepBody(body, { ...idle, left: true }, 1 / 60);
+    }
+    expect(body.lean).toBeGreaterThan(0.9);
+
+    const held = body.lean;
+    stepBody(body, idle, 1 / 60);
+    expect(body.lean).toBeLessThan(held);
+    expect(body.lean).toBeGreaterThan(held * 0.85);
+  });
+
+  test("lean left increases yaw (turn into the lean)", () => {
+    const body = createBody();
+    body.vel.set(0, 0, 0);
+    body.lean = 1;
+    const yaw0 = body.yaw;
+    stepBody(body, { ...idle, left: true }, 1 / 60);
+    expect(body.yaw).toBeGreaterThan(yaw0);
+  });
+
+  test("grounded steer is weaker at high speed", () => {
+    const slow = createBody();
+    const fast = createBody();
+    slow.lean = 1;
+    fast.lean = 1;
+    slow.vel.set(0, 0, 0);
+    const fwd = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    boardAxes(fast.yaw, fast.normal, fwd, right);
+    fast.vel.copy(fwd).multiplyScalar(24);
+
+    const yawSlow0 = slow.yaw;
+    const yawFast0 = fast.yaw;
+    stepBody(slow, { ...idle, left: true }, 1 / 60);
+    stepBody(fast, { ...idle, left: true }, 1 / 60);
+
+    const dSlow = slow.yaw - yawSlow0;
+    const dFast = fast.yaw - yawFast0;
+    expect(dSlow).toBeGreaterThan(0);
+    expect(dFast).toBeGreaterThan(0);
+    expect(dFast).toBeLessThan(dSlow * 0.55);
+  });
+
+  test("switching A to D crosses lean smoothly", () => {
+    const body = createBody();
+    body.vel.set(0, 0, 0);
+    for (let i = 0; i < 60; i++) {
+      stepBody(body, { ...idle, left: true }, 1 / 60);
+    }
+    expect(body.lean).toBeGreaterThan(0.85);
+
+    const samples: number[] = [];
+    for (let i = 0; i < 45; i++) {
+      stepBody(body, { ...idle, right: true }, 1 / 60);
+      samples.push(body.lean);
+    }
+    // Monotonic slide from left lean toward right — no snap to zero.
+    for (let i = 1; i < samples.length; i++) {
+      expect(samples[i]!).toBeLessThanOrEqual(samples[i - 1]! + 1e-6);
+    }
+    expect(samples[0]!).toBeGreaterThan(0.5);
+    expect(body.lean).toBeLessThan(0);
+  });
+
+  test("pitch eases in on R and recovers on release", () => {
+    const body = createBody();
+    body.vel.set(0, 0, 0);
+
+    stepBody(body, { ...idle, pitchUp: true }, 1 / 60);
+    expect(body.pitch).toBeGreaterThan(0);
+    expect(body.pitch).toBeLessThan(0.35);
+
+    for (let i = 0; i < 90; i++) {
+      stepBody(body, { ...idle, pitchUp: true }, 1 / 60);
+    }
+    expect(body.pitch).toBeGreaterThan(0.9);
+
+    const held = body.pitch;
+    stepBody(body, idle, 1 / 60);
+    expect(body.pitch).toBeLessThan(held);
+    expect(body.pitch).toBeGreaterThan(held * 0.85);
+  });
+
+  test("airborne R pitches nose up (normal tips aft)", () => {
+    const body = createBody();
+    body.pos.addScaledVector(body.pos.clone().normalize(), 8);
+    body.vel.set(0, 0, 0);
+    body.grounded = false;
+    body.normalForce = 0;
+    body.pitch = 1;
+
+    const fwd = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    boardAxes(body.yaw, body.normal, fwd, right);
+    const n0 = body.normal.clone();
+
+    stepBody(body, { ...idle, pitchUp: true }, 1 / 60);
+
+    // Nose up: deck normal tips toward −forward.
+    expect(body.normal.dot(fwd)).toBeLessThan(n0.dot(fwd) - 0.01);
   });
 });

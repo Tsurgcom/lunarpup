@@ -32,7 +32,7 @@ src/
   game/
     World.tsx        # Scene: lights, stars, terrain, player, remotes
     Player.tsx       # Local player loop (input → physics → mesh → net sync)
-    CameraRig.tsx    # Dragged-along third-person camera (world-upright)
+    CameraRig.tsx    # Arcade board-frame orbit; soft follow + boom susp
     MoonTerrain.tsx  # Heightfield mesh
     terrain.ts       # Crater bowl height/normal sampling (shared by physics + mesh)
     physics.ts       # Newtonian integrator (forces, contact, ollie)
@@ -56,7 +56,7 @@ src/
 
 - Semi-implicit Euler: ΣF = ma, then contact impulses.
 - Ground contact when `penetration >= 0` against the heightfield.
-- Board yaw is kinematic (player input); pitch/roll follow surface normal on ground.
+- Board yaw is kinematic from continuous lean (A/D ease in/out; harder turn at speed on ground); R/F pitch (nose up/down) is visual on ground and rotates attitude in air; roll follows lean.
 - **No** hover, coyote time, or air-leveling hacks — keep physics honest unless asked.
 - Tune constants at the top of `physics.ts`. Add/adjust tests in `physics.test.ts`.
 
@@ -79,8 +79,9 @@ src/
 
 ### Camera (`CameraRig.tsx`)
 
-- Horizontal tether dragged behind board yaw — **not** terrain-tilted.
-- World-upright; do not tie camera roll to surface normals.
+- Arcade board-frame orbit: default seat behind the dog; smoothed chase axis;
+  rate-limited distance/boom (no snap crust resolves); mouse orbit rate-capped.
+- FOV widens only when idle; look soft-follows with mild velocity bias.
 
 ### Rendering
 

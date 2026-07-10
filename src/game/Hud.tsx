@@ -54,7 +54,8 @@ export function Hud({
 
       <div className="hud__help">
         <kbd>W</kbd> push · <kbd>S</kbd> brake · <kbd>A</kbd>/<kbd>D</kbd> turn
-        · <kbd>Space</kbd> ollie · <kbd>Shift</kbd> jetpack · <kbd>Esc</kbd> pause
+        · <kbd>R</kbd>/<kbd>F</kbd> pitch · <kbd>Space</kbd> ollie ·{" "}
+        <kbd>Shift</kbd> jetpack · <kbd>Esc</kbd> pause
         <br />
         Wheels need the ground. Hold Shift — W/S fire fore/aft thrusters.
       </div>

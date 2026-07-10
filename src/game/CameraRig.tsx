@@ -1,158 +1,300 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import type { BodyState } from "./physics";
+import { boardAxes, type BodyState } from "./physics";
 import { MOON_RADIUS, sampleHeightDir } from "./terrain";
 
 type CameraRigProps = {
   body: RefObject<BodyState | null>;
 };
 
-/** Preferred chase distance behind the pup (along motion, not yaw). */
 const CHASE_DIST = 8;
-/** Hard floor — camera never closer than this to the pup. */
-const MIN_DIST = 5.5;
 const CHASE_HEIGHT = 3.4;
 const LOOK_HEIGHT = 1.1;
+const LOOK_AHEAD = 2.5;
+const LOOK_VEL_SCALE = 0.2;
+const LOOK_VEL_MAX = 2;
 
-/** How quickly the chase axis follows travel direction (not steer). */
-const DIR_DRAG = 1.1;
-const POS_DRAG = 2.1;
-const LOOK_DRAG = 2.6;
+/** Soft scalar follow (1/s). Lower = smoother, less twitchy. */
+const DIST_DRAG = 4;
+const BOOM_DRAG = 5;
+const LOOK_DRAG = 6;
+const CHASE_DRAG = 10;
+const FOV_DRAG = 1.5;
 
+/** Max rate of change for distance / boom (m/s) — kills snap in/out and up/down. */
+const DIST_RATE = 6;
+const BOOM_RATE = 4;
+const CRUST_DIST_RATE = 5;
+const CRUST_BOOM_RATE = 2.5;
+
+const ORBIT_SENS = 0.0045;
+const ORBIT_MAX_RATE = 2;
+const MIN_PITCH = -0.22;
+const MAX_PITCH = 0.65;
 const MIN_CLEARANCE = 1.2;
-/** Ignore tiny velocities so A/D in place doesn't yank the cam. */
-const VEL_DIR_MIN = 1.25;
+const MAX_DIST = 11;
+const MAX_BOOM = 6.5;
+
+const FOV_MOVE = 68;
+const FOV_IDLE = 71;
+const IDLE_SPEED = 1.2;
 
 const _radial = new THREE.Vector3();
-const _east = new THREE.Vector3();
-const _north = new THREE.Vector3();
-const _travel = new THREE.Vector3();
-const _offset = new THREE.Vector3();
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _chaseWant = new THREE.Vector3();
+const _chase = new THREE.Vector3();
+const _pos = new THREE.Vector3();
+const _look = new THREE.Vector3();
+const _lookWant = new THREE.Vector3();
+const _velT = new THREE.Vector3();
+const _liftDir = new THREE.Vector3();
+const _tmp = new THREE.Vector3();
 
 /**
- * Tethered chase cam: follows travel direction on the tangent plane, not board
- * yaw — so A/D turns the pup without spinning the camera. Enforces a minimum
- * separation from the player.
+ * Arcade board-frame orbit with rate-limited distance/boom — no snap crust
+ * resolves, so the lens doesn't jerk in/out or up/down over rims.
  */
 export function CameraRig({ body }: CameraRigProps) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
+  const wantYaw = useRef(0);
+  const wantPitch = useRef(0.32);
+  const orbitYaw = useRef(0);
+  const orbitPitch = useRef(0.32);
+  const dragging = useRef(false);
+  const lastPointer = useRef({ x: 0, y: 0 });
+
+  const dist = useRef(CHASE_DIST);
+  const boomH = useRef(CHASE_HEIGHT + CHASE_DIST * Math.sin(0.32));
+  const chase = useRef(new THREE.Vector3(0, 0, 1));
+  const lookOff = useRef(new THREE.Vector3());
+  const fov = useRef(FOV_MOVE);
   const ready = useRef(false);
 
-  const chaseDir = useRef(new THREE.Vector3(0, 0, 1));
-  const anchor = useRef(new THREE.Vector3(0, 10, 20));
-  const idealPos = useRef(new THREE.Vector3());
-  const lookPt = useRef(new THREE.Vector3());
-  const idealLook = useRef(new THREE.Vector3());
+  useEffect(() => {
+    const el = gl.domElement;
+    el.style.touchAction = "none";
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      dragging.current = true;
+      lastPointer.current = { x: e.clientX, y: e.clientY };
+      el.setPointerCapture(e.pointerId);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!dragging.current) return;
+      const dx = e.clientX - lastPointer.current.x;
+      const dy = e.clientY - lastPointer.current.y;
+      lastPointer.current = { x: e.clientX, y: e.clientY };
+      wantYaw.current -= dx * ORBIT_SENS;
+      wantPitch.current = THREE.MathUtils.clamp(
+        wantPitch.current + dy * ORBIT_SENS,
+        MIN_PITCH,
+        MAX_PITCH,
+      );
+    };
+
+    const onUp = (e: PointerEvent) => {
+      if (e.button !== 0 && e.type !== "pointercancel") return;
+      dragging.current = false;
+      if (el.hasPointerCapture(e.pointerId)) {
+        el.releasePointerCapture(e.pointerId);
+      }
+    };
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [gl]);
 
   useFrame((_, rawDt) => {
     const b = body.current;
     if (!b) return;
     const dt = Math.min(rawDt, 0.05);
 
+    orbitYaw.current = approachAngle(
+      orbitYaw.current,
+      wantYaw.current,
+      ORBIT_MAX_RATE * dt,
+    );
+    orbitPitch.current = approachScalar(
+      orbitPitch.current,
+      wantPitch.current,
+      ORBIT_MAX_RATE * dt,
+    );
+
     _radial.copy(b.pos).normalize();
+    boardAxes(b.yaw, b.normal, _forward, _right);
 
-    // Chase axis from velocity projected onto the local tangent plane — never
-    // from yaw, so steer (A/D) only rotates the dog.
-    _travel.copy(b.vel).addScaledVector(_radial, -b.vel.dot(_radial));
-    if (_travel.lengthSq() > VEL_DIR_MIN * VEL_DIR_MIN) {
-      _travel.normalize();
-      const dirBlend = 1 - Math.exp(-DIR_DRAG * dt);
-      chaseDir.current.lerp(_travel, dirBlend);
-    }
-
-    // Keep chaseDir tangent as we move around the moon.
-    chaseDir.current
-      .addScaledVector(_radial, -chaseDir.current.dot(_radial));
-    if (chaseDir.current.lengthSq() < 1e-8) {
-      _east.set(0, 1, 0).cross(_radial);
-      if (_east.lengthSq() < 1e-8) _east.set(1, 0, 0).cross(_radial);
-      chaseDir.current.copy(_east);
-    }
-    chaseDir.current.normalize();
-
-    idealPos.current
-      .copy(b.pos)
-      .addScaledVector(chaseDir.current, -CHASE_DIST)
-      .addScaledVector(_radial, CHASE_HEIGHT);
-
-    // Clearance against the crust under the camera.
-    _radial.copy(idealPos.current).normalize();
-    const floorR =
-      MOON_RADIUS + sampleHeightDir(_radial) + MIN_CLEARANCE;
-    if (idealPos.current.length() < floorR) {
-      idealPos.current.copy(_radial).multiplyScalar(floorR);
-    }
-
-    // Minimum distance to the pup (after crust push, which can close the gap).
-    enforceMinDistance(idealPos.current, b.pos, MIN_DIST);
-
-    // If min-distance pushed us into the crust, lift again then re-enforce.
-    _radial.copy(idealPos.current).normalize();
-    const floorR2 =
-      MOON_RADIUS + sampleHeightDir(_radial) + MIN_CLEARANCE;
-    if (idealPos.current.length() < floorR2) {
-      idealPos.current.copy(_radial).multiplyScalar(floorR2);
-      enforceMinDistance(idealPos.current, b.pos, MIN_DIST);
-    }
-    _radial.copy(b.pos).normalize();
-    idealLook.current
-      .copy(b.pos)
-      .addScaledVector(_radial, LOOK_HEIGHT)
-      .addScaledVector(chaseDir.current, 2.5);
+    const cy = Math.cos(orbitYaw.current);
+    const sy = Math.sin(orbitYaw.current);
+    _chaseWant
+      .copy(_forward)
+      .multiplyScalar(cy)
+      .addScaledVector(_right, sy);
+    projectTangent(_chaseWant, _radial);
 
     if (!ready.current) {
-      // Seed chase from an initial behind-the-pup guess using north frame.
-      _east.set(0, 1, 0).cross(_radial);
-      if (_east.lengthSq() < 1e-8) _east.set(1, 0, 0).cross(_radial);
-      _east.normalize();
-      _north.crossVectors(_radial, _east).normalize();
-      chaseDir.current.copy(_north).multiplyScalar(-1);
-      idealPos.current
-        .copy(b.pos)
-        .addScaledVector(chaseDir.current, -CHASE_DIST)
-        .addScaledVector(_radial, CHASE_HEIGHT);
-      enforceMinDistance(idealPos.current, b.pos, MIN_DIST);
-
-      anchor.current.copy(idealPos.current);
-      lookPt.current.copy(idealLook.current);
-      ready.current = true;
+      chase.current.copy(_chaseWant);
     } else {
-      const posK = 1 - Math.exp(-POS_DRAG * dt);
-      anchor.current.lerp(idealPos.current, posK);
-      enforceMinDistance(anchor.current, b.pos, MIN_DIST);
+      // Smooth chase axis so surface-normal chatter doesn't shake the seat.
+      const ck = 1 - Math.exp(-CHASE_DRAG * dt);
+      chase.current.lerp(_chaseWant, ck);
+      projectTangent(chase.current, _radial);
+    }
+    _chase.copy(chase.current);
 
-      const lookK = 1 - Math.exp(-LOOK_DRAG * dt);
-      lookPt.current.lerp(idealLook.current, lookK);
+    const cosP = Math.cos(orbitPitch.current);
+    const sinP = Math.sin(orbitPitch.current);
+    const nominalDist = Math.max(3, CHASE_DIST * cosP);
+    const nominalBoom = CHASE_HEIGHT + CHASE_DIST * sinP;
+
+    // Probe crust at the nominal seat; ease dist/boom toward clearance — no snaps.
+    _pos
+      .copy(b.pos)
+      .addScaledVector(_chase, -dist.current)
+      .addScaledVector(_radial, boomH.current);
+    const pen = crustPenetration(_pos);
+
+    let targetDist = nominalDist;
+    let targetBoom = nominalBoom;
+    if (pen > 0) {
+      targetDist = Math.min(MAX_DIST, Math.max(nominalDist, dist.current + pen));
+      targetBoom = Math.min(MAX_BOOM, Math.max(nominalBoom, boomH.current + pen * 0.2));
     }
 
-    camera.position.copy(anchor.current);
-    camera.up.copy(_radial.copy(b.pos).normalize());
-    camera.lookAt(lookPt.current);
+    if (!ready.current) {
+      dist.current = targetDist;
+      boomH.current = targetBoom;
+    } else {
+      const distRate = pen > 0 ? CRUST_DIST_RATE : DIST_RATE;
+      const boomRate = pen > 0 ? CRUST_BOOM_RATE : BOOM_RATE;
+      dist.current = smoothScalar(
+        dist.current,
+        targetDist,
+        DIST_DRAG,
+        distRate,
+        dt,
+      );
+      boomH.current = smoothScalar(
+        boomH.current,
+        targetBoom,
+        BOOM_DRAG,
+        boomRate,
+        dt,
+      );
+    }
+    dist.current = THREE.MathUtils.clamp(dist.current, 3, MAX_DIST);
+    boomH.current = THREE.MathUtils.clamp(boomH.current, 1.5, MAX_BOOM);
+
+    _pos
+      .copy(b.pos)
+      .addScaledVector(_chase, -dist.current)
+      .addScaledVector(_radial, boomH.current);
+
+    // Last-resort clearance: tiny rate-limited radial nudge only (no teleport).
+    const pen2 = crustPenetration(_pos);
+    if (pen2 > 0) {
+      const lift = Math.min(pen2, BOOM_RATE * dt);
+      _pos.addScaledVector(_radial, lift);
+      boomH.current = Math.min(MAX_BOOM, boomH.current + lift);
+    }
+
+    _velT.copy(b.vel).addScaledVector(_radial, -b.vel.dot(_radial));
+    const speed = _velT.length();
+    if (speed > 1e-4) {
+      _velT.multiplyScalar(
+        Math.min(LOOK_VEL_MAX, speed * LOOK_VEL_SCALE) / speed,
+      );
+    } else {
+      _velT.set(0, 0, 0);
+    }
+
+    _lookWant
+      .copy(b.pos)
+      .addScaledVector(_radial, LOOK_HEIGHT)
+      .addScaledVector(_chase, LOOK_AHEAD)
+      .add(_velT);
+
+    if (!ready.current) {
+      lookOff.current.copy(_lookWant).sub(b.pos);
+      fov.current = FOV_MOVE;
+      ready.current = true;
+    } else {
+      _tmp.copy(_lookWant).sub(b.pos);
+      const lookK = 1 - Math.exp(-LOOK_DRAG * dt);
+      lookOff.current.lerp(_tmp, lookK);
+
+      const idleT = 1 - THREE.MathUtils.clamp(speed / IDLE_SPEED, 0, 1);
+      const targetFov = THREE.MathUtils.lerp(FOV_MOVE, FOV_IDLE, idleT);
+      const fovK = 1 - Math.exp(-FOV_DRAG * dt);
+      fov.current += (targetFov - fov.current) * fovK;
+    }
+
+    _look.copy(b.pos).add(lookOff.current);
+
+    camera.position.copy(_pos);
+    camera.up.copy(_radial);
+    camera.lookAt(_look);
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = fov.current;
+      camera.updateProjectionMatrix();
+    }
   });
 
   return null;
 }
 
-/** Push `cam` away from `target` along the connecting line until ≥ minDist. */
-function enforceMinDistance(
-  cam: THREE.Vector3,
-  target: THREE.Vector3,
-  minDist: number,
-): void {
-  _offset.copy(cam).sub(target);
-  const d = _offset.length();
-  if (d < 1e-6) {
-    // Degenerate — nudge along world +Y projected away from target radial.
-    _radial.copy(target).normalize();
-    _offset.set(0, 1, 0).addScaledVector(_radial, -_radial.y);
-    if (_offset.lengthSq() < 1e-8) _offset.set(1, 0, 0);
-    _offset.normalize().multiplyScalar(minDist);
-    cam.copy(target).add(_offset);
-    return;
+/** Exp approach with a hard rate cap (m/s). */
+function smoothScalar(
+  current: number,
+  target: number,
+  drag: number,
+  maxRate: number,
+  dt: number,
+): number {
+  const k = 1 - Math.exp(-drag * dt);
+  const next = current + (target - current) * k;
+  return approachScalar(current, next, maxRate * dt);
+}
+
+function projectTangent(v: THREE.Vector3, radial: THREE.Vector3): void {
+  v.addScaledVector(radial, -v.dot(radial));
+  if (v.lengthSq() < 1e-8) {
+    _tmp.set(0, 1, 0).cross(radial);
+    if (_tmp.lengthSq() < 1e-8) _tmp.set(1, 0, 0).cross(radial);
+    v.copy(_tmp);
   }
-  if (d < minDist) {
-    _offset.multiplyScalar(minDist / d);
-    cam.copy(target).add(_offset);
-  }
+  v.normalize();
+}
+
+function crustPenetration(cam: THREE.Vector3): number {
+  const len = cam.length();
+  if (len < 1e-6) return 0;
+  _liftDir.copy(cam).multiplyScalar(1 / len);
+  const floorR = MOON_RADIUS + sampleHeightDir(_liftDir) + MIN_CLEARANCE;
+  return floorR - len;
+}
+
+function approachAngle(current: number, target: number, maxDelta: number): number {
+  let d = target - current;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  if (Math.abs(d) <= maxDelta) return target;
+  return current + Math.sign(d) * maxDelta;
+}
+
+function approachScalar(current: number, target: number, maxDelta: number): number {
+  const d = target - current;
+  if (Math.abs(d) <= maxDelta) return target;
+  return current + Math.sign(d) * maxDelta;
 }

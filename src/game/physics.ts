@@ -60,8 +60,38 @@ export const RESTITUTION = 0.08;
 /** Ollie impulse (N·s) along the surface normal. */
 export const OLLIE_IMPULSE = 72;
 
-/** Yaw rate (rad/s). */
+/**
+ * Yaw rate at full lean near standstill (rad/s).
+ * Positive lean (A) increases yaw — lean into the turn.
+ */
 export const STEER_RATE = 2.8;
+
+/**
+ * Grounded steer softens with tangential speed: authority ≈ 1/(1+v/v½).
+ * At STEER_SPEED_HALF, full lean turns at half the low-speed rate.
+ */
+export const STEER_SPEED_HALF = 11;
+
+/** How fast lean approaches held A/D (1/s). */
+export const LEAN_ENGAGE = 5.5;
+
+/** How fast lean returns to neutral when A/D released (1/s). */
+export const LEAN_RECOVER = 3.2;
+
+/** Visual / kinematic lean magnitude at |lean| = 1 (rad). */
+export const LEAN_ANGLE = 0.44;
+
+/** How fast pitch approaches held R/F (1/s). */
+export const PITCH_ENGAGE = 5.5;
+
+/** How fast pitch returns to neutral when R/F released (1/s). */
+export const PITCH_RECOVER = 3.2;
+
+/** Visual pitch magnitude at |pitch| = 1 (rad). R = nose up. */
+export const PITCH_ANGLE = 0.4;
+
+/** Airborne pitch rate at full R/F (rad/s) — rotates board attitude. */
+export const PITCH_RATE = 2.2;
 
 /** Extra lateral grip while pushing. */
 export const MU_LATERAL_PUSH = 1.15;
@@ -74,6 +104,10 @@ export type ControlInput = {
   back: boolean;
   left: boolean;
   right: boolean;
+  /** R — nose up / weight back. */
+  pitchUp: boolean;
+  /** F — nose down / weight forward. */
+  pitchDown: boolean;
   jump: boolean;
   /** Hold Shift — thrust along board up (works in vacuum). */
   jetpack: boolean;
@@ -85,6 +119,16 @@ export type BodyState = {
   vel: THREE.Vector3;
   /** Heading about the local surface normal (rad). */
   yaw: number;
+  /**
+   * Continuous rail lean in [-1, 1]. Positive = lean left (A) = turn left.
+   * Smoothly tracks A/D; yaw rate is driven by lean, not raw keys.
+   */
+  lean: number;
+  /**
+   * Continuous nose pitch in [-1, 1]. Positive = nose up (R).
+   * Visual on ground; rotates attitude while airborne.
+   */
+  pitch: number;
   grounded: boolean;
   /** Surface normal — updated on contact, held inertial while airborne. */
   normal: THREE.Vector3;
@@ -191,6 +235,8 @@ export function createBody(): BodyState {
     pos,
     vel: _refFwd.clone().multiplyScalar(1.5),
     yaw,
+    lean: 0,
+    pitch: 0,
     grounded: true,
     normal,
     normalForce: MASS * G,
@@ -232,10 +278,43 @@ function substep(
   const n = body.normal;
   boardAxes(body.yaw, n, _forward, _right);
 
-  const steer = body.grounded ? STEER_RATE : STEER_RATE * 0.55;
-  if (input.left) body.yaw += steer * dt;
-  if (input.right) body.yaw -= steer * dt;
-  boardAxes(body.yaw, n, _forward, _right);
+  // Smooth lean like a real board: engage into A/D, ease out on release,
+  // and cross from A→D without snapping through neutral.
+  const leanTarget = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+  const leanRate = leanTarget === 0 ? LEAN_RECOVER : LEAN_ENGAGE;
+  body.lean +=
+    (leanTarget - body.lean) * (1 - Math.exp(-leanRate * dt));
+  if (Math.abs(body.lean) < 1e-4) body.lean = 0;
+
+  // Smooth pitch: R = nose up, F = nose down.
+  const pitchTarget = (input.pitchUp ? 1 : 0) - (input.pitchDown ? 1 : 0);
+  const pitchEase = pitchTarget === 0 ? PITCH_RECOVER : PITCH_ENGAGE;
+  body.pitch +=
+    (pitchTarget - body.pitch) * (1 - Math.exp(-pitchEase * dt));
+  if (Math.abs(body.pitch) < 1e-4) body.pitch = 0;
+
+  // Turn toward the leaned rail. Grounded: high speed → wider radius.
+  let steer = STEER_RATE;
+  if (body.grounded) {
+    const vn0 = body.vel.dot(n);
+    _tangent.copy(body.vel).addScaledVector(n, -vn0);
+    const tanSpeed = _tangent.length();
+    steer /= 1 + tanSpeed / STEER_SPEED_HALF;
+  } else {
+    steer *= 0.55;
+  }
+  body.yaw += body.lean * steer * dt;
+  boardAxes(body.yaw, body.normal, _forward, _right);
+
+  // Airborne: R/F pitches the deck around the lateral axis (nose up = −angle).
+  if (!body.grounded && Math.abs(body.pitch) > 1e-4) {
+    const dPitch = -body.pitch * PITCH_RATE * dt;
+    _prevFwd.copy(_forward);
+    body.normal.applyAxisAngle(_right, dPitch).normalize();
+    _prevFwd.applyAxisAngle(_right, dPitch).normalize();
+    retargetYaw(body, body.normal, _prevFwd);
+    boardAxes(body.yaw, body.normal, _forward, _right);
+  }
 
   const r = Math.max(body.pos.length(), 1e-4);
   _radial.copy(body.pos).multiplyScalar(1 / r);

@@ -13,6 +13,8 @@ const keyMap = [
   { name: "back", keys: ["ArrowDown", "KeyS"] },
   { name: "left", keys: ["ArrowLeft", "KeyA"] },
   { name: "right", keys: ["ArrowRight", "KeyD"] },
+  { name: "pitchUp", keys: ["KeyR"] },
+  { name: "pitchDown", keys: ["KeyF"] },
   { name: "jump", keys: ["Space"] },
   { name: "jetpack", keys: ["ShiftLeft", "ShiftRight"] },
 ];

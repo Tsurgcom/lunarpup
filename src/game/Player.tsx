@@ -8,7 +8,9 @@ import { setLocalPose } from "./localPose";
 import {
   BOARD_CLEARANCE,
   G,
+  LEAN_ANGLE,
   MASS,
+  PITCH_ANGLE,
   boardAxes,
   createBody,
   stepBody,
@@ -19,7 +21,15 @@ import { sampleNormalDir, surfacePoint } from "./terrain";
 import { consumeTeleport } from "./teleport";
 import type { PlayerSnapshot } from "./types";
 
-type Controls = "forward" | "back" | "left" | "right" | "jump" | "jetpack";
+type Controls =
+  | "forward"
+  | "back"
+  | "left"
+  | "right"
+  | "pitchUp"
+  | "pitchDown"
+  | "jump"
+  | "jetpack";
 
 type PlayerProps = {
   fur: string;
@@ -52,6 +62,7 @@ export function Player({
   const targetQuat = useRef(new THREE.Quaternion());
   const look = useRef(new THREE.Matrix4());
   const leanQ = useRef(new THREE.Quaternion());
+  const pitchQ = useRef(new THREE.Quaternion());
   const euler = useRef(new THREE.Euler());
   const hudAcc = useRef(0);
   const syncAcc = useRef(0);
@@ -95,6 +106,8 @@ export function Player({
         back: keys.back,
         left: keys.left,
         right: keys.right,
+        pitchUp: keys.pitchUp,
+        pitchDown: keys.pitchDown,
         jump: jumpPressed,
         jetpack: keys.jetpack,
       };
@@ -105,9 +118,21 @@ export function Player({
       look.current.makeBasis(right.current, b.normal, forward.current);
       targetQuat.current.setFromRotationMatrix(look.current);
 
-      const lean = (keys.left ? 1 : 0) - (keys.right ? 1 : 0);
-      leanQ.current.setFromAxisAngle(forward.current, lean * 0.22);
+      // Lean follows physics lean; negate so +lean (A) tips the left rail down.
+      leanQ.current.setFromAxisAngle(
+        forward.current,
+        -b.lean * LEAN_ANGLE,
+      );
       targetQuat.current.premultiply(leanQ.current);
+      // Grounded: R/F is a visual nose tip (surface owns the normal).
+      // Airborne: attitude already includes pitch from the integrator.
+      if (b.grounded) {
+        pitchQ.current.setFromAxisAngle(
+          right.current,
+          -b.pitch * PITCH_ANGLE,
+        );
+        targetQuat.current.premultiply(pitchQ.current);
+      }
       // Follow surface tilt tightly while grounded — lag here reads as a
       // fixed-world rotation and digs the deck into bowl walls.
       const follow = b.grounded ? 1 - Math.exp(-28 * dt) : 1 - Math.exp(-14 * dt);
