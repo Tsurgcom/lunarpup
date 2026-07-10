@@ -1,4 +1,5 @@
 import type { MultiplayerStatus } from "./multiplayer";
+import { LunarMap } from "./LunarMap";
 
 type HudProps = {
   roomId: string;
@@ -30,37 +31,41 @@ export function Hud({
         <p>Skate the crater bowls. Low gravity. High vibes.</p>
       </div>
 
-      <div className="hud__panel">
-        <label htmlFor="room">Room</label>
-        <div className="hud__row">
-          <input
-            id="room"
-            value={draftRoom}
-            onChange={(e) => onDraftRoom(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onJoin();
-            }}
-            spellCheck={false}
-          />
-          <button type="button" onClick={onJoin}>
-            Join
-          </button>
+      <div className="hud__rail">
+        <div className="hud__panel">
+          <label htmlFor="room">Room</label>
+          <div className="hud__row">
+            <input
+              id="room"
+              value={draftRoom}
+              onChange={(e) => onDraftRoom(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onJoin();
+              }}
+              spellCheck={false}
+            />
+            <button type="button" onClick={onJoin}>
+              Join
+            </button>
+          </div>
+          <div className="hud__meta">
+            <div>
+              live room <strong>{roomId}</strong>
+            </div>
+            <div>
+              pups nearby <strong>{peerCount}</strong>
+            </div>
+            <div>
+              net <strong data-status={status}>{status}</strong>
+              <span> — {statusDetail}</span>
+            </div>
+            <div>
+              you <strong>{selfId.slice(0, 6)}</strong>
+            </div>
+          </div>
         </div>
-        <div className="hud__meta">
-          <div>
-            live room <strong>{roomId}</strong>
-          </div>
-          <div>
-            pups nearby <strong>{peerCount}</strong>
-          </div>
-          <div>
-            net <strong data-status={status}>{status}</strong>
-            <span> — {statusDetail}</span>
-          </div>
-          <div>
-            you <strong>{selfId.slice(0, 6)}</strong>
-          </div>
-        </div>
+
+        <LunarMap selfId={selfId} />
       </div>
 
       <div className="hud__speed">

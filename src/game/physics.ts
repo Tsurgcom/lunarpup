@@ -151,6 +151,8 @@ export function stepBody(body: BodyState, input: ControlInput, dt: number): void
   body.vel.addScaledVector(_accel, dt);
   body.pos.addScaledVector(body.vel, dt);
 
+  // Keep continuous XZ — height sampling wraps toroidally, so skating past the
+  // seam never teleports the pup. Network snapshots still send wrapped coords.
   sampleNormal(body.pos.x, body.pos.z, _n);
   const groundY = sampleHeight(body.pos.x, body.pos.z) + BOARD_CLEARANCE;
   const penetration = groundY - body.pos.y;

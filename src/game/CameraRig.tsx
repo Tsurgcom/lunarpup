@@ -1,8 +1,8 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { sampleHeight } from "./terrain";
 import type { BodyState } from "./physics";
+import { curvedSurfaceY, sampleHeight } from "./terrain";
 
 type CameraRigProps = {
   body: RefObject<BodyState | null>;
@@ -58,8 +58,15 @@ export function CameraRig({ body }: CameraRigProps) {
       .addScaledVector(chaseDir.current, -CHASE_DIST)
       .addScaledVector(up.current, CHASE_HEIGHT);
 
+    // Clearance against the curved visual surface (matches terrain shader).
     const floor =
-      sampleHeight(idealPos.current.x, idealPos.current.z) + MIN_CLEARANCE;
+      curvedSurfaceY(
+        idealPos.current.x,
+        idealPos.current.z,
+        sampleHeight(idealPos.current.x, idealPos.current.z),
+        b.pos.x,
+        b.pos.z,
+      ) + MIN_CLEARANCE;
     if (idealPos.current.y < floor) idealPos.current.y = floor;
 
     idealLook.current
@@ -72,7 +79,6 @@ export function CameraRig({ body }: CameraRigProps) {
       lookPt.current.copy(idealLook.current);
       ready.current = true;
     } else {
-      // Dragged along the tether — heavy lag on position and look
       const posK = 1 - Math.exp(-POS_DRAG * dt);
       anchor.current.lerp(idealPos.current, posK);
 

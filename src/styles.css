@@ -57,15 +57,65 @@ input {
 
 .hud__panel {
   pointer-events: auto;
-  position: absolute;
-  top: 1.25rem;
-  right: 1.25rem;
-  width: min(18rem, calc(100vw - 2rem));
+  width: 100%;
   padding: 0.9rem 1rem;
   border: 1px solid var(--line);
   background: var(--panel);
   backdrop-filter: blur(12px);
   border-radius: 12px;
+}
+
+.hud__rail {
+  pointer-events: none;
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(18rem, calc(100vw - 2rem));
+}
+
+.hud__map {
+  pointer-events: auto;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 0.65rem 0.7rem 0.55rem;
+}
+
+.hud__map-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+}
+
+.hud__map-canvas {
+  height: 11.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #070b12;
+  touch-action: none;
+}
+
+.hud__map-canvas canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.hud__map-hint {
+  margin: 0.45rem 0 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.35;
 }
 
 .hud__panel label {
