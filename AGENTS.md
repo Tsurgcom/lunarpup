@@ -54,9 +54,9 @@ CORS is centralized in `src/server.ts`; do not add per-module CORS headers.
 ## Client architecture and ownership (R3F)
 
 - `src/r3f-shell/` is the React application and R3F scene boundary; `index.html` mounts `src/r3f-shell/main.tsx`.
-- `GameCanvas.tsx` owns the Canvas and frame orchestration; the simulation step runs from `useFrame` (see `stepGameFrame` in `src/game/loop.ts`).
+- `GameProvider.tsx` owns the mutable runtime/session boundary and `GameCanvas.tsx` owns the Canvas and frame orchestration; `useFrame` calls `stepSimulation()` in `src/game/simulation.ts`.
 - `WorldEnvironment.tsx`, `Terrain.tsx`, `Player.tsx`, and `CameraRig.tsx` own their R3F presentation.
-- `src/game/` contains the mutable simulation, terrain math, input, tricks, frame gating (`frame.ts`/`pause.ts`), gamemode tick, and bootstrap wiring. Tested simulation modules (`playerPhysics.ts`, `trickSimulation.ts`, `terrainMath.ts`) must stay pure.
+- `src/game/` contains the mutable runtime, simulation, terrain math, input, tricks, frame gating (`frame.ts`/`pause.ts`), and the narrow gamemode/cosmetic runtime bridge in `runtimeRegistry.ts`. Tested simulation modules (`playerPhysics.ts`, `trickSimulation.ts`, `terrainMath.ts`) must stay pure.
 - `src/ui/` contains React-bound UI bridges. Each surface mounts from `src/r3f-shell/` via a `bind*` function called from a component `useEffect`; do not add imperative DOM setup paths in core bootstrap.
 - Use React state for human-paced UI, session state, and configuration only. Use refs and `useFrame` for transforms, velocity, terrain movement, and animation — never React state for frame-time values.
 - A migrated system gets one owner. Do not render the same player, terrain, camera, or UI from both imperative Three.js and R3F. Dispose geometry, material, listeners, intervals, and transport subscriptions during lifecycle cleanup.

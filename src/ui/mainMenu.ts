@@ -2,7 +2,7 @@ import { markMainMenuSeen } from './menuState.ts';
 import { prefersReducedMotion, REDUCED_MOTION_CLASS } from './motion.ts';
 import { handleArrowNav } from './menuNav.ts';
 import { pauseController } from '../game/pause.ts';
-import { setMenuOrbit } from '../game/loop.ts';
+import { setMenuOrbit } from '../game/runtimeRegistry.ts';
 import { setMenuOpen } from './hudVisibility.ts';
 
 export interface MainMenuActions {
@@ -159,4 +159,3 @@ export function setupMenuButton(onOpen: () => void): void {
     button.addEventListener('click', onOpen);
     document.body.appendChild(button);
 }
-

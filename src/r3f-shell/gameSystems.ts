@@ -1,4 +1,3 @@
-import { setupTuningPanel } from '../ui/tuning.ts';
 import { setupCosmeticsUI } from '../ui/cosmetics.ts';
 import { setupGamemodeUI } from '../modes/client.ts';
 import { setupExtensions } from '../extensions/client.ts';
@@ -30,7 +29,6 @@ export function mountGameSystems(): void {
     mounted = true;
 
     // Content systems mount into the view skeletons committed by the shell.
-    setupTuningPanel();
     setupCosmeticsUI();
     setupGamemodeUI();
     void setupExtensions();

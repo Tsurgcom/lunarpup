@@ -31,7 +31,8 @@ Target:
 - [x] Build, typecheck, and unit tests passed before latest upstream sync.
 - [x] Latest upstream production fixes rebased: slope-aware jumps, jump teleport/clipping fixes, contributing/deploy policy.
 - [x] Browser smoke test after latest upstream rebase: HUD, controls, tuning sliders, terrain chunks, tricks, multiplayer panel, minimap, and chat render; no console errors.
-- [ ] Transitional modules still own terrain-coupled physics integration, remote-player presentation, and network lifecycle. R3F owns scene, terrain, local player, camera rig, input lifecycle, and all React UI panels. Jump/drive/trick simulation logic now lives in tested `playerPhysics` and `trickSimulation` modules.
+- [x] R3F owns scene, terrain, local/remote player presentation, camera rig, input lifecycle, and core React HUD panels. Jump/drive/trick simulation logic lives in tested `playerPhysics` and `trickSimulation` modules.
+- [x] Legacy renderer removal batch: deleted `state.ts`, `bootstrap.ts`, `loop.ts`, `scene.ts`, imperative `player.ts`/`remotePlayers.ts`, and superseded HUD bridges. Simulation lives in `game/simulation.ts` + `game/runtime.ts`; UI in `r3f-shell/` with `GameProvider`; remote players in `RemotePlayers.tsx`. Product menu/economy bridges remain in `src/ui/` for the Concern 14 React shell migration.
 
 ## Phase 0: production reference capture
 
@@ -68,7 +69,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 - [x] Create R3F `CameraRig`: existing follow, orbit drag, zoom, and speed-FOV math now runs in R3F `useFrame` after simulation.
 - [x] Move keyboard input listeners into a lifecycle-safe React hook. Camera listeners now also clean up with runtime lifecycle.
 - [x] Move player physics and tricks into isolated simulation modules with tests. `trickSimulation.ts` owns airborne trick state/scoring; `playerPhysics.ts` owns jump buffer, coyote time, drive speed, heading, and suspension blending. Verified with `bun test` (33 passed), `bun run typecheck`, and `bun run build`.
-- [ ] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering belongs to R3F; `loop.ts` still integrates simulation with terrain and presentation.
+- [x] Remove legacy player/camera/input ownership after manual control smoke test. Player rendering belongs to R3F; simulation integration lives in `simulation.ts` via `GameProvider`.
 
 ## Phase 4: React UI and state boundaries
 
@@ -76,7 +77,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 - [ ] Add Zustand only for coarse UI/session/settings state.
 - [ ] Keep speed, transforms, physics, terrain, and snapshots out of React state.
 - [ ] Add accessible settings, controls reference, connection state, and error states.
-- [ ] Remove imperative UI modules after UI smoke test. Legacy `setup*` DOM injection paths removed; bind-only bridges remain until further React consolidation.
+- [x] Remove imperative core HUD modules after UI smoke test. HUD updates register through `GameProvider` frame callbacks; remaining product menu/economy bridges are explicitly temporary until Concern 14.
 
 ## Phase 5: reusable content and visual upgrades
 
@@ -92,6 +93,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 - [x] Set room capacity (`32`) and validate finite replicated state.
 - [x] Capture WebSocket client-message protocol validation in `src/net/protocol.test.ts` (valid join/state/chat/leave payloads; malformed, unknown, and non-finite state rejection). Verified with `bun test`, `bun run typecheck`, and `bun run build`.
+- [x] Harden multiplayer relays per security audit (#19): WS origin allow-list, room/connection caps, per-connection state rate limit, `maxPayloadLength`/`idleTimeout`, signed Netlify session tokens (bind `id`+`room`), CORS allow-list, global Blobs room cap, slower SSE poll (100 ms), client-side decrypted-state sanitization, and Netlify security headers. Verified with `bun test` (37 passed), `bun run typecheck`, `bun run build`, and `scripts/e2e-relay-test.ts`.
 - [ ] Add heartbeat, stale cleanup, reconnect/backoff, room rejoin, message size limits, and rate limits.
 - [ ] Add remote-player interpolation component.
 - [ ] Decide/implement authoritative room server: evaluate Colyseus first; keep raw WebSocket only if custom protocol gets full lifecycle/tests.
@@ -109,7 +111,7 @@ Goal: R3F owns local player presentation and camera rig; shared simulation stays
 
 ## Current batch
 
-Vanilla fallback removed. Next: remote-player R3F presentation and multiplayer lifecycle hardening (Phase 6).
+Legacy transitional code removed. Next: remote-player interpolation polish and multiplayer lifecycle hardening (Phase 6).
 
 ## Reference docs used
 

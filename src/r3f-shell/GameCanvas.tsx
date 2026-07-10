@@ -1,20 +1,26 @@
-import { Component, useCallback, useEffect, useRef, useState } from 'react';
-import type { ErrorInfo, MutableRefObject, ReactNode } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import type * as THREE from 'three';
-import { bootstrap } from '../game/bootstrap.ts';
+import * as THREE from 'three';
 import { handleKeys } from '../game/input.ts';
-import { stepGameFrame } from '../game/loop.ts';
-import type { VoxelDogParts } from '../game/player.ts';
+import { stepSimulation } from '../game/simulation.ts';
+import { lerpRemotePlayers } from '../game/remotePlayerMotion.ts';
+import { setupCameraControls, updateCamera } from '../game/camera.ts';
+import { useGame } from './GameProvider.tsx';
 import { CameraRig } from './CameraRig.tsx';
 import { Player } from './Player.tsx';
+import { RemotePlayers } from './RemotePlayers.tsx';
 import { Terrain } from './Terrain.tsx';
 import { WorldEnvironment } from './WorldEnvironment.tsx';
+import type { VoxelDogParts } from '../game/types.ts';
+import { registerRuntimeScene } from '../game/runtimeRegistry.ts';
 
 function useGameInput() {
+    const { runtime } = useGame();
+
     useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => handleKeys(event, true);
-        const onKeyUp = (event: KeyboardEvent) => handleKeys(event, false);
+        const onKeyDown = (event: KeyboardEvent) => handleKeys(runtime.current, event, true);
+        const onKeyUp = (event: KeyboardEvent) => handleKeys(runtime.current, event, false);
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
 
@@ -22,61 +28,61 @@ function useGameInput() {
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
         };
-    }, []);
+    }, [runtime]);
 }
 
-function GameRuntime({ playerRef, ready }: { playerRef: MutableRefObject<VoxelDogParts | null>; ready: MutableRefObject<boolean> }) {
-    const { scene, camera, gl } = useThree();
+function GameRuntime() {
+    const { runtime, ready, remotePlayersRef } = useGame();
+
     useFrame((_, delta) => {
-        if (ready.current) stepGameFrame(Math.min(delta, 0.05), { updateCamera: false });
+        if (!ready.current) return;
+        const dt = Math.min(delta, 0.05);
+        lerpRemotePlayers(remotePlayersRef.current, dt);
+        stepSimulation(runtime.current, dt);
     }, -1);
 
     useGameInput();
 
+    return null;
+}
+
+function RendererSetup() {
+    const { gl, scene } = useThree();
+
     useEffect(() => {
-        const player = playerRef.current;
-        if (!player) return;
+        gl.shadowMap.enabled = true;
+        gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    }, [gl]);
 
-        let disposed = false;
-        let cleanup: (() => void) | undefined;
-
-        void bootstrap({
-            r3fHost: { scene, camera: camera as THREE.PerspectiveCamera, renderer: gl },
-            r3fPlayer: player,
-        }).then((dispose) => {
-            cleanup = dispose;
-            if (disposed) cleanup();
-            else ready.current = true;
-        }).catch((error) => {
-            console.error('R3F game bootstrap failed', error);
-        });
-
-        return () => {
-            disposed = true;
-            ready.current = false;
-            cleanup?.();
-        };
-    }, [camera, gl, playerRef, scene]);
+    useEffect(() => registerRuntimeScene(scene), [scene]);
 
     return null;
 }
 
 function GameScene() {
-    const playerRef = useRef<VoxelDogParts | null>(null);
-    const [playerReady, setPlayerReady] = useState(false);
-    const ready = useRef(false);
+    const { registerPlayerParts, remotePlayersRef, remotePlayerIds } = useGame();
+    const [player, setPlayer] = useState<VoxelDogParts | null>(null);
     const onPlayerReady = useCallback((parts: VoxelDogParts) => {
-        playerRef.current = parts;
-        setPlayerReady(true);
-    }, []);
+        registerPlayerParts(parts);
+        setPlayer(parts);
+    }, [registerPlayerParts]);
+
+    const remoteRecords = useMemo(
+        () => remotePlayerIds
+            .map((id) => remotePlayersRef.current.get(id))
+            .filter((record): record is NonNullable<typeof record> => !!record),
+        [remotePlayerIds, remotePlayersRef],
+    );
 
     return (
         <>
+            <RendererSetup />
             <WorldEnvironment />
             <Player onReady={onPlayerReady} />
-            {playerReady && <Terrain player={playerRef.current!} />}
-            {playerReady && <GameRuntime playerRef={playerRef} ready={ready} />}
-            <CameraRig ready={ready} />
+            {player && <Terrain player={player} />}
+            <RemotePlayers records={remoteRecords} />
+            {player && <GameRuntime />}
+            <CameraRig />
         </>
     );
 }

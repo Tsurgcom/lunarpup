@@ -1,5 +1,5 @@
 # 13 — Converge onto the upstream R3F runtime
-STATUS: open
+STATUS: done
 PRIORITY: p0
 REPOS: lunarpup
 COMPLEXITY: architectural
@@ -29,3 +29,23 @@ No other repository changes are required, but active PRs or integration branches
 - Cosmetics, gamemodes, rooms, agent events, extensions, and the hybrid casual/ranked transport decision remain represented.
 - `bun run typecheck`, `bun test`, and `bun run smoke` pass.
 - A fresh browser boot, solo run, intent-view navigation, and representative multiplayer connection produce zero console errors.
+
+## Resolution
+
+Merged `origin/main` into the isolated convergence branch and made the upstream
+`GameProvider`, R3F Canvas, simulation, camera rig, and voxel models the sole runtime
+owners. Local pause, gamemode, cosmetics, rooms, economy, persistence, extension,
+agent-event, and intent-view behavior was reattached around those owners; the deleted
+imperative renderer/state/player stack was not restored.
+
+The modular product server now hosts the hardened encrypted blind relay for casual
+multiplayer while the explicit `gamemode` channel remains server-observed for ranked or
+reward-bearing samples. Netlify session binding, CORS, room caps, SSE authorization,
+and CI/deployment changes from upstream are retained.
+
+Evidence: `bun run typecheck`, 179 passing tests (one opt-in Postgres test skipped),
+`bun run smoke`, `bun run build`, and `git diff --check` pass. Headless Chromium verified
+a fresh solo boot and accelerating run, Shop/Rooms/Settings navigation, and two clients
+sharing an encrypted casual room with zero console/page errors. The pre-existing
+Shop→Escape scrim pointer interception remains assigned to Concern 14; it was not
+introduced by this convergence.

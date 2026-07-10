@@ -1,21 +1,27 @@
 import type { Config, Context } from '@netlify/edge-functions';
-import { POLL_MS, readRoomSnapshots, stateFingerprint, readChatSince } from '../lib/room-store.ts';
+import { POLL_MS, readRoomSnapshots, readChatSince } from '../lib/room-store.ts';
+import { verifySessionToken } from '../lib/session.ts';
 import type { ServerMessage } from '../lib/protocol.ts';
 
 export default async (request: Request, _context: Context) => {
     const url = new URL(request.url);
     const room = url.searchParams.get('room')?.trim();
     const playerId = url.searchParams.get('id')?.trim();
+    const token = url.searchParams.get('token')?.trim();
     const sinceParam = url.searchParams.get('since');
     const sinceTs = sinceParam ? Number(sinceParam) : 0;
 
-    if (!room || !playerId) {
-        return new Response('Missing room or id', { status: 400 });
+    if (!room || !playerId || !token) {
+        return new Response('Missing room, id, or session token', { status: 400 });
+    }
+
+    if (!await verifySessionToken(token, room, playerId)) {
+        return new Response('Invalid session', { status: 403 });
     }
 
     const encoder = new TextEncoder();
-    const knownPlayers = new Map<string, { name: string; color: number }>();
-    const lastFingerprints = new Map<string, string>();
+    const knownPlayers = new Map<string, { name: unknown; color: number }>();
+    const lastSeq = new Map<string, number>();
     let lastChatTs = Number.isFinite(sinceTs) && sinceTs > 0 ? sinceTs : 0;
 
     const body = new ReadableStream({
@@ -50,7 +56,7 @@ export default async (request: Request, _context: Context) => {
                             const snap = snapshots.find(s => s.id === id);
                             if (snap) {
                                 send({ type: 'player_joined', player: snap });
-                                lastFingerprints.set(id, stateFingerprint(snap));
+                                lastSeq.set(id, snap.seq);
                             }
                         }
                     }
@@ -58,25 +64,22 @@ export default async (request: Request, _context: Context) => {
                     for (const id of [...knownPlayers.keys()]) {
                         if (!activeIds.has(id) || id === playerId) {
                             knownPlayers.delete(id);
-                            lastFingerprints.delete(id);
+                            lastSeq.delete(id);
                             send({ type: 'player_left', id });
                         }
                     }
 
                     for (const snap of snapshots) {
-                        const fp = stateFingerprint(snap);
-                        const prev = lastFingerprints.get(snap.id);
-                        if (prev === fp) continue;
-                        lastFingerprints.set(snap.id, fp);
-                        const { id, ...rest } = snap;
-                        const { name: _n, color: _c, ...state } = rest;
-                        send({ type: 'state', id, state });
+                        const prev = lastSeq.get(snap.id);
+                        if (prev === snap.seq) continue;
+                        lastSeq.set(snap.id, snap.seq);
+                        send({ type: 'state', id: snap.id, seq: snap.seq, state: snap.state });
                     }
 
                     const chats = await readChatSince(room, lastChatTs);
                     for (const chat of chats) {
                         lastChatTs = Math.max(lastChatTs, chat.ts);
-                        send({ type: 'chat', ...chat });
+                        send({ type: 'chat', id: chat.id, ts: chat.ts, payload: chat.payload });
                     }
                 } catch (err) {
                     console.error('[mp-stream]', err);

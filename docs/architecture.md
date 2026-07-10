@@ -65,7 +65,7 @@ To write a new extension:
 - win condition: `isWinConditionMet`
 - checkpoint definitions with position, radius, and optional order
 
-`src/game/loop.ts` exposes `setCurrentGamemode(gamemode, state)`. When set, the loop increments `state.elapsedMs` and calls `gamemode.tick(dt, state)` each frame.
+`src/game/runtimeRegistry.ts` exposes `setCurrentGamemode(gamemode, state)`. `stepSimulation()` advances the registered state and calls `gamemode.tick(dt, state)` from R3F's `useFrame` path.
 
 ## Room/lobby protocol
 
@@ -111,14 +111,14 @@ The default backend is Bun SQLite at `data/lunarpup.db`. The `data` directory is
 - WebSocket handlers registered by channel
 - a default `multiplayer` channel when a legacy message has no `channel` field
 
-`src/server/multiplayer.ts` registers the existing join/state/leave flow on the `multiplayer` channel. Existing `src/net/client.ts` messages are unchanged, so current multiplayer clients continue sending `{ type: 'join' }` and `{ type: 'state' }` without a channel field.
+`src/server/multiplayer.ts` registers the encrypted join/state/leave flow on the default `multiplayer` channel. Casual names, transforms, cosmetics, and chat are opaque envelopes; the server routes them without the room key. Explicit room, gamemode, and extension channels remain available through the same modular router.
 
-## Game loop extension hooks
+## Runtime extension hooks
 
-`src/game/loop.ts` exposes:
+`src/game/runtimeRegistry.ts` exposes:
 
 - `registerUpdateHook(fn)` returns an unregister function and calls `fn(dt, state)` once per frame
 - `setCurrentGamemode(gamemode, state)` attaches or clears a gamemode tick target
-- `getCurrentGamemode()` reports the currently attached gamemode
+- `registerActiveRuntime()` and `registerRuntimeScene()` bind the sole provider/Canvas owners during lifecycle setup
 
-Hooks receive `playerGroup`, `physics`, `scene`, and `skateboard`. This lets cosmetics and gamemodes attach behavior without editing `loop.ts` again.
+Hooks receive `playerGroup`, `physics`, `scene`, and `skateboard`. This lets cosmetics and gamemodes attach behavior without creating a second renderer or frame loop.

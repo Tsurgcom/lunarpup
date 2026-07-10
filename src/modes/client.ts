@@ -3,9 +3,8 @@ import { gamemodePackages } from '../../content/gamemodes/index.ts';
 import { groundClearance } from '../config.ts';
 import type { GamemodePackageDefinition, PlatformDefinition, RuntimeGamemodeState } from './runtime.ts';
 import { createGamemode, createRuntimeState, orderedCheckpoints, validateGamemodePackage } from './runtime.ts';
-import { registerUpdateHook, setCurrentGamemode } from '../game/loop.ts';
+import { getActiveRuntime, getRuntimeScene, registerUpdateHook, setCurrentGamemode } from '../game/runtimeRegistry.ts';
 import { getTerrainHeight } from '../game/terrain.ts';
-import { physics, playerGroup, scene, skateboard } from '../state.ts';
 import { buildLocalSnapshot } from '../game/multiplayer.ts';
 import { getApiBaseUrl, type PlayerSnapshot } from '../net/protocol.ts';
 
@@ -25,6 +24,15 @@ let sampleSocket: WebSocket | null = null;
 let lastSampleMs = 0;
 let samples: RunSample[] = [];
 let resultsVisible = false;
+
+function runtimeParts() {
+    const runtime = getActiveRuntime();
+    const playerGroup = runtime?.parts?.playerGroup ?? runtime?.parts?.group;
+    const skateboard = runtime?.parts?.skateboard;
+    const scene = getRuntimeScene();
+    if (!runtime || !playerGroup || !skateboard || !scene) return null;
+    return { runtime, playerGroup, skateboard, scene };
+}
 
 export function setupGamemodeUI(): void {
     const packages = gamemodePackages.map(pkg => validateGamemodePackage(pkg));
@@ -68,6 +76,10 @@ export function setupGamemodeUI(): void {
 
 export function startGamemode(pkg: GamemodePackageDefinition): void {
     stopGamemode();
+    const parts = runtimeParts();
+    if (!parts) return;
+    const { runtime, playerGroup, scene } = parts;
+    const { physics } = runtime;
     activePackage = validateGamemodePackage(pkg);
     const snapshot = localPlayerSnapshot();
     const start = activePackage.params.startPosition;
@@ -100,7 +112,7 @@ export function stopGamemode(): void {
     unregisterHook = null;
     setCurrentGamemode(null);
     if (checkpointRoot) {
-        scene.remove(checkpointRoot);
+        getRuntimeScene()?.remove(checkpointRoot);
         checkpointRoot.traverse(object => {
             if (object instanceof THREE.Mesh) {
                 object.geometry.dispose();
@@ -174,6 +186,10 @@ function updateCheckpointVisuals(): void {
 }
 
 function applyParkourPlatformGrounding(platforms: PlatformDefinition[]): void {
+    const parts = runtimeParts();
+    if (!parts) return;
+    const { playerGroup, runtime } = parts;
+    const { physics } = runtime;
     for (const platform of platforms) {
         const halfX = platform.size.x / 2;
         const halfZ = platform.size.z / 2;
@@ -190,6 +206,10 @@ function applyParkourPlatformGrounding(platforms: PlatformDefinition[]): void {
 
 function sampleRun(dt: number): void {
     if (!activeState || !activePackage) return;
+    const parts = runtimeParts();
+    if (!parts) return;
+    const { playerGroup, runtime } = parts;
+    const { physics } = runtime;
     lastSampleMs += dt * 1000;
     if (lastSampleMs < 100) return;
     lastSampleMs = 0;
@@ -273,6 +293,10 @@ function updateStatus(): void {
 }
 
 function localPlayerSnapshot(): PlayerSnapshot {
+    const parts = runtimeParts();
+    if (!parts) throw new Error('game runtime is not ready');
+    const { runtime, playerGroup, skateboard } = parts;
+    const { physics } = runtime;
     const state = buildLocalSnapshot(playerGroup, physics.heading, physics.speed, physics.isGrounded, skateboard.rotation.x, skateboard.rotation.z);
     return { id: 'local', name: 'Local Pup', color: 0xffb703, ...state };
 }

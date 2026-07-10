@@ -11,40 +11,43 @@ export const PLAYER_COLORS = [
     0xe9c46a,
 ] as const;
 
-export interface PlayerSnapshot {
+/**
+ * Opaque encrypted payload. The relay stores and forwards these verbatim; it
+ * never has the key to open them. Both fields are base64url strings produced
+ * client-side with AES-GCM.
+ */
+export interface EncryptedEnvelope {
+    iv: string;
+    data: string;
+}
+
+/** A player as stored/forwarded by the relay. `name` and `state` are encrypted
+ *  envelopes; `id`, `color` and `seq` stay plaintext for routing, colour
+ *  coordination, and change-detection. */
+export interface EncryptedPlayerSnapshot {
     id: string;
-    name: string;
     color: number;
-    x: number;
-    y: number;
-    z: number;
-    qx: number;
-    qy: number;
-    qz: number;
-    qw: number;
-    heading: number;
-    speed: number;
-    isGrounded: boolean;
-    boardTiltX: number;
-    boardTiltZ: number;
+    name: EncryptedEnvelope;
+    state: EncryptedEnvelope;
+    seq: number;
 }
 
 export interface ChatMessage {
     id: string;
-    name: string;
-    text: string;
+    /** Encrypted `{ name, text }` payload — the relay cannot read it. */
+    payload: EncryptedEnvelope;
     ts: number;
 }
 
 export type ClientMessage =
-    | { type: 'join'; room: string; name: string }
-    | { type: 'state'; room: string; id?: string; state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'> }
-    | { type: 'leave'; room: string; id?: string }
-    | { type: 'chat'; room: string; id?: string; text: string };
+    | { type: 'join'; room: string; name: EncryptedEnvelope; state: EncryptedEnvelope; seq: number }
+    | { type: 'state'; room: string; id: string; token: string; seq: number; state: EncryptedEnvelope }
+    | { type: 'leave'; room: string; id: string; token: string }
+    | { type: 'chat'; room: string; id: string; token: string; payload: EncryptedEnvelope };
 
 export type ServerMessage =
-    | { type: 'welcome'; id: string; color: number; room: string; players: PlayerSnapshot[] }
-    | { type: 'player_joined'; player: PlayerSnapshot }
+    | { type: 'welcome'; id: string; color: number; room: string; players: EncryptedPlayerSnapshot[]; token: string }
+    | { type: 'player_joined'; player: EncryptedPlayerSnapshot }
     | { type: 'player_left'; id: string }
-    | { type: 'state'; id: string; state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'> }
-    | { type: 'chat'; id: string; name: string; text: string; ts: number };
+    | { type: 'state'; id: string; seq: number; state: EncryptedEnvelope }
+    | { type: 'chat'; id: string; ts: number; payload: EncryptedEnvelope };

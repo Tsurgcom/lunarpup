@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { dog, playerGroup, scene, skateboard } from '../state.ts';
 import type { CosmeticPackage, EquippedCosmetics } from '../cosmetics/registry.ts';
-import { registerUpdateHook } from './loop.ts';
-import type { VoxelDogParts } from './player.ts';
+import { getActiveRuntime, registerUpdateHook } from './runtimeRegistry.ts';
+import type { VoxelDogParts } from './types.ts';
 
 interface AppliedCosmeticHandle {
     dispose(): void;
@@ -18,9 +17,12 @@ export function setKnownCosmeticCatalog(catalog: CosmeticPackage[]): void {
 const remoteHandles = new WeakMap<THREE.Group, AppliedCosmeticHandle[]>();
 
 export function applyLocalCosmetics(equipped: EquippedCosmetics, catalog: CosmeticPackage[]): void {
+    const runtime = getActiveRuntime();
+    const parts = runtime?.parts;
+    if (!parts) return;
     setKnownCosmeticCatalog(catalog);
     disposeHandles(localHandles);
-    localHandles.push(...buildCosmeticHandles({ group: playerGroup, dog, skateboard }, equipped, catalog, true));
+    localHandles.push(...buildCosmeticHandles(parts, equipped, catalog, true));
 }
 
 export function applyRemoteCosmetics(parts: VoxelDogParts, equipped: EquippedCosmetics | undefined, catalog = knownCatalog): void {

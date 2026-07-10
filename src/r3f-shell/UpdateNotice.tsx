@@ -1,12 +1,46 @@
 import { useEffect } from 'react';
-import { bindUpdateNotice } from '../ui/updateNotice.ts';
+import { showToast } from '../ui/toast.ts';
 
-/**
- * Starts build-version polling. The notification itself is rendered by the
- * reskin toast system (`showToast` in `../ui/updateNotice.ts`), so this
- * component owns only the polling lifecycle and renders no DOM.
- */
+const POLL_INTERVAL_MS = 60_000;
+
+async function fetchBuildId(): Promise<string | null> {
+    try {
+        const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) return null;
+        const data = await response.json() as { buildId?: string };
+        return typeof data.buildId === 'string' ? data.buildId : null;
+    } catch {
+        return null;
+    }
+}
+
 export function UpdateNotice() {
-    useEffect(() => bindUpdateNotice(), []);
+    useEffect(() => {
+        let loadedBuildId: string | null = null;
+        let bannerShown = false;
+
+        async function checkForUpdate() {
+            const remoteBuildId = await fetchBuildId();
+            if (!remoteBuildId) return;
+            if (loadedBuildId === null) {
+                loadedBuildId = remoteBuildId;
+                return;
+            }
+            if (remoteBuildId !== loadedBuildId && !bannerShown) {
+                bannerShown = true;
+                showToast({
+                    message: 'Update available — refresh to get the latest',
+                    actionLabel: 'Refresh',
+                    onAction: () => window.location.reload(),
+                    durationMs: null,
+                });
+            }
+        }
+
+        void checkForUpdate();
+        const pollTimer = window.setInterval(() => void checkForUpdate(), POLL_INTERVAL_MS);
+        return () => window.clearInterval(pollTimer);
+    }, []);
+
     return null;
 }

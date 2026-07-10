@@ -1,84 +1,110 @@
-import { useEffect, useRef } from 'react';
-import { bindMultiplayerPanel } from '../ui/multiplayer.ts';
-import { getMultiplayerConfig } from '../net/protocol.ts';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import type { RoomSummary } from '../contracts/roomProtocol.ts';
+import { getApiBaseUrl } from '../net/protocol.ts';
+import { useGame } from './GameProvider.tsx';
+
+const STATUS_LABELS = {
+    disconnected: 'Offline',
+    connecting: 'Connecting…',
+    connected: 'Connected',
+    error: 'Connection error',
+} as const;
 
 export function MultiplayerPanel() {
-    const statusRef = useRef<HTMLDivElement>(null);
-    const playersRef = useRef<HTMLDivElement>(null);
-    const hintRef = useRef<HTMLDivElement>(null);
-    const roomsRef = useRef<HTMLDivElement>(null);
-    const refreshRef = useRef<HTMLButtonElement>(null);
-    const createFormRef = useRef<HTMLFormElement>(null);
-    const roomInputRef = useRef<HTMLInputElement>(null);
-    const gamemodeRef = useRef<HTMLSelectElement>(null);
+    const { multiplayerConfig, mpStatus, mpStatusDetail, mpRoom, mpPlayers, mpHint } = useGame();
+    const [rooms, setRooms] = useState<RoomSummary[]>([]);
+    const [loadingRooms, setLoadingRooms] = useState(false);
+    const [roomsError, setRoomsError] = useState('');
+
+    const refreshRooms = useCallback(async () => {
+        setLoadingRooms(true);
+        setRoomsError('');
+        try {
+            const response = await fetch(`${getApiBaseUrl()}/rooms`);
+            if (!response.ok) throw new Error(`Room list failed (${response.status})`);
+            const payload = await response.json() as { rooms?: RoomSummary[] };
+            setRooms(payload.rooms ?? []);
+        } catch (error) {
+            setRoomsError(error instanceof Error ? error.message : 'Room list unavailable');
+        } finally {
+            setLoadingRooms(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const status = statusRef.current;
-        const players = playersRef.current;
-        const hint = hintRef.current;
-        const rooms = roomsRef.current;
-        const refreshButton = refreshRef.current;
-        const createForm = createFormRef.current;
-        const roomInput = roomInputRef.current;
-        const gamemodeInput = gamemodeRef.current;
-        if (!status || !players || !hint || !rooms || !refreshButton || !createForm || !roomInput || !gamemodeInput) return;
+        void refreshRooms();
+    }, [refreshRooms]);
 
-        const config = getMultiplayerConfig();
-        return bindMultiplayerPanel({
-            status,
-            players,
-            hint,
-            rooms,
-            refreshButton,
-            createForm,
-            roomInput,
-            gamemodeInput,
-            options: {
-                room: config.room,
-                name: config.name,
-                wsUrl: config.wsUrl,
-                onJoinRoom: (roomId) => {
-                    const url = new URL(location.href);
-                    url.searchParams.set('multiplayer', '');
-                    url.searchParams.set('room', roomId);
-                    if (!url.searchParams.has('name')) url.searchParams.set('name', config.name);
-                    location.href = url.href;
-                },
-            },
-        });
-    }, []);
+    function joinRoom(roomId: string) {
+        const url = new URL(location.href);
+        url.searchParams.set('multiplayer', '');
+        url.searchParams.set('room', roomId);
+        if (!url.searchParams.has('name') && multiplayerConfig?.name) url.searchParams.set('name', multiplayerConfig.name);
+        location.href = url.href;
+    }
+
+    function createRoom(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const roomId = String(form.get('room') || 'lunar-park').trim() || 'lunar-park';
+        const gamemodeId = String(form.get('gamemode') || 'free-skate');
+        const wsUrl = multiplayerConfig?.wsUrl;
+        if (!wsUrl) {
+            joinRoom(roomId);
+            return;
+        }
+        const socket = new WebSocket(wsUrl);
+        socket.addEventListener('open', () => {
+            socket.send(JSON.stringify({
+                channel: 'room',
+                type: 'create_room',
+                roomId,
+                gamemodeId,
+                playerId: multiplayerConfig?.name ?? 'Pup',
+            }));
+            socket.close();
+            joinRoom(roomId);
+        }, { once: true });
+        socket.addEventListener('error', () => joinRoom(roomId), { once: true });
+    }
+
+    const statusText = mpStatus === 'error' && mpStatusDetail
+        ? mpStatusDetail
+        : mpStatus === 'connected' && mpRoom
+            ? `${STATUS_LABELS.connected} · ${mpRoom}`
+            : STATUS_LABELS[mpStatus];
 
     return (
         <section id="multiplayer-panel" className="lp-view-section" aria-label="Multiplayer">
-            <div id="mp-status" ref={statusRef} className="mp-status mp-disconnected" role="status" aria-live="polite">
-                Offline
-            </div>
-            <div id="mp-players" ref={playersRef} className="mp-players" />
+            <div id="mp-status" className={`mp-status mp-${mpStatus}`} role="status" aria-live="polite">{statusText}</div>
+            <div id="mp-players" className="mp-players">{mpPlayers}</div>
             <div className="mp-lobby" aria-label="Room browser">
                 <div className="mp-lobby-header">
                     <strong>Rooms</strong>
-                    <button id="mp-refresh" ref={refreshRef} className="lp-button" type="button">Refresh</button>
+                    <button className="lp-button" type="button" onClick={() => void refreshRooms()}>Refresh</button>
                 </div>
-                <div id="mp-rooms" ref={roomsRef} className="mp-rooms" role="list" aria-live="polite">Loading rooms…</div>
-                <form id="mp-create" ref={createFormRef} className="mp-create">
-                    <label>
-                        Room
-                        <input id="mp-room-id" ref={roomInputRef} className="lp-field" name="room" type="text" autoComplete="off" maxLength={32} placeholder="lunar-park" />
-                    </label>
-                    <label>
-                        Gamemode
-                        <select id="mp-gamemode" ref={gamemodeRef} className="lp-field" name="gamemode" defaultValue="free-skate">
-                            <option value="free-skate">Free skate</option>
-                            <option value="checkpoint-race">Checkpoint race</option>
-                            <option value="trick-attack">Trick attack</option>
-                        </select>
-                    </label>
+                <div id="mp-rooms" className="mp-rooms" role="list" aria-live="polite">
+                    {loadingRooms && <div className="mp-empty">Loading rooms…</div>}
+                    {!loadingRooms && roomsError && <div className="mp-empty">{roomsError}</div>}
+                    {!loadingRooms && !roomsError && rooms.length === 0 && <div className="mp-empty">No rooms yet. Create one or share your private invite URL.</div>}
+                    {!loadingRooms && rooms.map((room) => (
+                        <button className="lp-button mp-room" type="button" key={room.roomId} onClick={() => joinRoom(room.roomId)}>
+                            <span>{room.roomId}</span>
+                            <small>{room.gamemodeId} · {room.playerCount} pup{room.playerCount === 1 ? '' : 's'}</small>
+                        </button>
+                    ))}
+                </div>
+                <form className="mp-create" onSubmit={createRoom}>
+                    <label>Room<input className="lp-field" name="room" maxLength={32} placeholder="lunar-park" /></label>
+                    <label>Gamemode<select className="lp-field" name="gamemode" defaultValue="free-skate">
+                        <option value="free-skate">Free skate</option>
+                        <option value="checkpoint-race">Checkpoint race</option>
+                        <option value="trick-attack">Trick attack</option>
+                    </select></label>
                     <button className="lp-button lp-button-primary" type="submit">Create room</button>
                 </form>
             </div>
-            <div className="mp-hint" id="mp-hint" ref={hintRef}>
-                Choose a room to join, or keep free-skate drop-in with <code>?multiplayer</code>.
-            </div>
+            <div id="mp-hint" className="mp-hint" dangerouslySetInnerHTML={{ __html: mpHint }} />
         </section>
     );
 }

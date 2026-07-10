@@ -1,43 +1,52 @@
 import { useEffect, useRef, type FormEvent } from 'react';
-import { bindChatPanel, submitChat } from '../ui/chat.ts';
+import { useGame } from './GameProvider.tsx';
 
-export interface ChatPanelProps {
-    multiplayerEnabled: boolean;
-    playerName: string;
-}
-
-/**
- * Chrome-free chat: a single line at bottom-left showing the last message,
- * fading after a few seconds. Enter focuses the input to type, Esc closes it.
- * No panel, no header, no toggle button. Messages are appended through the
- * binding so network traffic never triggers a React render.
- */
-export function ChatPanel({ multiplayerEnabled, playerName }: ChatPanelProps) {
-    const rootRef = useRef<HTMLDivElement>(null);
-    const logRef = useRef<HTMLDivElement>(null);
+export function ChatPanel({ multiplayerEnabled }: { multiplayerEnabled: boolean }) {
+    const { chatLines, appendChatLine, submitChatMessage, handleTpCommand } = useGame();
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        const root = rootRef.current;
-        const log = logRef.current;
-        const input = inputRef.current;
-        if (!root || !log || !input) return;
+        if (!multiplayerEnabled) appendChatLine('system', 'Join with ?multiplayer to use chat.');
+    }, [appendChatLine, multiplayerEnabled]);
 
-        return bindChatPanel({ root, log, input }, multiplayerEnabled, playerName);
-    }, [multiplayerEnabled, playerName]);
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Enter' && document.activeElement !== inputRef.current && multiplayerEnabled) {
+                event.preventDefault();
+                inputRef.current?.focus();
+            }
+            if (event.key === 'Escape' && document.activeElement === inputRef.current) {
+                inputRef.current?.blur();
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [multiplayerEnabled]);
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        if (inputRef.current) void submitChat(inputRef.current);
+        const input = inputRef.current;
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+        if (text.startsWith('/tp')) {
+            input.value = '';
+            handleTpCommand(text);
+            return;
+        }
+        if (submitChatMessage(text)) input.value = '';
     }
 
+    const latestLine = chatLines.at(-1);
     const className = ['chat-line-hud lp-gameplay', multiplayerEnabled ? '' : 'chat-hidden']
         .filter(Boolean)
         .join(' ');
 
     return (
-        <div id="chat-panel" ref={rootRef} className={className} aria-label="Chat">
-            <div id="chat-log" ref={logRef} className="chat-log" aria-live="polite" aria-relevant="additions" />
+        <div id="chat-panel" className={className} aria-label="Chat">
+            <div id="chat-log" className="chat-log" aria-live="polite" aria-relevant="additions">
+                {latestLine && <div className={`chat-line chat-${latestLine.kind}`}>{latestLine.text}</div>}
+            </div>
             <form className="chat-form" onSubmit={handleSubmit}>
                 <input
                     id="chat-input"
@@ -47,6 +56,7 @@ export function ChatPanel({ multiplayerEnabled, playerName }: ChatPanelProps) {
                     maxLength={200}
                     placeholder="Say something… (Enter)"
                     aria-label="Chat message"
+                    disabled={!multiplayerEnabled}
                 />
             </form>
         </div>

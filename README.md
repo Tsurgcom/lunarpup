@@ -80,11 +80,10 @@ src/
   r3f-shell/           # React app, Canvas, declarative world/player/camera/terrain; main.tsx is the entry
   styles.css           # HUD, shop, lobby, lootbox, and leaderboard styles
   config.ts            # Game constants
-  state.ts             # Shared runtime state
-  game/                # Scene, terrain, player, loop, input, tricks, frame gating, gamemode tick
+  game/                # Mutable runtime, simulation, terrain, input, tricks, frame gating
   modes/               # Runtime gamemode packages, sampling, and results UI
   net/                 # getApiBaseUrl(), WebSocket client, shared protocol
-  ui/                  # React-bound UI bridges: tuning, speed lines, multiplayer, cosmetics, menus
+  ui/                  # Product UI bridges and menu/economy helpers pending React shell migration
   contracts/           # Runtime-validated contracts and storage interfaces
   extensions/          # Generic client/server extension loaders
   cosmetics/           # Content-addressed cosmetic package registry
