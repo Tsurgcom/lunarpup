@@ -62,7 +62,13 @@ describe('extension loader', () => {
         };
         globalThis.fetch = Object.assign(mockFetch, { preconnect: previousFetch.preconnect }) as typeof fetch;
 
-        await setupExtensions();
+        const controller = new AbortController();
+        const dispose = await setupExtensions({
+            hudRoot: {} as HTMLElement,
+            transientRoot: {} as HTMLElement,
+            signal: controller.signal,
+        });
+        dispose();
 
         expect(fetchCount).toBe(1);
     });

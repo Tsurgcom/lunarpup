@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { tuningSettings, type PhysicsKey } from '../config.ts';
+import { physicsTuningDefaults, tuningSettings, type PhysicsKey } from '../config.ts';
 import { useGameRuntime } from './GameProvider.tsx';
 
 type TuningValues = Record<PhysicsKey, number>;
@@ -15,7 +15,6 @@ function readTuningValues(physics: ReturnType<typeof useGameRuntime>['physics'])
 
 export function TuningPanel() {
     const physics = useGameRuntime().physics;
-    const [defaults] = useState<TuningValues>(() => readTuningValues(physics));
     const [values, setValues] = useState<TuningValues>(() => readTuningValues(physics));
     const [copyStatus, setCopyStatus] = useState('');
 
@@ -25,8 +24,8 @@ export function TuningPanel() {
     }
 
     function resetSettings() {
-        for (const setting of tuningSettings) physics[setting.key] = defaults[setting.key];
-        setValues(defaults);
+        for (const setting of tuningSettings) physics[setting.key] = physicsTuningDefaults[setting.key];
+        setValues({ ...physicsTuningDefaults });
     }
 
     async function copySettings() {

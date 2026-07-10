@@ -7,6 +7,7 @@ import {
     useMemo,
     useReducer,
     useRef,
+    useSyncExternalStore,
     type ReactNode,
 } from 'react';
 import { pauseController } from '../game/pause.ts';
@@ -25,6 +26,7 @@ type FocusTarget = HTMLElement | null | undefined;
 interface ExperienceContextValue {
     state: ExperienceState;
     covered: boolean;
+    simulationPaused: boolean;
     openMainMenu: (trigger?: FocusTarget) => void;
     openPauseMenu: (trigger?: FocusTarget) => void;
     openSettings: (trigger?: FocusTarget) => void;
@@ -51,6 +53,11 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     );
     const focusHistory = useRef<string[]>([]);
     const pendingFocus = useRef<string | null>(null);
+    const simulationPaused = useSyncExternalStore(
+        pauseController.subscribe,
+        pauseController.isPaused,
+        pauseController.isPaused,
+    );
 
     const rememberFocus = useCallback((trigger?: FocusTarget) => {
         const selector = focusSelector(trigger ?? document.activeElement as HTMLElement | null);
@@ -121,6 +128,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
     const value = useMemo<ExperienceContextValue>(() => ({
         state,
         covered: isExperienceCovered(state),
+        simulationPaused,
         openMainMenu,
         openPauseMenu,
         openSettings,
@@ -136,6 +144,7 @@ export function ExperienceProvider({ children }: { children: ReactNode }) {
         openSettings,
         play,
         quitToMainMenu,
+        simulationPaused,
         state,
     ]);
 

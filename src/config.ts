@@ -15,6 +15,21 @@ export const tuningSettings = [
 
 export type PhysicsKey = (typeof tuningSettings)[number]['key'];
 
+export const physicsTuningDefaults: Readonly<Record<PhysicsKey, number>> = Object.freeze({
+    maxSpeed: 0.8,
+    accel: 0.015,
+    decel: 0.01,
+    rotationSpeed: 0.04,
+    jumpForce: 0.15,
+    gravity: 0.004,
+    suspension: 0.22,
+    tiltSmoothing: 0.18,
+    boostMultiplier: 1.85,
+    boostAccelMultiplier: 2.2,
+    cameraBaseFov: 60,
+    cameraMaxFov: 84,
+});
+
 export const chunkSize = 240;
 export const terrainViewDistance = 3;
 export const groundClearance = 0.42;

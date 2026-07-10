@@ -38,6 +38,7 @@ export type ChatLine = {
 type GameContextValue = {
     runtime: RefObject<GameRuntime>;
     ready: RefObject<boolean>;
+    gameReady: boolean;
     remotePlayersRef: RefObject<Map<string, RemotePlayerRecord>>;
     remotePlayerIds: string[];
     multiplayerConfig: MultiplayerConfig | null;
@@ -63,6 +64,7 @@ const TP_BROADCAST_INTERVAL_MS = 5000;
 export function GameProvider({ children }: { children: ReactNode }) {
     const runtime = useRef(createGameRuntime());
     const ready = useRef(false);
+    const [gameReady, setGameReady] = useState(false);
     const remotePlayersRef = useRef(new Map<string, RemotePlayerRecord>());
     const [remotePlayerIds, setRemotePlayerIds] = useState<string[]>([]);
     const [multiplayerConfig, setMultiplayerConfig] = useState<MultiplayerConfig | null>(null);
@@ -131,6 +133,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         runtime.current.physics.heading = 0;
         alignPlayerToTerrain(root, runtime.current.physics, runtime.current.scratch);
         ready.current = true;
+        setGameReady(true);
 
         if (!multiplayerConfig?.enabled) return;
 
@@ -216,6 +219,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     useEffect(() => () => {
         multiplayerOwner.current.dispose();
         ready.current = false;
+        setGameReady(false);
     }, []);
 
     const submitChatMessage = useCallback((text: string) => {
@@ -287,6 +291,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const value = useMemo<GameContextValue>(() => ({
         runtime,
         ready,
+        gameReady,
         remotePlayersRef,
         remotePlayerIds,
         multiplayerConfig,
@@ -303,6 +308,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }), [
         appendChatLine,
         chatLines,
+        gameReady,
         handleTpCommand,
         mpHint,
         mpPlayers,

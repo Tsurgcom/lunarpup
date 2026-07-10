@@ -34,46 +34,6 @@ function runtimeParts() {
     return { runtime, playerGroup, skateboard, scene };
 }
 
-export function setupGamemodeUI(): void {
-    const packages = gamemodePackages.map(pkg => validateGamemodePackage(pkg));
-
-    // Gamemode selection lives in the Rooms view (falls back to body if the
-    // view host is absent, e.g. in a test harness).
-    const host = document.getElementById('modes-section') ?? document.body;
-    host.innerHTML = '<p class="lp-view-eyebrow">Modes</p><div id="gamemode-buttons"></div>';
-    const buttons = document.getElementById('gamemode-buttons');
-    if (buttons) {
-        const freeSkate = document.createElement('button');
-        freeSkate.type = 'button';
-        freeSkate.className = 'lp-button';
-        freeSkate.textContent = 'Free skate';
-        freeSkate.addEventListener('click', () => stopGamemode());
-        buttons.appendChild(freeSkate);
-        for (const pkg of packages) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'lp-button';
-            button.textContent = pkg.manifest.displayName;
-            button.addEventListener('click', () => startGamemode(pkg));
-            buttons.appendChild(button);
-        }
-    }
-
-    // Ambient mode HUD: sits with the score readouts, shown only during a run.
-    const status = document.createElement('div');
-    status.id = 'gamemode-status';
-    status.className = 'lp-gameplay';
-    status.hidden = true;
-    document.body.appendChild(status);
-
-    // Results overlay: dimmed-world modal at match end.
-    const results = document.createElement('div');
-    results.id = 'gamemode-results';
-    results.className = 'lp-panel lp-panel-strong lp-gameplay';
-    results.hidden = true;
-    document.body.appendChild(results);
-}
-
 export function startGamemode(pkg: GamemodePackageDefinition): void {
     stopGamemode();
     const parts = runtimeParts();
@@ -92,7 +52,7 @@ export function startGamemode(pkg: GamemodePackageDefinition): void {
     snapshot.z = playerGroup.position.z;
     activeState = createRuntimeState(activePackage.params, snapshot);
     const gamemode = createGamemode(activePackage, event => {
-        if (event.type === 'finish') showResults();
+        if (event.type === 'finish') showResults('finish');
     });
     void gamemode.init({ roomId: 'local', now: () => performance.now(), broadcast: () => undefined });
     void gamemode.start(activeState);
@@ -102,12 +62,14 @@ export function startGamemode(pkg: GamemodePackageDefinition): void {
     samples = [];
     lastSampleMs = 0;
     resultsVisible = false;
+    const results = document.getElementById('gamemode-results');
+    if (results) results.hidden = true;
     openSampleSocket();
     unregisterHook = registerUpdateHook((dt) => updateGamemode(dt));
     updateStatus();
 }
 
-export function stopGamemode(): void {
+export function stopGamemode(options: { preserveResults?: boolean } = {}): void {
     if (unregisterHook) unregisterHook();
     unregisterHook = null;
     setCurrentGamemode(null);
@@ -127,9 +89,37 @@ export function stopGamemode(): void {
     }
     checkpointRoot = null;
     flushRunSamples('abandon');
+    sampleSocket?.close();
+    sampleSocket = null;
     activeState = null;
     activePackage = null;
     updateStatus();
+    if (!options.preserveResults) {
+        const results = document.getElementById('gamemode-results');
+        if (results) results.hidden = true;
+    }
+}
+
+export function endGamemode(): void {
+    if (!activeState || !activePackage) return;
+    showResults('ended');
+    stopGamemode({ preserveResults: true });
+}
+
+export function disposeGamemodeUI(): void {
+    stopGamemode();
+    const status = document.getElementById('gamemode-status');
+    const endButton = document.getElementById('gamemode-end-run');
+    const results = document.getElementById('gamemode-results');
+    if (status) {
+        status.hidden = true;
+        status.textContent = '';
+    }
+    if (endButton) endButton.hidden = true;
+    if (results) {
+        results.hidden = true;
+        results.replaceChildren();
+    }
 }
 
 function updateGamemode(dt: number): void {
@@ -140,7 +130,7 @@ function updateGamemode(dt: number): void {
     sampleRun(dt);
     updateCheckpointVisuals();
     updateStatus();
-    if (activeState.ended && !resultsVisible) showResults();
+    if (activeState.ended && !resultsVisible) showResults('finish');
 }
 
 function buildGamemodeMeshes(pkg: GamemodePackageDefinition): THREE.Group {
@@ -240,10 +230,10 @@ function openSampleSocket(): void {
     sampleSocket = new WebSocket(target);
 }
 
-function showResults(): void {
+function showResults(reason: 'finish' | 'ended'): void {
     if (!activeState || !activePackage) return;
     resultsVisible = true;
-    flushRunSamples('finish');
+    flushRunSamples(reason === 'finish' ? 'finish' : 'abandon');
     const result = activeState.results.find(entry => entry.playerId === 'local');
     const progress = activeState.progress.get('local');
     const elapsed = formatTime(progress?.finishedAtMs ?? activeState.elapsedMs);
@@ -251,9 +241,15 @@ function showResults(): void {
     const results = document.getElementById('gamemode-results');
     if (!results) return;
     results.hidden = false;
-    results.innerHTML = `<h2 class="lp-panel-title">${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading unverified run telemetry…</div><button class="lp-button" type="button" id="gamemode-close-results">Close</button>`;
-    document.getElementById('gamemode-close-results')?.addEventListener('click', () => { results.hidden = true; });
-    void loadLeaderboard(activePackage.manifest.id);
+    const outcome = reason === 'finish' ? `Finished in ${elapsed}` : `Run ended at ${elapsed}`;
+    const telemetry = reason === 'finish'
+        ? '<div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading unverified run telemetry…</div>'
+        : '<div class="gamemode-leaderboard">Practice result · not submitted to the leaderboard</div>';
+    results.innerHTML = `<h2 class="lp-panel-title">${activePackage.manifest.displayName}</h2><p>${outcome}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p>${telemetry}<button class="lp-button" type="button" id="gamemode-close-results">Close</button>`;
+    const closeButton = document.getElementById('gamemode-close-results');
+    closeButton?.addEventListener('click', () => { results.hidden = true; });
+    closeButton?.focus();
+    if (reason === 'finish') void loadLeaderboard(activePackage.manifest.id);
 }
 
 async function loadLeaderboard(gamemodeId: string): Promise<void> {
@@ -288,11 +284,14 @@ function isLeaderboardPayload(value: unknown): value is {
 
 function updateStatus(): void {
     const status = document.getElementById('gamemode-status');
+    const endButton = document.getElementById('gamemode-end-run');
     if (!status || !activeState || !activePackage) {
         if (status) status.hidden = true;
+        if (endButton) endButton.hidden = true;
         return;
     }
     status.hidden = false;
+    if (endButton) endButton.hidden = false;
     const progress = activeState.progress.get('local');
     const score = activeState.scores.get('local') ?? 0;
     const total = activePackage.params.checkpoints.length;

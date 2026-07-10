@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { physicsTuningDefaults } from '../config.ts';
 import { createTrickSimulation } from './trickSimulation.ts';
 import type { GameRuntime } from './types.ts';
 
@@ -18,18 +19,7 @@ export function createGameRuntime(): GameRuntime {
         jumpInput: { queuedAt: 0 },
         physics: {
             speed: 0,
-            maxSpeed: 0.8,
-            accel: 0.015,
-            decel: 0.01,
-            rotationSpeed: 0.04,
-            gravity: 0.004,
-            jumpForce: 0.15,
-            suspension: 0.22,
-            tiltSmoothing: 0.18,
-            boostMultiplier: 1.85,
-            boostAccelMultiplier: 2.2,
-            cameraBaseFov: 60,
-            cameraMaxFov: 84,
+            ...physicsTuningDefaults,
             heading: 0,
             velocity: new THREE.Vector3(),
             isGrounded: true,

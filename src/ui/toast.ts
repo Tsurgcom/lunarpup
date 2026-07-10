@@ -21,16 +21,22 @@ export interface ToastHandle {
 }
 
 const DEFAULT_DURATION_MS = 4000;
+let toastHost: HTMLElement | null = null;
+const activeToastDisposers = new Set<() => void>();
+
+export function registerToastHost(host: HTMLElement): () => void {
+    if (toastHost && toastHost !== host) throw new Error('A toast host is already registered');
+    toastHost = host;
+    return () => {
+        if (toastHost !== host) return;
+        for (const dispose of [...activeToastDisposers]) dispose();
+        toastHost = null;
+    };
+}
 
 export function showToast(options: ToastOptions): ToastHandle {
-    let container = document.getElementById('lp-toasts');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'lp-toasts';
-        container.setAttribute('role', 'status');
-        container.setAttribute('aria-live', 'polite');
-        document.body.appendChild(container);
-    }
+    const container = toastHost;
+    if (!container) throw new Error('Toast host is not mounted');
 
     const toast = document.createElement('div');
     toast.className = 'lp-panel lp-toast';
@@ -41,13 +47,21 @@ export function showToast(options: ToastOptions): ToastHandle {
 
     let dismissed = false;
     let timer = 0;
+    let removeTimer = 0;
+    const dispose = () => {
+        window.clearTimeout(timer);
+        window.clearTimeout(removeTimer);
+        toast.remove();
+        activeToastDisposers.delete(dispose);
+    };
     const dismiss = () => {
         if (dismissed) return;
         dismissed = true;
         window.clearTimeout(timer);
         toast.classList.remove('lp-toast-in');
-        window.setTimeout(() => toast.remove(), 240);
+        removeTimer = window.setTimeout(dispose, 240);
     };
+    activeToastDisposers.add(dispose);
 
     if (options.actionLabel) {
         const action = document.createElement('button');

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { setupExtensions } from '../extensions/client.ts';
 import { isDevMode } from '../ui/devFlag.ts';
+import { disposeGamemodeUI, endGamemode } from '../modes/client.ts';
 import { GameProvider, useGame } from './GameProvider.tsx';
 import { ExperienceProvider, useExperience } from './ExperienceProvider.tsx';
 import { ChatPanel } from './ChatPanel.tsx';
@@ -13,6 +14,7 @@ import { TrickHud } from './TrickHud.tsx';
 import { SpeedHud } from './SpeedHud.tsx';
 import { SpeedLines } from './SpeedLines.tsx';
 import { UpdateNotice } from './UpdateNotice.tsx';
+import { ToastHost } from './ToastHost.tsx';
 import '../styles.css';
 import './shell.css';
 
@@ -22,29 +24,47 @@ function isTypingTarget(target: EventTarget | null): boolean {
     return element.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName);
 }
 
-function ExtensionLoader() {
-    const started = useRef(false);
+function ExtensionLoader({ hudRoot, transientRoot }: {
+    hudRoot: RefObject<HTMLDivElement | null>;
+    transientRoot: RefObject<HTMLDivElement | null>;
+}) {
     useEffect(() => {
-        if (started.current) return;
-        started.current = true;
-        void setupExtensions().catch(error => {
-            console.warn('[extensions] listing unavailable; core game remains ready', error);
+        if (!hudRoot.current || !transientRoot.current) return;
+        const controller = new AbortController();
+        let cleanup: (() => void) | null = null;
+        void setupExtensions({
+            hudRoot: hudRoot.current,
+            transientRoot: transientRoot.current,
+            signal: controller.signal,
+        }).then(dispose => {
+            if (controller.signal.aborted) dispose();
+            else cleanup = dispose;
+        }).catch(error => {
+            if (!controller.signal.aborted) console.warn('[extensions] listing unavailable; core game remains ready', error);
         });
-    }, []);
+        return () => {
+            controller.abort();
+            cleanup?.();
+        };
+    }, [hudRoot, transientRoot]);
     return null;
 }
 
 function ExperienceShell() {
     const { multiplayerConfig } = useGame();
-    const { state, covered, openMainMenu, openPauseMenu } = useExperience();
+    const { state, covered, simulationPaused, openMainMenu, openPauseMenu } = useExperience();
     const [mapExpanded, setMapExpanded] = useState(false);
     const [rosterVisible, setRosterVisible] = useState(false);
+    const extensionHudRoot = useRef<HTMLDivElement>(null);
+    const extensionTransientRoot = useRef<HTMLDivElement>(null);
     const multiplayerEnabled = multiplayerConfig?.enabled ?? false;
 
     useEffect(() => {
         document.body.classList.toggle('lp-dev', isDevMode());
         return () => document.body.classList.remove('lp-dev');
     }, []);
+
+    useEffect(() => () => disposeGamemodeUI(), []);
 
     useEffect(() => {
         if (state.surface !== 'play') {
@@ -89,7 +109,12 @@ function ExperienceShell() {
     }, [multiplayerEnabled, openPauseMenu, state.surface]);
 
     return (
-        <main className="r3f-shell" data-experience-surface={state.surface} data-presentation={state.presentation}>
+        <main
+            className="r3f-shell"
+            data-experience-surface={state.surface}
+            data-presentation={state.presentation}
+            data-simulation-paused={simulationPaused}
+        >
             <div
                 id="canvas-container"
                 className="experience-layer experience-canvas"
@@ -108,8 +133,13 @@ function ExperienceShell() {
             >
                 <SpeedHud />
                 <TrickHud />
+                <div className="gamemode-hud" aria-label="Solo run status">
+                    <div id="gamemode-status" role="status" aria-live="polite" hidden />
+                    <button id="gamemode-end-run" className="lp-button" type="button" onClick={endGamemode} hidden>End run</button>
+                </div>
                 <MinimapPanel expanded={mapExpanded} />
                 {multiplayerEnabled && <PresenceChip />}
+                <div ref={extensionHudRoot} id="extension-hud-root" className="extension-hud-root" />
             </div>
 
             <div
@@ -119,9 +149,12 @@ function ExperienceShell() {
                 aria-hidden={covered}
             >
                 <SpeedLines />
+                <ToastHost />
                 <UpdateNotice />
                 <ChatPanel multiplayerEnabled={multiplayerEnabled} interactionEnabled={!covered} />
+                <div id="gamemode-results" className="lp-panel lp-panel-strong" role="status" aria-live="polite" hidden />
                 {multiplayerEnabled && <RosterOverlay visible={rosterVisible} />}
+                <div ref={extensionTransientRoot} id="extension-transient-root" className="extension-transient-root" />
                 {state.surface === 'play' && (
                     <button
                         id="menu-button"
@@ -138,7 +171,7 @@ function ExperienceShell() {
             <div className="experience-layer experience-menu" data-experience-layer="menu">
                 <IntentViews />
             </div>
-            <ExtensionLoader />
+            <ExtensionLoader hudRoot={extensionHudRoot} transientRoot={extensionTransientRoot} />
         </main>
     );
 }

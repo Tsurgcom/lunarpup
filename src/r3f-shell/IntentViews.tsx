@@ -1,6 +1,9 @@
 import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { TuningPanel } from './TuningPanel.tsx';
 import { useExperience } from './ExperienceProvider.tsx';
+import { useGame } from './GameProvider.tsx';
+import { raceGamemodePackage } from '../../content/gamemodes/index.ts';
+import { startGamemode, stopGamemode } from '../modes/client.ts';
 
 const FOCUSABLE = [
     'button:not([disabled])',
@@ -62,8 +65,20 @@ function trapDialogFocus(event: KeyboardEvent<HTMLDivElement>, onEscape: () => v
 
 function MainMenu() {
     const { back, openSettings, play } = useExperience();
+    const { gameReady } = useGame();
     const ref = useRef<HTMLDivElement>(null);
     useDialogFocus(ref);
+
+    const startFreeSkate = () => {
+        stopGamemode();
+        play();
+    };
+
+    const startCraterCircuit = () => {
+        if (!gameReady) return;
+        startGamemode(raceGamemodePackage);
+        play();
+    };
 
     return (
         <div
@@ -90,10 +105,21 @@ function MainMenu() {
                         type="button"
                         data-menu-item
                         data-autofocus
-                        onClick={play}
+                        onClick={startFreeSkate}
                     >
                         <span>Play</span>
                         <span className="main-menu-item-note">Drop in</span>
+                    </button>
+                    <button
+                        id="main-crater-circuit"
+                        className="main-menu-item main-menu-mode"
+                        type="button"
+                        data-menu-item
+                        disabled={!gameReady}
+                        onClick={startCraterCircuit}
+                    >
+                        <span>Crater Circuit</span>
+                        <span className="main-menu-item-note">{gameReady ? 'Solo run' : 'Loading moon…'}</span>
                     </button>
                     <button
                         id="main-settings"

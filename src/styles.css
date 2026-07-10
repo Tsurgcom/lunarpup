@@ -555,6 +555,7 @@ body.lp-gameplay-hidden .lp-gameplay {
     max-height: 42vh;
     overflow: hidden;
     padding: 0;
+    pointer-events: auto;
 }
 .agent-header {
     padding: var(--space-3) var(--space-4) var(--space-2);
@@ -745,6 +746,16 @@ body.lp-gameplay-hidden .lp-gameplay {
     font-size: clamp(18px, 2.2vw, 24px);
 }
 
+.main-menu-mode {
+    min-height: 44px;
+    font-size: clamp(18px, 2.4vw, 26px);
+}
+
+.main-menu-item:disabled {
+    cursor: wait;
+    opacity: 0.58;
+}
+
 .main-menu-item-note {
     flex: none;
     font-size: var(--fs-small);
@@ -843,6 +854,35 @@ body.lp-gameplay-hidden .lp-gameplay {
 
 #speed-lines {
     pointer-events: none;
+}
+
+.gamemode-hud {
+    position: absolute;
+    left: 50%;
+    bottom: 108px;
+    z-index: var(--z-hud);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.gamemode-hud #gamemode-status {
+    position: static;
+    max-width: min(520px, 70vw);
+    transform: none;
+}
+
+#gamemode-end-run {
+    flex: none;
+    min-height: 44px;
+    pointer-events: auto;
+}
+
+.extension-hud-root,
+.extension-transient-root {
+    display: contents;
 }
 
 #lp-toasts {

@@ -28,10 +28,10 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'EXTENSIONS= bun run dev',
+        command: 'EXTENSIONS=agent-harness AGENT_EVENT_TOKEN=browser-agent-token bun run dev',
         url: 'http://127.0.0.1:3000',
         timeout: 120_000,
-        reuseExistingServer: true,
+        reuseExistingServer: false,
         stdout: 'pipe',
         stderr: 'pipe',
     },

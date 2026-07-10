@@ -18,6 +18,7 @@ export function UpdateNotice() {
     useEffect(() => {
         let loadedBuildId: string | null = null;
         let bannerShown = false;
+        let toastHandle: ReturnType<typeof showToast> | null = null;
 
         async function checkForUpdate() {
             const remoteBuildId = await fetchBuildId();
@@ -28,7 +29,7 @@ export function UpdateNotice() {
             }
             if (remoteBuildId !== loadedBuildId && !bannerShown) {
                 bannerShown = true;
-                showToast({
+                toastHandle = showToast({
                     message: 'Update available — refresh to get the latest',
                     actionLabel: 'Refresh',
                     onAction: () => window.location.reload(),
@@ -39,7 +40,10 @@ export function UpdateNotice() {
 
         void checkForUpdate();
         const pollTimer = window.setInterval(() => void checkForUpdate(), POLL_INTERVAL_MS);
-        return () => window.clearInterval(pollTimer);
+        return () => {
+            window.clearInterval(pollTimer);
+            toastHandle?.dismiss();
+        };
     }, []);
 
     return null;
