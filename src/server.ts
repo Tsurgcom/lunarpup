@@ -1,7 +1,7 @@
 import { DEFAULT_WS_PORT } from './net/protocol.ts';
 import { createInitialConnection, registerMultiplayerModule, removePlayer, type PlayerConnection } from './server/multiplayer.ts';
 import { loadEnabledExtensions } from './extensions/server.ts';
-import { registerRoomsModule } from './server/rooms.ts';
+import { registerRoomsModule, removeRoomMembershipsForConnection } from './server/rooms.ts';
 import { registerCosmeticsModule } from './server/cosmetics.ts';
 import { registerGamemodeModule } from './server/gamemodes.ts';
 import { registerLootboxModule } from './server/lootbox.ts';
@@ -99,6 +99,7 @@ const server = Bun.serve<PlayerConnection>({
         },
         close(ws) {
             openSockets = Math.max(0, openSockets - 1);
+            removeRoomMembershipsForConnection(ws.data);
             if (!ws.data.id) return;
             console.log(`[-] player ${ws.data.id} left encrypted room "${ws.data.room}"`);
             removePlayer(ws.data);

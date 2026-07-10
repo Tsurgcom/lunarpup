@@ -28,9 +28,9 @@ bun run db:migrate
 The migration in `db/migrations/001_timescale_persistence.sql` creates:
 
 - `agent_events`: general event ledger hypertable for the `EventLedgerStorage` contract.
-- `run_samples`: gamemode completion samples for leaderboard analytics.
+- `run_samples`: untrusted client-claimed gamemode samples for analytics only; never a reward or ranked-authority source.
 - `economy_ledger`: currency and item grant/spend facts.
-- `best_time_leaderboards_hourly`: continuous aggregate with hourly best times per gamemode.
+- `best_time_leaderboards_hourly`: continuous aggregate over untrusted telemetry, retained for product analytics until Concern 17 supplies authenticated runs.
 - `lootbox_drop_rates_hourly`: continuous aggregate inputs for hourly lootbox drop-rate stats.
 
 ## Local TimescaleDB

@@ -74,7 +74,7 @@ To write a new extension:
 - client: `create_room`, `join_room`, `leave_room`, `list_rooms`
 - server: `room_state`, `room_list`
 
-Room state includes `roomId`, `gamemodeId`, and player IDs. This is only the protocol contract; no lobby feature is built in this unit.
+Room state includes `roomId`, `gamemodeId`, and opaque connection IDs. Membership is bound to a server-issued WebSocket connection identity—not the payload's claimed player id—and removed on disconnect, including host transfer. The public browse/create UI is intentionally disabled: encrypted casual routing is derived from the secret URL-fragment key, and a display room name is not a join credential. Concern 22 owns a future keyed invite flow.
 
 ## Currency, inventory, and ledger storage
 
@@ -112,6 +112,8 @@ The default backend is Bun SQLite at `data/lunarpup.db`. The `data` directory is
 - a default `multiplayer` channel when a legacy message has no `channel` field
 
 `src/server/multiplayer.ts` registers the encrypted join/state/leave flow on the default `multiplayer` channel. Casual names, transforms, cosmetics, and chat are opaque envelopes; the server routes them without the room key. Explicit room, gamemode, and extension channels remain available through the same modular router.
+
+The current `gamemode` channel is unauthenticated client telemetry only. Its acknowledgements and HTTP analytics response carry `trust: "untrusted_client_telemetry"`, `rewardEligible: false`, and `rankedEligible: false`; it has no currency/inventory dependency. Concern 17 owns authoritative runs.
 
 ## Runtime extension hooks
 

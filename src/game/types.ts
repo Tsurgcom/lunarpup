@@ -95,6 +95,7 @@ export interface RemotePlayerRecord {
     color: number;
     target: import('../net/protocol.ts').PlayerSnapshot;
     current: import('../net/protocol.ts').PlayerSnapshot;
+    cosmeticsRevision: number;
 }
 
 export interface GameRuntime {

@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { RoomSummary } from '../contracts/roomProtocol.ts';
-import { getApiBaseUrl } from '../net/protocol.ts';
+import { useState } from 'react';
 import { useGame } from './GameProvider.tsx';
+import { buildPrivateInviteUrl } from './privateInvite.ts';
 
 const STATUS_LABELS = {
     disconnected: 'Offline',
@@ -11,61 +10,21 @@ const STATUS_LABELS = {
 } as const;
 
 export function MultiplayerPanel() {
-    const { multiplayerConfig, mpStatus, mpStatusDetail, mpRoom, mpPlayers, mpHint } = useGame();
-    const [rooms, setRooms] = useState<RoomSummary[]>([]);
-    const [loadingRooms, setLoadingRooms] = useState(false);
-    const [roomsError, setRoomsError] = useState('');
+    const { mpStatus, mpStatusDetail, mpRoom, mpPlayers, mpHint } = useGame();
+    const [copyStatus, setCopyStatus] = useState('');
 
-    const refreshRooms = useCallback(async () => {
-        setLoadingRooms(true);
-        setRoomsError('');
-        try {
-            const response = await fetch(`${getApiBaseUrl()}/rooms`);
-            if (!response.ok) throw new Error(`Room list failed (${response.status})`);
-            const payload = await response.json() as { rooms?: RoomSummary[] };
-            setRooms(payload.rooms ?? []);
-        } catch (error) {
-            setRoomsError(error instanceof Error ? error.message : 'Room list unavailable');
-        } finally {
-            setLoadingRooms(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        void refreshRooms();
-    }, [refreshRooms]);
-
-    function joinRoom(roomId: string) {
-        const url = new URL(location.href);
-        url.searchParams.set('multiplayer', '');
-        url.searchParams.set('room', roomId);
-        if (!url.searchParams.has('name') && multiplayerConfig?.name) url.searchParams.set('name', multiplayerConfig.name);
-        location.href = url.href;
-    }
-
-    function createRoom(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const roomId = String(form.get('room') || 'lunar-park').trim() || 'lunar-park';
-        const gamemodeId = String(form.get('gamemode') || 'free-skate');
-        const wsUrl = multiplayerConfig?.wsUrl;
-        if (!wsUrl) {
-            joinRoom(roomId);
+    async function copyInvite() {
+        const invite = buildPrivateInviteUrl(location.href);
+        if (!invite) {
+            setCopyStatus('Private key is still initializing. Try again.');
             return;
         }
-        const socket = new WebSocket(wsUrl);
-        socket.addEventListener('open', () => {
-            socket.send(JSON.stringify({
-                channel: 'room',
-                type: 'create_room',
-                roomId,
-                gamemodeId,
-                playerId: multiplayerConfig?.name ?? 'Pup',
-            }));
-            socket.close();
-            joinRoom(roomId);
-        }, { once: true });
-        socket.addEventListener('error', () => joinRoom(roomId), { once: true });
+        try {
+            await navigator.clipboard.writeText(invite);
+            setCopyStatus('Private invite copied. Anyone with this link can join.');
+        } catch {
+            setCopyStatus('Copy failed. Copy the full browser URL, including #k=.');
+        }
     }
 
     const statusText = mpStatus === 'error' && mpStatusDetail
@@ -75,34 +34,22 @@ export function MultiplayerPanel() {
             : STATUS_LABELS[mpStatus];
 
     return (
-        <section id="multiplayer-panel" className="lp-view-section" aria-label="Multiplayer">
+        <section id="multiplayer-panel" className="lp-view-section" aria-label="Private multiplayer">
             <div id="mp-status" className={`mp-status mp-${mpStatus}`} role="status" aria-live="polite">{statusText}</div>
             <div id="mp-players" className="mp-players">{mpPlayers}</div>
-            <div className="mp-lobby" aria-label="Room browser">
-                <div className="mp-lobby-header">
-                    <strong>Rooms</strong>
-                    <button className="lp-button" type="button" onClick={() => void refreshRooms()}>Refresh</button>
-                </div>
-                <div id="mp-rooms" className="mp-rooms" role="list" aria-live="polite">
-                    {loadingRooms && <div className="mp-empty">Loading rooms…</div>}
-                    {!loadingRooms && roomsError && <div className="mp-empty">{roomsError}</div>}
-                    {!loadingRooms && !roomsError && rooms.length === 0 && <div className="mp-empty">No rooms yet. Create one or share your private invite URL.</div>}
-                    {!loadingRooms && rooms.map((room) => (
-                        <button className="lp-button mp-room" type="button" key={room.roomId} onClick={() => joinRoom(room.roomId)}>
-                            <span>{room.roomId}</span>
-                            <small>{room.gamemodeId} · {room.playerCount} pup{room.playerCount === 1 ? '' : 's'}</small>
-                        </button>
-                    ))}
-                </div>
-                <form className="mp-create" onSubmit={createRoom}>
-                    <label>Room<input className="lp-field" name="room" maxLength={32} placeholder="lunar-park" /></label>
-                    <label>Gamemode<select className="lp-field" name="gamemode" defaultValue="free-skate">
-                        <option value="free-skate">Free skate</option>
-                        <option value="checkpoint-race">Checkpoint race</option>
-                        <option value="trick-attack">Trick attack</option>
-                    </select></label>
-                    <button className="lp-button lp-button-primary" type="submit">Create room</button>
-                </form>
+            <div className="mp-lobby" aria-label="Private invite">
+                <div className="mp-lobby-header"><strong>Private session</strong></div>
+                <p className="mp-empty">
+                    Multiplayer is invite-only for now. Routing comes from the secret <code>#k=</code> fragment,
+                    so room names alone cannot join a session.
+                </p>
+                <button className="lp-button lp-button-primary" type="button" onClick={() => void copyInvite()}>
+                    Copy private invite
+                </button>
+                {copyStatus && <p role="status" className="mp-hint">{copyStatus}</p>}
+                <button className="lp-button" type="button" disabled title="Planned for Concern 22">
+                    Public rooms unavailable
+                </button>
             </div>
             <div id="mp-hint" className="mp-hint" dangerouslySetInnerHTML={{ __html: mpHint }} />
         </section>

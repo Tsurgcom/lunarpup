@@ -20,7 +20,7 @@ Lunar Pup is becoming one production React + React Three Fiber (R3F) game. The p
 
 - `AGENT_EVENT_TOKEN`: required bearer token or `x-agent-event-token` value for `POST /agent/event`.
 - `EXTENSIONS`: comma-separated extension package names loaded from `content/extensions/`; `scripts/dev.ts` defaults to `agent-harness` for local dev.
-- `DATABASE_URL`: when set, persistence uses Postgres/Timescale instead of SQLite. Run `bun run db:migrate` before use. Leaderboards read `best_time_leaderboards_hourly` in this mode.
+- `DATABASE_URL`: when set, persistence uses Postgres/Timescale instead of SQLite. Run `bun run db:migrate` before use. The unverified telemetry view reads `best_time_leaderboards_hourly` in this mode.
 - `TEST_DATABASE_URL`: SQLite database path for tests and smoke runs when `DATABASE_URL` is unset; Postgres integration tests also use it as a Postgres URL when explicitly configured for those tests.
 - `MAINNET_LAUNCH_CONFIRM`: must be exactly `YES_I_AM_SURE` before `scripts/solana/launch-mainnet.ts` will proceed to its interactive human confirmation.
 - `SOLANA_RPC_URL`: optional devnet RPC URL for Solana adapters; default is `https://api.devnet.solana.com`.
@@ -42,13 +42,13 @@ CORS is centralized in `src/server.ts`; do not add per-module CORS headers.
 - `POST /api/cosmetics/equip`: `{ accountId, cosmeticId, slot }`.
 - `GET /lootbox/odds` and `GET /api/lootbox/odds`: published Moon Crate odds.
 - `POST /lootbox/open` and `POST /api/lootbox/open`: server-authoritative lootbox roll with ledger event.
-- `GET /leaderboard/:gamemodeId`: best finish times from SQLite ledger, or Timescale continuous aggregate when `DATABASE_URL` is set.
+- `GET /leaderboard/:gamemodeId`: untrusted client-telemetry finish times from SQLite ledger, or Timescale continuous aggregate when `DATABASE_URL` is set. These grant no rewards or ranked authority.
 
 ## WebSocket channels
 
 - Default/multiplayer channel: legacy `{ type: "join" | "state" | "leave" | "chat" }` messages.
 - `room`: create, join, leave, list, and start gamemode lobby messages.
-- `gamemode`: `run_sample` messages; `reason: "finish"` feeds leaderboard results.
+- `gamemode`: unauthenticated `run_sample` telemetry; `reason: "finish"` feeds an explicitly unverified analytics view only. It must not mutate economy or confer ranked authority.
 - `agent-events`: subscribe with `{ channel: "agent-events", type: "subscribe", ownerKey }` for owner-scoped delivery, only when the `agent-harness` extension is enabled.
 
 ## Client architecture and ownership (R3F)

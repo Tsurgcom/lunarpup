@@ -33,7 +33,28 @@ export function createRemotePlayerRecord(player: PlayerSnapshot): RemotePlayerRe
         color: player.color,
         target: { ...player },
         current: { ...player },
+        cosmeticsRevision: 0,
     };
+}
+
+function cosmeticsEqual(a: EquippedCosmetics | undefined, b: EquippedCosmetics | undefined): boolean {
+    return a?.board === b?.board
+        && a?.body === b?.body
+        && a?.trail === b?.trail
+        && a?.aura === b?.aura;
+}
+
+export function updateRemotePlayerTarget(
+    record: RemotePlayerRecord,
+    state: Omit<PlayerSnapshot, 'id' | 'name' | 'color'>,
+): boolean {
+    const cosmeticsChanged = !cosmeticsEqual(record.target.cosmetics, state.cosmetics);
+    Object.assign(record.target, state);
+    if (!cosmeticsChanged) return false;
+
+    record.current.cosmetics = state.cosmetics ? { ...state.cosmetics } : undefined;
+    record.cosmeticsRevision += 1;
+    return true;
 }
 
 export function upsertRemotePlayer(
@@ -80,11 +101,13 @@ export async function initMultiplayer(
         name: string;
     },
     handlers: MultiplayerHandlers,
+    signal?: AbortSignal,
 ): Promise<() => void> {
     runtime.multiplayerClient?.disconnect();
 
     let localId = '';
     const cipher = await RoomCipher.fromKey(config.roomKey);
+    if (signal?.aborted) return () => undefined;
 
     const client = new MultiplayerClient({
         transport: config.transport,
@@ -93,25 +116,32 @@ export async function initMultiplayer(
         apiBase: config.apiBase,
         room: config.roomId,
         name: config.name,
-        onStatus: (status, detail) => handlers.onStatus(status, detail, config.roomName),
+        onStatus: (status, detail) => {
+            if (!signal?.aborted) handlers.onStatus(status, detail, config.roomName);
+        },
         onWelcome: (id, color, players) => {
+            if (signal?.aborted) return;
             localId = id;
             tintVoxelDog(parts.dog, color);
             handlers.onWelcome(id, color, players);
         },
         onPlayerJoined: (player) => {
+            if (signal?.aborted) return;
             if (isLocalMultiplayerId(localId, player.id)) return;
             handlers.onPlayerJoined(player);
         },
         onPlayerLeft: (id) => {
+            if (signal?.aborted) return;
             if (isLocalMultiplayerId(localId, id)) return;
             handlers.onPlayerLeft(id);
         },
         onPlayerState: (id, state) => {
+            if (signal?.aborted) return;
             if (isLocalMultiplayerId(localId, id)) return;
             handlers.onPlayerState(id, state);
         },
         onChat: (id, name, text) => {
+            if (signal?.aborted) return;
             handlers.onChat(id, name, text, id === client.id);
         },
     });
@@ -121,7 +151,7 @@ export async function initMultiplayer(
 
     return () => {
         client.disconnect();
-        runtime.multiplayerClient = null;
+        if (runtime.multiplayerClient === client) runtime.multiplayerClient = null;
     };
 }
 

@@ -33,4 +33,12 @@ describe('sanitizePlayerState', () => {
         expect(sanitized.x).toBe(1e6);
         expect(sanitized.z).toBe(-1e6);
     });
+
+    test('keeps bounded cosmetic slots and drops untrusted fields', () => {
+        const sanitized = sanitizePlayerState({
+            ...base,
+            cosmetics: { board: 'moon-board', trail: 'x'.repeat(129), admin: 'yes' } as never,
+        });
+        expect(sanitized.cosmetics).toEqual({ board: 'moon-board' });
+    });
 });

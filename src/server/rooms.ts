@@ -6,7 +6,7 @@ import {
     type RoomStateBroadcast,
     type RoomSummary,
 } from '../contracts/roomProtocol.ts';
-import { ensureRoom, getRoomSummaries, type PlayerConnection } from './multiplayer.ts';
+import { getRoomSummaries, type PlayerConnection } from './multiplayer.ts';
 import type { ModularRouter } from './router.ts';
 
 interface LobbyRoom {
@@ -63,7 +63,6 @@ function getLobbyRoom(roomId: string, gamemodeId = 'free-skate', hostId = ''): L
         room = { roomId, gamemodeId, hostId, members: new Map() };
         lobbyRooms.set(roomId, room);
     }
-    ensureRoom(roomId, gamemodeId);
     return room;
 }
 
@@ -97,7 +96,7 @@ function handleRoomMessage(ws: ServerWebSocket<PlayerConnection>, message: RoomC
     }
 
     const roomId = message.roomId.trim();
-    const playerId = message.playerId.trim();
+    const playerId = ws.data.connectionId;
     if (!roomId || !playerId) return;
 
     if (message.type === 'create_room') {
@@ -105,7 +104,6 @@ function handleRoomMessage(ws: ServerWebSocket<PlayerConnection>, message: RoomC
         const room = getLobbyRoom(roomId, gamemodeId, playerId);
         room.gamemodeId = gamemodeId;
         room.hostId = playerId;
-        ensureRoom(roomId, gamemodeId);
         joinRoom(ws, room, playerId);
         return;
     }
@@ -135,6 +133,24 @@ function handleRoomMessage(ws: ServerWebSocket<PlayerConnection>, message: RoomC
             hostId: playerId,
         });
     }
+}
+
+export function removeRoomMembershipsForConnection(connection: PlayerConnection): void {
+    const playerId = connection.connectionId;
+    if (!playerId) return;
+    const roomId = memberRoomByPlayerId.get(playerId);
+    if (!roomId) return;
+    const room = lobbyRooms.get(roomId);
+    if (!room || room.members.get(playerId) !== connection.ws) return;
+
+    memberRoomByPlayerId.delete(playerId);
+    room.members.delete(playerId);
+    if (room.hostId === playerId) room.hostId = room.members.keys().next().value ?? '';
+    if (room.members.size === 0) {
+        lobbyRooms.delete(room.roomId);
+        return;
+    }
+    broadcast(room, roomState(room));
 }
 
 export function registerRoomsModule(router: ModularRouter<PlayerConnection>): void {

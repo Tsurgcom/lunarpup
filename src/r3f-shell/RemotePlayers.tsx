@@ -31,7 +31,7 @@ function RemotePlayer({ record }: { record: RemotePlayerRecord }) {
         const model = modelRef.current;
         if (!model) return;
         applyRemoteCosmetics(model, record.current.cosmetics);
-    }, [record]);
+    }, [record, record.cosmeticsRevision]);
 
     return (
         <VoxelDogModel

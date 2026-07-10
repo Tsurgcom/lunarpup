@@ -19,6 +19,8 @@ interface RunSampleMessage {
     samples: RunSamplePoint[];
 }
 
+export const RUN_SAMPLE_TRUST = 'untrusted_client_telemetry' as const;
+
 export interface GamemodeServerOptions {
     ledger?: EventLedgerStorage;
 }
@@ -31,6 +33,9 @@ export function registerGamemodeModule(router: ModularRouter<PlayerConnection>, 
             ws.send(JSON.stringify({ channel: 'gamemode', type: 'error', message: 'invalid gamemode payload' }));
             return;
         }
+        // This channel predates authenticated run principals. Treat every field,
+        // including playerId and finish time, as client-claimed analytics only.
+        // Concern 17 owns the future authoritative run lifecycle.
         const entityId = `${message.gamemodeId}:${message.playerId}`;
         void ledger.append({
             type: 'gamemode_run_sample',
@@ -41,9 +46,19 @@ export function registerGamemodeModule(router: ModularRouter<PlayerConnection>, 
                 playerId: message.playerId,
                 reason: message.reason,
                 samples: message.samples,
+                trust: RUN_SAMPLE_TRUST,
+                rewardEligible: false,
+                rankedEligible: false,
             },
         });
-        ws.send(JSON.stringify({ channel: 'gamemode', type: 'sample_ack', count: message.samples.length }));
+        ws.send(JSON.stringify({
+            channel: 'gamemode',
+            type: 'sample_ack',
+            count: message.samples.length,
+            trust: RUN_SAMPLE_TRUST,
+            rewardEligible: false,
+            rankedEligible: false,
+        }));
     });
 }
 

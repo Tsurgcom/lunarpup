@@ -1,6 +1,7 @@
 import { SQL } from 'bun';
 import type { EventLedgerStorage, LedgerEvent } from '../contracts/services.ts';
 import type { ModularRouter } from './router.ts';
+import { RUN_SAMPLE_TRUST } from './gamemodes.ts';
 
 export interface LeaderboardEntry {
     playerId: string;
@@ -26,7 +27,13 @@ export function registerLeaderboardModule<TConnection>(router: ModularRouter<TCo
         if (!gamemodeId) return json({ error: 'gamemodeId is required' }, 400);
         const limit = Math.min(Math.max(Number(new URL(request.url).searchParams.get('limit') ?? 10), 1), 50);
         const entries = await bestTimes(gamemodeId, services, limit);
-        return json({ gamemodeId, entries });
+        return json({
+            gamemodeId,
+            entries,
+            trust: RUN_SAMPLE_TRUST,
+            rewardEligible: false,
+            rankedEligible: false,
+        });
     });
 }
 

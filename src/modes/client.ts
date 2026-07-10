@@ -251,7 +251,7 @@ function showResults(): void {
     const results = document.getElementById('gamemode-results');
     if (!results) return;
     results.hidden = false;
-    results.innerHTML = `<h2 class="lp-panel-title">${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading leaderboard…</div><button class="lp-button" type="button" id="gamemode-close-results">Close</button>`;
+    results.innerHTML = `<h2 class="lp-panel-title">${activePackage.manifest.displayName}</h2><p>Finished in ${elapsed}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p><div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading unverified run telemetry…</div><button class="lp-button" type="button" id="gamemode-close-results">Close</button>`;
     document.getElementById('gamemode-close-results')?.addEventListener('click', () => { results.hidden = true; });
     void loadLeaderboard(activePackage.manifest.id);
 }
@@ -264,17 +264,25 @@ async function loadLeaderboard(gamemodeId: string): Promise<void> {
         const payload = await response.json();
         if (!response.ok || !isLeaderboardPayload(payload)) throw new Error('leaderboard unavailable');
         if (payload.entries.length === 0) {
-            target.textContent = 'No leaderboard runs yet.';
+            target.textContent = 'No unverified run telemetry yet.';
             return;
         }
-        target.innerHTML = `<ol>${payload.entries.map(entry => `<li><span>${escapeHtml(entry.playerId)}</span><strong>${formatTime(entry.bestTimeMs)}</strong></li>`).join('')}</ol>`;
+        target.innerHTML = `<p>Unverified client telemetry · no rewards or ranked authority</p><ol>${payload.entries.map(entry => `<li><span>${escapeHtml(entry.playerId)}</span><strong>${formatTime(entry.bestTimeMs)}</strong></li>`).join('')}</ol>`;
     } catch (error) {
         target.textContent = error instanceof Error ? error.message : 'leaderboard unavailable';
     }
 }
 
-function isLeaderboardPayload(value: unknown): value is { entries: Array<{ playerId: string; bestTimeMs: number }> } {
+function isLeaderboardPayload(value: unknown): value is {
+    entries: Array<{ playerId: string; bestTimeMs: number }>;
+    trust: 'untrusted_client_telemetry';
+    rewardEligible: false;
+    rankedEligible: false;
+} {
     if (!value || typeof value !== 'object' || !('entries' in value) || !Array.isArray(value.entries)) return false;
+    if (!('trust' in value) || value.trust !== 'untrusted_client_telemetry') return false;
+    if (!('rewardEligible' in value) || value.rewardEligible !== false) return false;
+    if (!('rankedEligible' in value) || value.rankedEligible !== false) return false;
     return value.entries.every(entry => !!entry && typeof entry === 'object' && 'playerId' in entry && typeof entry.playerId === 'string' && 'bestTimeMs' in entry && typeof entry.bestTimeMs === 'number');
 }
 

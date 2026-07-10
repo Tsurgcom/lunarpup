@@ -99,7 +99,7 @@ describe('final integration pass', () => {
         cleanupDb(dbPath);
     });
 
-    test('leaderboard endpoint returns best finish times from sqlite event ledger', async () => {
+    test('leaderboard endpoint labels client-claimed finish times as untrusted telemetry', async () => {
         const dbPath = tempDbPath();
         const services = createCosmeticsServices(dbPath);
         await services.ledger.append({ type: 'gamemode_run_sample', entityId: 'race:pup-a', timestamp: '2026-01-01T00:00:00.000Z', payload: { gamemodeId: 'race', playerId: 'pup-a', reason: 'finish', samples: [{ t: 1200 }] } });
@@ -110,10 +110,16 @@ describe('final integration pass', () => {
 
         const response = await route(router, new Request('http://localhost/leaderboard/race'));
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ gamemodeId: 'race', entries: [
-            { playerId: 'pup-a', bestTimeMs: 900, completedAt: '2026-01-01T00:01:00.000Z' },
-            { playerId: 'pup-b', bestTimeMs: 1000, completedAt: '2026-01-01T00:02:00.000Z' },
-        ] });
+        expect(await response.json()).toEqual({
+            gamemodeId: 'race',
+            trust: 'untrusted_client_telemetry',
+            rewardEligible: false,
+            rankedEligible: false,
+            entries: [
+                { playerId: 'pup-a', bestTimeMs: 900, completedAt: '2026-01-01T00:01:00.000Z' },
+                { playerId: 'pup-b', bestTimeMs: 1000, completedAt: '2026-01-01T00:02:00.000Z' },
+            ],
+        });
         cleanupDb(dbPath);
     });
 });

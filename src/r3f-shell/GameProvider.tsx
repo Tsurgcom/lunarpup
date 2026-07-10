@@ -20,12 +20,14 @@ import {
     upsertRemotePlayer,
     removeRemotePlayerRecord,
     clearRemotePlayerRecords,
+    updateRemotePlayerTarget,
 } from '../game/multiplayer.ts';
 import type { GameRuntime, RemotePlayerRecord } from '../game/types.ts';
 import { teleportPlayer } from '../game/simulation.ts';
 import { groundClearance } from '../config.ts';
 import { alignPlayerToTerrain, getTerrainHeight } from '../game/terrain.ts';
 import { registerActiveRuntime } from '../game/runtimeRegistry.ts';
+import { createAsyncLifecycleOwner } from '../game/asyncLifecycle.ts';
 
 export type ChatLine = {
     id: string;
@@ -66,20 +68,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const [multiplayerConfig, setMultiplayerConfig] = useState<MultiplayerConfig | null>(null);
 
     useEffect(() => {
-        void getMultiplayerConfig().then(setMultiplayerConfig);
+        let cancelled = false;
+        void getMultiplayerConfig().then((config) => {
+            if (!cancelled) setMultiplayerConfig(config);
+        });
+        return () => { cancelled = true; };
     }, []);
     const [mpStatus, setMpStatus] = useState<MultiplayerStatus>('disconnected');
     const [mpStatusDetail, setMpStatusDetail] = useState<string | undefined>();
     const [mpRoom, setMpRoom] = useState<string | undefined>();
     const [mpHint, setMpHint] = useState(
-        'Add <code>?multiplayer&amp;room=your-room</code> to the URL',
+        'Private sessions require the exact invite URL, including its <code>#k=</code> key.',
     );
     const [mpPlayers, setMpPlayers] = useState('Just you');
     const [chatLines, setChatLines] = useState<ChatLine[]>([]);
     const lastOutgoingAt = useRef(0);
     const lastTpBroadcastAt = useRef(0);
     const recentMessages = useRef<{ text: string; at: number }[]>([]);
-    const disconnectMultiplayer = useRef<(() => void) | null>(null);
+    const multiplayerOwner = useRef(createAsyncLifecycleOwner());
     const chatLineId = useRef(0);
     const localPlayerIdRef = useRef('');
 
@@ -118,6 +124,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const registerPlayerParts = useCallback((parts: NonNullable<GameRuntime['parts']>) => {
+        multiplayerOwner.current.dispose();
         runtime.current.parts = parts;
         const root = parts.playerGroup ?? parts.group;
         root.position.set(0, getTerrainHeight(0, 0) + groundClearance, 0);
@@ -139,11 +146,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        disconnectMultiplayer.current?.();
         clearRemotePlayerRecords(remotePlayersRef.current);
         syncRemoteIds();
 
-        void initMultiplayer(
+        void multiplayerOwner.current.start((signal) => initMultiplayer(
             runtime.current,
             parts,
             {
@@ -197,17 +203,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
                     if (isLocalMultiplayerId(localPlayerIdRef.current, id)) return;
                     const remote = remotePlayersRef.current.get(id);
                     if (!remote) return;
-                    Object.assign(remote.target, state);
+                    if (updateRemotePlayerTarget(remote, state)) syncRemoteIds();
                 },
             },
-        ).then((disconnect) => {
-            disconnectMultiplayer.current = disconnect;
+            signal,
+        )).catch((error) => {
+            setMpStatus('error');
+            setMpStatusDetail(error instanceof Error ? error.message : 'Multiplayer initialization failed');
         });
     }, [appendChatLine, multiplayerConfig, refreshPlayerList, syncRemoteIds]);
 
     useEffect(() => () => {
-        disconnectMultiplayer.current?.();
-        disconnectMultiplayer.current = null;
+        multiplayerOwner.current.dispose();
         ready.current = false;
     }, []);
 

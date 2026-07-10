@@ -11,6 +11,7 @@ import {
 import type { ModularRouter } from './router.ts';
 
 export interface PlayerConnection {
+    connectionId: string;
     id: string;
     name: EncryptedEnvelope;
     color: number;
@@ -77,6 +78,7 @@ function broadcast(room: Room, message: ServerMessage, exceptId?: string): void 
 
 export function createInitialConnection(ws: ServerWebSocket<PlayerConnection>): PlayerConnection {
     return {
+        connectionId: crypto.randomUUID(),
         id: '',
         name: EMPTY_ENVELOPE,
         color: PLAYER_COLORS[0],
@@ -115,6 +117,7 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, message: Extract<Clie
     const id = crypto.randomUUID();
     const color = pickColor(room);
     const connection: PlayerConnection = {
+        connectionId: ws.data.connectionId,
         id,
         name: message.name,
         color,
