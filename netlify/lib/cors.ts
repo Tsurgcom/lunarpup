@@ -1,5 +1,8 @@
 function parseAllowedOrigins(): string[] {
-    const raw = process.env.MP_ALLOWED_ORIGINS?.trim();
+    // Canonical is MP_ALLOWED_ORIGINS (matches MP_SESSION_SECRET); ALLOWED_ORIGINS
+    // is accepted as a fallback so the WS server (src/server.ts) and these Functions
+    // read the SAME operator config instead of silently diverging.
+    const raw = (process.env.MP_ALLOWED_ORIGINS ?? process.env.ALLOWED_ORIGINS)?.trim();
     if (!raw) return [];
     return raw.split(',').map((origin) => origin.trim()).filter(Boolean);
 }

@@ -8,7 +8,7 @@ import {
     RoomCapError,
 } from '../lib/room-store.ts';
 import { corsHeaders, isCorsAllowed } from '../lib/cors.ts';
-import { issueSessionToken, verifySessionToken } from '../lib/session.ts';
+import { assertSessionSecret, issueSessionToken, verifySessionToken } from '../lib/session.ts';
 import type { ClientMessage } from '../lib/protocol.ts';
 
 type AuthedClientMessage = ClientMessage & { id?: string; token?: string };
@@ -45,6 +45,12 @@ export default async (req: Request, _context: Context) => {
     try {
         switch (msg.type) {
             case 'join': {
+                if (typeof msg.room !== 'string') {
+                    return Response.json({ error: 'Missing or invalid room' }, { status: 400, headers });
+                }
+                // Fail closed BEFORE the first storage write: an unconfigured production
+                // deploy must not create billable room/player blobs and then 500.
+                assertSessionSecret();
                 const result = await joinRoom(msg.room, msg.name, msg.state);
                 const token = await issueSessionToken(result.room, result.id);
                 return Response.json({

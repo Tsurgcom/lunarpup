@@ -35,7 +35,7 @@ export default async (request: Request, _context: Context) => {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
             };
 
-            const close = () => {
+            let close = () => {
                 if (closed) return;
                 closed = true;
                 if (keepalive) clearInterval(keepalive);
@@ -48,6 +48,15 @@ export default async (request: Request, _context: Context) => {
                 try {
                     const { index, snapshots } = await readRoomSnapshots(room, playerId);
                     const activeIds = new Set(Object.keys(index.players));
+
+                    // Membership revocation: once the viewer has left or been pruned from
+                    // the room index, stop streaming (SEC review: a left/expired player
+                    // must not keep reading room state indefinitely).
+                    if (Object.keys(index.players).length > 0 && !activeIds.has(playerId)) {
+                        send({ type: 'player_left', id: playerId });
+                        close();
+                        return;
+                    }
 
                     for (const [id, meta] of Object.entries(index.players)) {
                         if (id === playerId) continue;
@@ -87,6 +96,19 @@ export default async (request: Request, _context: Context) => {
             };
 
             request.signal.addEventListener('abort', close);
+
+            // Re-verify the session token periodically so an expired token can't keep a
+            // stream open for its full lifetime (token TTL is an hour; the open-time
+            // check alone would let it run that long). Closes the expiry half of the
+            // one-shot-authorization finding.
+            const reverify = setInterval(() => {
+                void (async () => {
+                    if (closed) return;
+                    if (!await verifySessionToken(token, room, playerId)) close();
+                })();
+            }, 30_000);
+            const baseClose = close;
+            close = () => { clearInterval(reverify); baseClose(); };
 
             keepalive = setInterval(() => {
                 if (closed) return;
