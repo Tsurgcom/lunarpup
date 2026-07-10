@@ -49,8 +49,7 @@ export function MultiplayerPanel() {
     }, []);
 
     return (
-        <aside id="multiplayer-panel" className="lp-panel lp-gameplay" aria-label="Multiplayer">
-            <h2 className="lp-panel-title">🐾 Multiplayer</h2>
+        <section id="multiplayer-panel" className="lp-view-section" aria-label="Multiplayer">
             <div id="mp-status" ref={statusRef} className="mp-status mp-disconnected" role="status" aria-live="polite">
                 Offline
             </div>
@@ -80,6 +79,6 @@ export function MultiplayerPanel() {
             <div className="mp-hint" id="mp-hint" ref={hintRef}>
                 Choose a room to join, or keep free-skate drop-in with <code>?multiplayer</code>.
             </div>
-        </aside>
+        </section>
     );
 }

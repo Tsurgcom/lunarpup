@@ -4,17 +4,17 @@ import { findRemotePlayerByName } from '../game/remotePlayers.ts';
 import { multiplayerClient, physics, playerGroup } from '../state.ts';
 
 export interface ChatPanelBinding {
-    panel: HTMLDivElement;
+    root: HTMLElement;
     log: HTMLDivElement;
     input: HTMLInputElement;
-    isVisible(): boolean;
-    setVisible(visible: boolean): void;
 }
 
 let activeBinding: ChatPanelBinding | null = null;
 let localName = 'You';
+let fadeTimer = 0;
 
-const MAX_LOG_LINES = 60;
+const MAX_LOG_LINES = 6;
+const FADE_AFTER_MS = 6000;
 const OUTGOING_MIN_INTERVAL_MS = 1000;
 const DEDUPE_WINDOW_MS = 3000;
 const TP_BROADCAST_INTERVAL_MS = 5000;
@@ -31,10 +31,17 @@ export function bindChatPanel(binding: ChatPanelBinding, mpEnabled: boolean, pla
         appendLocalMessage('system', 'Join with ?multiplayer to use chat.');
     }
 
+    const onFocus = () => wake();
+    const onBlur = () => scheduleFade();
+    binding.input.addEventListener('focus', onFocus);
+    binding.input.addEventListener('blur', onBlur);
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
         window.removeEventListener('keydown', onKeyDown);
+        binding.input.removeEventListener('focus', onFocus);
+        binding.input.removeEventListener('blur', onBlur);
+        window.clearTimeout(fadeTimer);
         if (activeBinding === binding) activeBinding = null;
     };
 }
@@ -99,29 +106,36 @@ function appendLocalMessage(kind: 'self' | 'remote' | 'system', text: string) {
     log.appendChild(line);
     while (log.children.length > MAX_LOG_LINES) log.firstChild?.remove();
     log.scrollTop = log.scrollHeight;
+    wake();
 }
 
-function toggleChat(force?: boolean) {
+/** Show the chat line and (re)start the idle fade unless the input is focused. */
+function wake() {
     const binding = activeBinding;
     if (!binding) return;
+    window.clearTimeout(fadeTimer);
+    binding.root.classList.remove('chat-idle');
+    if (document.activeElement !== binding.input) scheduleFade();
+}
 
-    const visible = force ?? !binding.isVisible();
-    binding.setVisible(visible);
+function scheduleFade() {
+    const binding = activeBinding;
+    if (!binding) return;
+    window.clearTimeout(fadeTimer);
+    fadeTimer = window.setTimeout(() => binding.root.classList.add('chat-idle'), FADE_AFTER_MS);
 }
 
 function onKeyDown(event: KeyboardEvent) {
     const binding = activeBinding;
     if (!binding) return;
 
-    if (event.key === 't' || event.key === 'T') {
-        if (document.activeElement === binding.input) return;
+    // Enter focuses the input to type; Esc closes it. No panel toggle — the
+    // Settings hotkey owns T now.
+    if (event.key === 'Enter' && document.activeElement !== binding.input) {
         event.preventDefault();
-        toggleChat();
-        return;
-    }
-    if (event.key === 'Enter' && document.activeElement !== binding.input && binding.isVisible()) {
-        event.preventDefault();
+        wake();
         binding.input.focus();
+        return;
     }
     if (event.key === 'Escape' && document.activeElement === binding.input) {
         binding.input.blur();

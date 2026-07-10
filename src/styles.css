@@ -16,27 +16,6 @@ body {
     width: 100vw;
     height: 100vh;
 }
-#ui {
-    position: absolute;
-    top: var(--space-5);
-    left: var(--space-5);
-    color: var(--ink-primary);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-    pointer-events: none;
-}
-h1 {
-    margin: 0 0 var(--space-2) 0;
-    font-size: var(--fs-title);
-    font-weight: var(--fw-black);
-    letter-spacing: var(--tracking-tight);
-    color: var(--ink-primary);
-}
-.controls {
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--fs-body);
-    line-height: var(--leading-normal);
-    color: var(--ink-secondary);
-}
 .key {
     background: var(--ink-primary);
     color: #000;
@@ -437,63 +416,59 @@ body.lp-gameplay-hidden .lp-gameplay {
 #chat-panel {
     position: absolute;
     bottom: var(--space-5);
-    right: var(--space-5);
-    width: 300px;
-    padding: var(--space-3);
-    font-size: var(--fs-body);
-    z-index: 5;
-}
-#chat-panel.chat-collapsed .chat-log,
-#chat-panel.chat-collapsed .chat-form {
-    display: none;
+    left: var(--space-5);
+    width: min(360px, 40vw);
+    z-index: var(--z-hud);
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-standard);
 }
 #chat-panel.chat-hidden {
-    opacity: 0.7;
+    display: none;
 }
-.chat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-1);
+/* The last-message line fades out when idle; typing keeps it lit. */
+#chat-panel.chat-idle {
+    opacity: 0;
 }
-.chat-header button {
-    width: 26px;
-    height: 26px;
-    display: grid;
-    place-items: center;
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
+#chat-panel:focus-within {
+    opacity: 1;
 }
 .chat-log {
-    height: 120px;
-    overflow-y: auto;
-    background: var(--surface-inset);
-    border: var(--panel-border);
-    border-radius: var(--panel-radius-sm);
-    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     margin-bottom: var(--space-2);
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
     line-height: 1.35;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
 }
 .chat-line {
-    margin-bottom: 3px;
     word-break: break-word;
 }
 .chat-line.chat-self { color: var(--accent-blue); }
 .chat-line.chat-remote { color: var(--accent-cyan); }
 .chat-line.chat-system { color: var(--ink-tertiary); font-style: italic; }
+/* Input is invisible chrome until the player focuses it (Enter). */
 .chat-form input {
     width: 100%;
-    font-size: var(--fs-small);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--panel-radius-sm);
+    background: transparent;
+    color: var(--ink-primary);
+    font-family: var(--font-ui);
+    font-size: var(--fs-body);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
 }
 .chat-form input:focus {
     outline: none;
+    opacity: 1;
+    pointer-events: auto;
+    background: var(--panel-bg);
     border-color: rgba(160, 196, 255, 0.5);
-}
-.chat-form input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    -webkit-backdrop-filter: var(--panel-blur);
+    backdrop-filter: var(--panel-blur);
 }
 
 /* =========================================================================
@@ -1332,5 +1307,249 @@ body.lp-gameplay-hidden .lp-gameplay {
 
     .lp-panel-focus {
         animation: none;
+    }
+}
+
+/* =========================================================================
+   Panel redesign — the screen belongs to the gameplay.
+   Ambient HUD repositioning + focused intent views + presence/roster.
+   ========================================================================= */
+
+/* ---- Ambient HUD: speed bottom-centre, minimap + presence top-right ---- */
+#speedometer {
+    left: 50%;
+    right: auto;
+    bottom: var(--space-5);
+    transform: translateX(-50%);
+}
+#trick-hud {
+    bottom: 76px;
+}
+#minimap-panel {
+    top: var(--space-5);
+    right: var(--space-5);
+    padding: 0;
+    transition: transform var(--dur-base) var(--ease-out);
+    transform-origin: top right;
+    z-index: var(--z-hud);
+}
+/* Hold M enlarges the map in place as a temporary overlay. */
+#minimap-panel.minimap-enlarged {
+    transform: scale(2.6);
+}
+
+/* Ambient mode HUD shares the score slot: pinned just above the score line. */
+#gamemode-status {
+    position: absolute;
+    left: 50%;
+    bottom: 108px;
+    transform: translateX(-50%);
+    max-width: min(520px, 90vw);
+    text-align: center;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+    z-index: var(--z-hud);
+}
+
+/* ---- Presence chip (multiplayer only) ---- */
+.presence-chip {
+    position: absolute;
+    top: 176px;
+    right: var(--space-5);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 5px 11px;
+    background: var(--panel-bg);
+    border: var(--panel-border);
+    border-radius: var(--panel-radius-pill);
+    box-shadow: var(--panel-shadow-sm);
+    -webkit-backdrop-filter: var(--panel-blur);
+    backdrop-filter: var(--panel-blur);
+    font-size: var(--fs-small);
+    color: var(--ink-secondary);
+    z-index: var(--z-hud);
+}
+.presence-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--status-idle);
+}
+.presence-dot.presence-connected { background: var(--status-ok); }
+.presence-dot.presence-connecting { background: var(--status-warn); }
+.presence-dot.presence-disconnected { background: var(--status-idle); }
+.presence-dot.presence-error { background: var(--status-error); }
+
+/* ---- Hold-Tab roster overlay ---- */
+.roster-overlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: start center;
+    padding-top: 12vh;
+    background: rgba(4, 6, 14, 0.5);
+    z-index: var(--z-pause);
+    pointer-events: none;
+}
+.roster-overlay[hidden] { display: none; }
+.roster-card {
+    min-width: 280px;
+    padding: var(--space-4) var(--space-5);
+    background: var(--panel-bg-strong);
+    border: var(--panel-border);
+    border-radius: var(--panel-radius-lg);
+    box-shadow: var(--panel-shadow);
+    -webkit-backdrop-filter: var(--panel-blur);
+    backdrop-filter: var(--panel-blur);
+}
+.roster-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: var(--space-3);
+}
+.roster-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: var(--fs-body);
+    color: var(--ink-secondary);
+}
+.roster-row.roster-self { color: var(--ink-primary); font-weight: var(--fw-medium); }
+.roster-you {
+    font-size: var(--fs-small);
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+}
+
+/* ---- Intent views: main-menu-grade chrome, one at a time, world dims ---- */
+.lp-view {
+    z-index: var(--z-main-menu);
+}
+.lp-view .lp-scrim {
+    background: radial-gradient(circle at 50% 30%, rgba(6, 8, 18, 0.72), rgba(2, 3, 9, 0.9));
+}
+.lp-view-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    width: min(680px, calc(100vw - 2 * var(--space-6)));
+    max-height: calc(100vh - 2 * var(--space-6));
+    margin: var(--space-6) auto;
+    padding: var(--space-6);
+    overflow: auto;
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+.lp-view.is-visible .lp-view-content {
+    opacity: 1;
+    transform: none;
+}
+.lp-view-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+.lp-view-eyebrow {
+    margin: 0;
+    font-size: var(--fs-small);
+    font-weight: var(--fw-bold);
+    letter-spacing: var(--tracking-wider);
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+}
+.lp-view-title {
+    margin: 0;
+    font-size: var(--fs-title);
+    font-weight: var(--fw-black);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-tight);
+    color: var(--ink-primary);
+}
+.lp-view-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+.lp-view-hint {
+    margin: 0;
+    font-size: var(--fs-small);
+    color: var(--ink-tertiary);
+}
+.lp-view-hint .key { font-size: 10px; }
+.lp-view-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+/* No boxes-in-boxes: re-homed panels shed their chrome inside a view. */
+.lp-view-body #cosmetics-panel,
+.lp-view-body #tuning-panel,
+.lp-view-body #multiplayer-panel,
+.lp-view-body .lp-panel {
+    position: static;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    background: none;
+    border: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    padding: 0;
+    overflow: visible;
+}
+/* The view header supplies the display title; drop the inner panel titles. */
+.lp-view-body .lp-panel-title { display: none; }
+.lp-view-body .cosmetics-header { justify-content: flex-end; }
+
+/* Modes section (solo + multiplayer gamemode buttons) inside Rooms. */
+#gamemode-buttons {
+    flex-wrap: wrap;
+}
+.controls-legend {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-2) var(--space-4);
+    margin: 0;
+}
+.controls-legend > div { display: contents; }
+.controls-legend dt { margin: 0; }
+.controls-legend dd {
+    margin: 0;
+    color: var(--ink-secondary);
+    align-self: center;
+}
+
+/* ---- Dev-only raw tuning export (?dev=1) ---- */
+.lp-dev-only { display: none; }
+body.lp-dev .lp-dev-only { display: block; }
+.lp-dev-label {
+    margin: 0 0 var(--space-2);
+    font-size: var(--fs-small);
+    color: var(--ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    #minimap-panel,
+    .lp-view-content,
+    .chat-form input,
+    #chat-panel {
+        transition: none;
+    }
+    .lp-view .lp-view-content {
+        opacity: 1;
+        transform: none;
     }
 }

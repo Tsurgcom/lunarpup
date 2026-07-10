@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { ChatPanel } from './ChatPanel.tsx';
 import { GameCanvas } from './GameCanvas.tsx';
 import { MinimapPanel } from './MinimapPanel.tsx';
-import { MultiplayerPanel } from './MultiplayerPanel.tsx';
+import { IntentViews } from './IntentViews.tsx';
+import { PresenceChip } from './PresenceChip.tsx';
+import { RosterOverlay } from './RosterOverlay.tsx';
 import { TrickHud } from './TrickHud.tsx';
-import { TuningPanel } from './TuningPanel.tsx';
 import { SpeedHud } from './SpeedHud.tsx';
 import { SpeedLines } from './SpeedLines.tsx';
 import { UpdateNotice } from './UpdateNotice.tsx';
@@ -13,38 +14,35 @@ import { getMultiplayerConfig } from '../net/protocol.ts';
 import '../styles.css';
 import './shell.css';
 
+/**
+ * The screen belongs to the gameplay. During play only the ambient HUD shows:
+ * speed, score, and the small minimap — plus a presence chip and a chrome-free
+ * chat line in multiplayer. Shop / Rooms / Settings / Controls are focused
+ * overlay views summoned one at a time (menu, ☰ button, or C/R/T/? hotkeys),
+ * mounted imperatively in `mountGameSystems`.
+ */
 export function App() {
     const multiplayer = getMultiplayerConfig();
 
-    // Mount the imperative HUD systems (settings, cosmetics, gamemodes, menus,
-    // extensions) after the React skeletons are in the DOM. Guarded internally
-    // so StrictMode's dev remount does not double-append.
     useEffect(() => {
         mountGameSystems();
     }, []);
 
     return (
         <main className="r3f-shell">
-            <div id="ui" className="lp-gameplay">
-                <h1>🌙 Lunar Pup Skater</h1>
-                <div className="controls lp-panel">
-                    <span className="key">▲</span> / <span className="key">W</span> Accelerate<br />
-                    <span className="key">▼</span> / <span className="key">S</span> Brake / Reverse<br />
-                    <span className="key">◀</span> <span className="key">▶</span> / <span className="key">A</span> <span className="key">D</span> Steer<br />
-                    <span className="key">Spacebar</span> Low-Gravity Ollie (Jump)<br />
-                    <span className="key">Shift</span> Boost<br />
-                    <span className="key">Mouse drag</span> Orbit Camera<br />
-                    <span className="key">Wheel</span> Zoom In / Out
-                </div>
-            </div>
-            <TuningPanel />
+            {/* Ambient HUD — always on during play, glanceable, never interactive. */}
+            <SpeedHud />
             <TrickHud />
             <MinimapPanel />
-            <MultiplayerPanel />
-            <ChatPanel multiplayerEnabled={multiplayer.enabled} playerName={multiplayer.name} />
-            <SpeedHud />
+            {multiplayer.enabled && <PresenceChip />}
+
+            {/* Transient + intent layers. */}
             <SpeedLines />
             <UpdateNotice />
+            <ChatPanel multiplayerEnabled={multiplayer.enabled} playerName={multiplayer.name} />
+            {multiplayer.enabled && <RosterOverlay />}
+            <IntentViews />
+
             <div id="canvas-container"><GameCanvas /></div>
         </main>
     );

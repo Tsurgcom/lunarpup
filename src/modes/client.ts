@@ -28,24 +28,42 @@ let resultsVisible = false;
 
 export function setupGamemodeUI(): void {
     const packages = gamemodePackages.map(pkg => validateGamemodePackage(pkg));
-    const panel = document.createElement('div');
-    panel.id = 'gamemode-panel';
-    panel.className = 'lp-panel lp-gameplay';
-    panel.innerHTML = `<h2 class="lp-panel-title">Gamemodes</h2><div id="gamemode-buttons"></div><div id="gamemode-status">Free skate</div>`;
-    document.body.appendChild(panel);
+
+    // Gamemode selection lives in the Rooms view (falls back to body if the
+    // view host is absent, e.g. in a test harness).
+    const host = document.getElementById('modes-section') ?? document.body;
+    host.innerHTML = '<p class="lp-view-eyebrow">Modes</p><div id="gamemode-buttons"></div>';
     const buttons = document.getElementById('gamemode-buttons');
-    if (!buttons) return;
-    for (const pkg of packages) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = pkg.manifest.displayName;
-        button.addEventListener('click', () => startGamemode(pkg));
-        buttons.appendChild(button);
+    if (buttons) {
+        const freeSkate = document.createElement('button');
+        freeSkate.type = 'button';
+        freeSkate.className = 'lp-button';
+        freeSkate.textContent = 'Free skate';
+        freeSkate.addEventListener('click', () => stopGamemode());
+        buttons.appendChild(freeSkate);
+        for (const pkg of packages) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'lp-button';
+            button.textContent = pkg.manifest.displayName;
+            button.addEventListener('click', () => startGamemode(pkg));
+            buttons.appendChild(button);
+        }
     }
+
+    // Ambient mode HUD: sits with the score readouts, shown only during a run.
+    const status = document.createElement('div');
+    status.id = 'gamemode-status';
+    status.className = 'lp-gameplay';
+    status.hidden = true;
+    document.body.appendChild(status);
+
+    // Results overlay: dimmed-world modal at match end.
     const results = document.createElement('div');
     results.id = 'gamemode-results';
     results.className = 'lp-panel lp-panel-strong lp-gameplay';
     results.hidden = true;
+    document.body.appendChild(results);
 }
 
 export function startGamemode(pkg: GamemodePackageDefinition): void {
@@ -99,6 +117,7 @@ export function stopGamemode(): void {
     flushRunSamples('abandon');
     activeState = null;
     activePackage = null;
+    updateStatus();
 }
 
 function updateGamemode(dt: number): void {
@@ -242,9 +261,10 @@ function isLeaderboardPayload(value: unknown): value is { entries: Array<{ playe
 function updateStatus(): void {
     const status = document.getElementById('gamemode-status');
     if (!status || !activeState || !activePackage) {
-        if (status) status.textContent = 'Free skate';
+        if (status) status.hidden = true;
         return;
     }
+    status.hidden = false;
     const progress = activeState.progress.get('local');
     const score = activeState.scores.get('local') ?? 0;
     const total = activePackage.params.checkpoints.length;

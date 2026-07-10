@@ -63,9 +63,9 @@ export function setupCosmeticsUI(): void {
 
     const element = document.createElement('section');
     element.id = 'cosmetics-panel';
-    element.className = 'lp-panel lp-gameplay';
+    element.className = 'lp-view-section';
     element.setAttribute('aria-label', 'Cosmetics shop and inventory');
-    document.body.appendChild(element);
+    (document.getElementById('shop-view-body') ?? document.body).appendChild(element);
     panel = element;
     renderLoading();
     void loadInventory();
