@@ -90,6 +90,17 @@ gh secret set NETLIFY_SITE_ID --repo Tsurgcom/lunarpup --body "545570d4-9b21-401
 
 After secrets are set, merges to `main` deploy automatically — no manual `netlify deploy --prod` needed.
 
+## Multiplayer security — required environment variables
+
+The multiplayer relays (Bun WS + Netlify Functions) are hardened per the audit in issue #19. Two variables gate that hardening in production:
+
+| Variable | Default | Production requirement |
+|----------|---------|------------------------|
+| `MP_SESSION_SECRET` | *(dev-only public constant)* | **Required.** Signs the HMAC session tokens that bind a player id to a room (SEC-1/SEC-8). If unset in a deployed context (`NETLIFY=true`, `CONTEXT=production`, or `NODE_ENV=production`), token issuance **throws** — the code refuses to sign with the public dev fallback rather than accept forgeable sessions. Set it to a long random string in the Netlify site's environment. |
+| `ALLOWED_ORIGINS` | localhost dev origins | Comma-separated allow-list of the game's real origins. Used for the WebSocket `Origin` check and the Function CORS reflection (SEC-2/SEC-3). Set it to your deployed origin(s). |
+
+Optional tuning caps (sane defaults, override only if needed): `MAX_ROOMS` (50), `GLOBAL_MAX_CONNECTIONS` (200), `MIN_STATE_INTERVAL_MS` (20 → ≤50 state updates/s per connection).
+
 ## Multiplayer on Netlify — important limitations
 
 The game includes a **Bun WebSocket multiplayer server** (`src/server.ts`, default port **3001**). This **cannot** run on Netlify static hosting.
