@@ -29,6 +29,7 @@ function RemotePup({ peerId }: { peerId: string }) {
     return {
       fur: snap?.fur ?? "#d4a574",
       accent: snap?.accent ?? "#f0c27a",
+      ghost: Boolean(snap?.ghost),
     };
   });
 
@@ -42,7 +43,11 @@ function RemotePup({ peerId }: { peerId: string }) {
   useEffect(() => {
     const snap = getPeer(peerId);
     if (!snap) return;
-    setStyle({ fur: snap.fur, accent: snap.accent });
+    setStyle({
+      fur: snap.fur,
+      accent: snap.accent,
+      ghost: Boolean(snap.ghost),
+    });
   }, [peerId]);
 
   useFrame(({ camera }, dt) => {
@@ -50,8 +55,13 @@ function RemotePup({ peerId }: { peerId: string }) {
     const g = ref.current;
     if (!snap || !g) return;
 
-    if (snap.fur !== style.fur || snap.accent !== style.accent) {
-      setStyle({ fur: snap.fur, accent: snap.accent });
+    const ghost = Boolean(snap.ghost);
+    if (
+      snap.fur !== style.fur ||
+      snap.accent !== style.accent ||
+      ghost !== style.ghost
+    ) {
+      setStyle({ fur: snap.fur, accent: snap.accent, ghost });
     }
 
     const local = getLocalPose();
@@ -88,5 +98,12 @@ function RemotePup({ peerId }: { peerId: string }) {
     g.quaternion.slerp(target.current.quat, alpha);
   });
 
-  return <SkateDog ref={ref} fur={style.fur} accent={style.accent} />;
+  return (
+    <SkateDog
+      ref={ref}
+      fur={style.fur}
+      accent={style.accent}
+      ghost={style.ghost}
+    />
+  );
 }

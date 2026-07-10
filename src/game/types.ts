@@ -9,6 +9,8 @@ export type PlayerSnapshot = {
   fur: string;
   accent: string;
   name: string;
+  /** Paused players appear translucent to peers. */
+  ghost?: boolean;
 };
 
 export const FUR_PALETTE = [

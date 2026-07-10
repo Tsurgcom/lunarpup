@@ -3,7 +3,7 @@ import { joinRoom, selfId } from "@trystero-p2p/nostr";
 import type { MessageAction, Room } from "@trystero-p2p/core";
 import { clearPeers, removePeer, upsertPeer } from "./peerStore";
 import type { PlayerSnapshot } from "./types";
-import { defaultRoomId, pickStyle } from "./types";
+import { pickStyle } from "./types";
 
 const APP_ID = "lunarpup-moon-bowl-v1";
 
@@ -90,6 +90,7 @@ function spawnSnapshot(): PlayerSnapshot {
     fur: style.fur,
     accent: style.accent,
     name: selfId.slice(0, 6),
+    ghost: false,
   };
 }
 
@@ -252,7 +253,7 @@ function getPeerCount(): number {
 
 function getStatus(): { status: MultiplayerStatus; detail: string } {
   if (!session) {
-    return { status: "connecting", detail: "joining room…" };
+    return { status: "connecting", detail: "offline" };
   }
   const n = getPeerCount();
   if (n > 0) {
@@ -264,22 +265,25 @@ function getStatus(): { status: MultiplayerStatus; detail: string } {
   return { status: "connecting", detail: "looking for pups…" };
 }
 
-// Start signaling as soon as the module loads — before React StrictMode settles.
-if (typeof window !== "undefined") {
-  try {
-    ensureSession(defaultRoomId());
-  } catch (err) {
-    console.warn("[lunarpup] early room join failed", err);
-  }
-}
-
-export function useMultiplayer(roomId: string): RoomApi {
+export function useMultiplayer(
+  roomId: string,
+  enabled = true,
+): RoomApi {
   const style = useMemo(() => pickStyle(selfId), []);
   const [peerCount, setPeerCount] = useState(0);
   const [status, setStatus] = useState<MultiplayerStatus>("connecting");
-  const [statusDetail, setStatusDetail] = useState("joining room…");
+  const [statusDetail, setStatusDetail] = useState(
+    enabled ? "joining room…" : "offline",
+  );
 
   useEffect(() => {
+    if (!enabled) {
+      setPeerCount(0);
+      setStatus("connecting");
+      setStatusDetail("offline");
+      return;
+    }
+
     try {
       acquireSession(roomId);
     } catch (err) {
@@ -310,11 +314,15 @@ export function useMultiplayer(roomId: string): RoomApi {
       unsub();
       releaseSession(roomId);
     };
-  }, [roomId]);
+  }, [roomId, enabled]);
 
-  const sendState = useCallback((snap: PlayerSnapshot) => {
-    sendSnapshot(snap);
-  }, []);
+  const sendState = useCallback(
+    (snap: PlayerSnapshot) => {
+      if (!enabled) return;
+      sendSnapshot(snap);
+    },
+    [enabled],
+  );
 
   return {
     peerCount,

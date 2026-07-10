@@ -11,6 +11,8 @@ type WorldProps = {
   fur: string;
   accent: string;
   name: string;
+  active: boolean;
+  paused: boolean;
   onSnapshot: (snap: PlayerSnapshot) => void;
   onSpeed: (speed: number) => void;
 };
@@ -45,7 +47,15 @@ function FollowSun() {
   );
 }
 
-export function World({ fur, accent, name, onSnapshot, onSpeed }: WorldProps) {
+export function World({
+  fur,
+  accent,
+  name,
+  active,
+  paused,
+  onSnapshot,
+  onSpeed,
+}: WorldProps) {
   return (
     <>
       <color attach="background" args={["#05070c"]} />
@@ -84,6 +94,8 @@ export function World({ fur, accent, name, onSnapshot, onSpeed }: WorldProps) {
         fur={fur}
         accent={accent}
         name={name}
+        active={active}
+        paused={paused}
         onSnapshot={onSnapshot}
         onSpeed={onSpeed}
       />

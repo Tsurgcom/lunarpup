@@ -3,9 +3,6 @@ import { LunarMap } from "./LunarMap";
 
 type HudProps = {
   roomId: string;
-  draftRoom: string;
-  onDraftRoom: (v: string) => void;
-  onJoin: () => void;
   peerCount: number;
   selfId: string;
   speed: number;
@@ -15,9 +12,6 @@ type HudProps = {
 
 export function Hud({
   roomId,
-  draftRoom,
-  onDraftRoom,
-  onJoin,
   peerCount,
   selfId,
   speed,
@@ -33,21 +27,6 @@ export function Hud({
 
       <div className="hud__rail">
         <div className="hud__panel">
-          <label htmlFor="room">Room</label>
-          <div className="hud__row">
-            <input
-              id="room"
-              value={draftRoom}
-              onChange={(e) => onDraftRoom(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onJoin();
-              }}
-              spellCheck={false}
-            />
-            <button type="button" onClick={onJoin}>
-              Join
-            </button>
-          </div>
           <div className="hud__meta">
             <div>
               live room <strong>{roomId}</strong>
@@ -75,7 +54,7 @@ export function Hud({
 
       <div className="hud__help">
         <kbd>W</kbd> push · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>S</kbd> brake
-        · <kbd>Space</kbd> ollie
+        · <kbd>Space</kbd> ollie · <kbd>Esc</kbd> pause
         <br />
         Point the board, then push. Open another tab to skate together.
       </div>
