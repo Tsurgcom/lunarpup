@@ -24,6 +24,48 @@ export interface MultiplayerPanelBinding {
 let activeBinding: MultiplayerPanelBinding | null = null;
 let selectedRoom = '';
 
+// Ambient presence chip + hold-Tab roster (rendered only in multiplayer).
+let presenceDot: HTMLElement | null = null;
+let presenceCount: HTMLElement | null = null;
+let rosterList: HTMLElement | null = null;
+let lastStatus: MultiplayerStatus = 'disconnected';
+let lastLocalName = 'You';
+let lastRemoteNames: string[] = [];
+
+export function bindPresenceChip(dot: HTMLElement, count: HTMLElement): () => void {
+    presenceDot = dot;
+    presenceCount = count;
+    renderPresence();
+    return () => {
+        if (presenceDot === dot) presenceDot = null;
+        if (presenceCount === count) presenceCount = null;
+    };
+}
+
+export function bindRoster(list: HTMLElement): () => void {
+    rosterList = list;
+    renderRoster();
+    return () => {
+        if (rosterList === list) rosterList = null;
+    };
+}
+
+function renderPresence(): void {
+    if (presenceDot) presenceDot.className = `presence-dot presence-${lastStatus}`;
+    if (presenceCount) presenceCount.textContent = String(1 + lastRemoteNames.length);
+}
+
+function renderRoster(): void {
+    if (!rosterList) return;
+    const all = [{ name: lastLocalName, self: true }, ...lastRemoteNames.map((name) => ({ name, self: false }))];
+    rosterList.replaceChildren(...all.map(({ name, self }) => {
+        const row = document.createElement('div');
+        row.className = self ? 'roster-row roster-self' : 'roster-row';
+        row.innerHTML = `<span>${escapeHtml(name)}</span>${self ? '<span class="roster-you">you</span>' : ''}`;
+        return row;
+    }));
+}
+
 export function bindMultiplayerPanel(binding: MultiplayerPanelBinding) {
     activeBinding = binding;
     selectedRoom = binding.options.room;
@@ -57,8 +99,10 @@ export function updateMultiplayerHint(html: string) {
 }
 
 export function updateMultiplayerStatus(status: MultiplayerStatus, detail?: string, room?: string) {
-    if (!activeBinding) return;
+    lastStatus = status;
+    renderPresence();
 
+    if (!activeBinding) return;
     const labels: Record<MultiplayerStatus, string> = {
         disconnected: 'Offline',
         connecting: 'Connecting…',
@@ -71,8 +115,12 @@ export function updateMultiplayerStatus(status: MultiplayerStatus, detail?: stri
 }
 
 export function updateMultiplayerPlayers(localName: string, remoteNames: string[]) {
-    if (!activeBinding) return;
+    lastLocalName = localName;
+    lastRemoteNames = remoteNames;
+    renderPresence();
+    renderRoster();
 
+    if (!activeBinding) return;
     const all = [localName, ...remoteNames];
     activeBinding.players.textContent = all.length > 1
         ? `${all.length} pups: ${all.join(', ')}`

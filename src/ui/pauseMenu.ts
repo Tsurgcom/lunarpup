@@ -114,6 +114,7 @@ export function setupPauseMenu(actions: PauseMenuActions): PauseMenuHandle {
         if (!open) return;
         if (event.key === 'Escape') {
             event.preventDefault();
+            event.stopPropagation();
             hide();
             return;
         }

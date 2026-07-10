@@ -6,12 +6,12 @@ import { setMenuOrbit } from '../game/loop.ts';
 import { setMenuOpen } from './hudVisibility.ts';
 
 export interface MainMenuActions {
-    /** Reveal the multiplayer/rooms panel. */
-    openRooms(): void;
-    /** Reveal the cosmetics shop panel. */
-    openCosmetics(): void;
-    /** Reveal the settings/tuning panel. */
-    openSettings(): void;
+    /** Open a focused intent view by id. */
+    openView(id: 'shop' | 'rooms' | 'settings' | 'controls'): void;
+    /** Start solo gamemode selection (opens the Rooms view's Modes section). */
+    openModes(): void;
+    /** Fired after the player dismisses the menu into play. */
+    onPlay?(): void;
 }
 
 export interface MainMenuHandle {
@@ -40,11 +40,13 @@ export function setupMainMenu(actions: MainMenuActions): MainMenuHandle {
             </div>
             <nav class="main-menu-nav" role="menu" aria-label="Main menu">
                 <button class="main-menu-item" type="button" role="menuitem" data-action="play" style="--i: 1">Play</button>
-                <button class="main-menu-item" type="button" role="menuitem" data-action="rooms" style="--i: 2">Rooms</button>
-                <button class="main-menu-item" type="button" role="menuitem" data-action="cosmetics" style="--i: 3">Cosmetics</button>
-                <button class="main-menu-item" type="button" role="menuitem" data-action="settings" style="--i: 4">Settings</button>
+                <button class="main-menu-item" type="button" role="menuitem" data-action="shop" style="--i: 2">Shop</button>
+                <button class="main-menu-item" type="button" role="menuitem" data-action="rooms" style="--i: 3">Rooms</button>
+                <button class="main-menu-item" type="button" role="menuitem" data-action="modes" style="--i: 4">Modes</button>
+                <button class="main-menu-item" type="button" role="menuitem" data-action="settings" style="--i: 5">Settings</button>
+                <button class="main-menu-item" type="button" role="menuitem" data-action="controls" style="--i: 6">Controls</button>
             </nav>
-            <p class="main-menu-hint" style="--i: 5"><span class="key">↑</span> <span class="key">↓</span> move · <span class="key">Enter</span> select · <span class="key">Esc</span> play</p>
+            <p class="main-menu-hint" style="--i: 7"><span class="key">↑</span> <span class="key">↓</span> move · <span class="key">Enter</span> select · <span class="key">Esc</span> play</p>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -96,18 +98,27 @@ export function setupMainMenu(actions: MainMenuActions): MainMenuHandle {
         switch (action) {
             case 'play':
                 hide();
+                actions.onPlay?.();
+                break;
+            case 'modes':
+                hide();
+                actions.openModes();
+                break;
+            case 'shop':
+                hide();
+                actions.openView('shop');
                 break;
             case 'rooms':
                 hide();
-                actions.openRooms();
-                break;
-            case 'cosmetics':
-                hide();
-                actions.openCosmetics();
+                actions.openView('rooms');
                 break;
             case 'settings':
                 hide();
-                actions.openSettings();
+                actions.openView('settings');
+                break;
+            case 'controls':
+                hide();
+                actions.openView('controls');
                 break;
         }
     }
@@ -121,7 +132,9 @@ export function setupMainMenu(actions: MainMenuActions): MainMenuHandle {
         if (!open) return;
         if (event.key === 'Escape') {
             event.preventDefault();
+            event.stopPropagation();
             hide();
+            actions.onPlay?.();
             return;
         }
         if (handleArrowNav(items, event)) event.preventDefault();
