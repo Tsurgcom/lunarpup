@@ -57,7 +57,7 @@ export function App() {
         <Canvas
           shadows
           dpr={[1, 1.75]}
-          camera={{ position: [0, 8, 22], fov: 55, near: 0.1, far: 250 }}
+          camera={{ position: [0, 8, 22], fov: 55, near: 0.1, far: 320 }}
           gl={{ antialias: true, toneMappingExposure: 1.05 }}
         >
           <World

@@ -1,4 +1,7 @@
 import { Stars } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { useRef } from "react";
+import type { DirectionalLight } from "three";
 import { MoonTerrain } from "./MoonTerrain";
 import { Player } from "./Player";
 import { RemotePlayers } from "./RemotePlayers";
@@ -12,31 +15,50 @@ type WorldProps = {
   onSpeed: (speed: number) => void;
 };
 
+/** Keep the key light near the viewer so shadows stay useful on infinite ground. */
+function FollowSun() {
+  const light = useRef<DirectionalLight>(null);
+  useFrame(({ camera }) => {
+    const sun = light.current;
+    if (!sun) return;
+    sun.position.set(
+      camera.position.x + 40,
+      55,
+      camera.position.z + 20,
+    );
+    sun.target.position.set(camera.position.x, 0, camera.position.z);
+    sun.target.updateMatrixWorld();
+  });
+  return (
+    <directionalLight
+      ref={light}
+      castShadow
+      intensity={1.35}
+      color="#fff4e0"
+      shadow-mapSize={[2048, 2048]}
+      shadow-camera-far={160}
+      shadow-camera-left={-70}
+      shadow-camera-right={70}
+      shadow-camera-top={70}
+      shadow-camera-bottom={-70}
+    />
+  );
+}
+
 export function World({ fur, accent, name, onSnapshot, onSpeed }: WorldProps) {
   return (
     <>
       <color attach="background" args={["#05070c"]} />
-      <fog attach="fog" args={["#05070c", 60, 140]} />
+      <fog attach="fog" args={["#05070c", 70, 175]} />
 
       <ambientLight intensity={0.28} />
-      <directionalLight
-        castShadow
-        position={[40, 55, 20]}
-        intensity={1.35}
-        color="#fff4e0"
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={120}
-        shadow-camera-left={-50}
-        shadow-camera-right={50}
-        shadow-camera-top={50}
-        shadow-camera-bottom={-50}
-      />
+      <FollowSun />
       <hemisphereLight args={["#9bb7ff", "#3a342c", 0.35]} />
 
       <Stars
-        radius={120}
-        depth={60}
-        count={4000}
+        radius={180}
+        depth={80}
+        count={4500}
         factor={3.5}
         saturation={0}
         fade

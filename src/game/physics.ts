@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { sampleHeight, sampleNormal, WORLD_SIZE } from "./terrain";
+import { sampleHeight, sampleNormal } from "./terrain";
 
 /** Moon surface gravity (m/s²). */
 export const G = 2.4;
@@ -33,8 +33,6 @@ export const STEER_RATE = 2.8;
 
 /** Extra lateral grip while pushing. */
 export const MU_LATERAL_PUSH = 1.15;
-
-const HALF = WORLD_SIZE / 2 - 2;
 
 export type ControlInput = {
   forward: boolean;
@@ -152,12 +150,6 @@ export function stepBody(body: BodyState, input: ControlInput, dt: number): void
   _accel.copy(_force).multiplyScalar(1 / MASS);
   body.vel.addScaledVector(_accel, dt);
   body.pos.addScaledVector(body.vel, dt);
-
-  body.pos.x = THREE.MathUtils.clamp(body.pos.x, -HALF, HALF);
-  body.pos.z = THREE.MathUtils.clamp(body.pos.z, -HALF, HALF);
-
-  if (Math.abs(body.pos.x) >= HALF - 1e-6) body.vel.x *= -RESTITUTION;
-  if (Math.abs(body.pos.z) >= HALF - 1e-6) body.vel.z *= -RESTITUTION;
 
   sampleNormal(body.pos.x, body.pos.z, _n);
   const groundY = sampleHeight(body.pos.x, body.pos.z) + BOARD_CLEARANCE;
