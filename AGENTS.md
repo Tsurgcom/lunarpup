@@ -30,13 +30,21 @@ src/
   App.tsx            # HUD + KeyboardControls + Canvas shell
   styles.css         # HUD overlay styles
   game/
-    World.tsx        # Scene: lights, stars, terrain, player, remotes
+    World.tsx        # Scene: lights, stars, terrain, player, rocks, remotes
     Player.tsx       # Local player loop (input → physics → mesh → net sync)
     CameraRig.tsx    # Arcade board-frame orbit; soft follow + boom susp
-    MoonTerrain.tsx  # Heightfield mesh
+    MoonTerrain.tsx  # Heightfield mesh (clipmap patches)
+    moonMaterial.ts  # MeshPhysicalMaterial + triplanar PBR + sun POM
+    moonPbrMaps.ts   # Baked albedo / normal / ORM+height DataTextures
+    sun.ts           # Shared sun direction for light / disc / crater shadows
+    LunarRocks.tsx   # Pushable lunar rocks (parallel physics + meshes)
     terrain.ts       # Crater bowl height/normal sampling (shared by physics + mesh)
     physics.ts       # Newtonian integrator (forces, contact, ollie)
     physics.test.ts  # Bun tests for physics (excluded from tsc include)
+    rockPhysics.ts   # Rock integrator + sphere collisions with player
+    rockPhysics.test.ts
+    localBody.ts     # Module-level local BodyState for rock collisions
+    localPose.ts     # Module-level local pose for map / HUD
     SkateDog.tsx     # Procedural dog + board mesh
     RemotePlayers.tsx# Interpolated remote pups (reads peerStore in useFrame)
     multiplayer.ts   # Trystero room session + useMultiplayer hook
@@ -47,10 +55,13 @@ src/
 
 ### Data flow
 
-1. `Player` reads keyboard via Drei `KeyboardControls`, calls `stepBody()` each frame.
-2. `Player` broadcasts `PlayerSnapshot` ~20 Hz through `useMultiplayer().sendState`.
-3. `multiplayer.ts` owns a **singleton Trystero session** (survives React StrictMode).
-4. Remote poses land in `peerStore`; `RemotePlayers` interpolates in `useFrame`.
+1. `Player` reads keyboard via Drei `KeyboardControls`, calls `stepBody()` each frame,
+   then publishes the body via `localBody` for rock collisions.
+2. `LunarRocks` steps rocks in parallel (`rockPhysics`), then resolves sphere impulses
+   against the local pup and other rocks.
+3. `Player` broadcasts `PlayerSnapshot` ~20 Hz through `useMultiplayer().sendState`.
+4. `multiplayer.ts` owns a **singleton Trystero session** (survives React StrictMode).
+5. Remote poses land in `peerStore`; `RemotePlayers` interpolates in `useFrame`.
 
 ### Physics (`physics.ts`)
 
@@ -62,9 +73,9 @@ src/
 
 ### Terrain (`terrain.ts`)
 
-- `sampleHeight(x, z)` and `sampleNormal(x, z)` must stay in sync.
-- `createMoonGeometry()` builds the visible mesh from the same height function.
-- Craters are cosine-profile bowls defined in `CRATERS`.
+- `sampleHeightDir` / `sampleNormalDir` must stay in sync with the visual mesh.
+- `MoonTerrain` streams icosphere face patches; `moonMaterial.ts` shades regolith.
+- Craters are cosine-profile bowls (`ANCHOR_CRATERS` + procedural fields).
 
 ### Multiplayer (`multiplayer.ts`)
 

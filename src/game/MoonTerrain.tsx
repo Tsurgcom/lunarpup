@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { createMoonMaterial } from "./moonMaterial";
 import {
   createFaceGeometry,
   faceSubdiv,
@@ -25,16 +26,7 @@ export function MoonTerrain() {
   const geoCache = useRef(new Map<string, THREE.BufferGeometry>());
   const viewerDir = useRef(new THREE.Vector3(0, 0, 1));
 
-  const material = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: "#b7b3a8",
-        roughness: 0.92,
-        metalness: 0.05,
-        flatShading: false,
-      }),
-    [],
-  );
+  const material = useMemo(() => createMoonMaterial(), []);
 
   useLayoutEffect(() => {
     getIcoFaces();
@@ -102,7 +94,10 @@ function ensureMesh(
   }
   const mesh = new THREE.Mesh(geometry, material);
   mesh.receiveShadow = true;
-  mesh.castShadow = true;
+  // Don't self-shadow the crust — ortho depth acne draws stripe lines on
+  // bowls. Crater shading is sun-synced in the material instead; the pup
+  // still casts onto the surface via receiveShadow.
+  mesh.castShadow = false;
   root.add(mesh);
   meshes.set(face.index, { mesh, lod });
 }

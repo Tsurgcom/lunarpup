@@ -410,21 +410,24 @@ export function sampleHeightAt(pos: THREE.Vector3): number {
  * Surface normal for the radial heightfield ρ = R + h(dir).
  * With ∇ measured in moon arc length: N ∝ (1 + h/R) dir − ∇h.
  * (Dividing ∇h by R was wrong — that collapsed bowl walls onto the radial.)
+ *
+ * Pass `h0` when the caller already sampled height at `dir` to skip a redo.
  */
 export function sampleNormalDir(
   dir: THREE.Vector3,
   out = _n,
   eps = 0.45,
+  h0?: number,
 ): THREE.Vector3 {
   _normalDir.copy(dir).normalize();
-  const h0 = sampleHeightDir(_normalDir);
-  const scale = 1 + h0 / MOON_RADIUS;
+  const h = h0 ?? sampleHeightDir(_normalDir);
+  const scale = 1 + h / MOON_RADIUS;
 
   tangentBasis(_normalDir, _normE, _normN);
   expMap(_normalDir, _tmpA.copy(_normE).multiplyScalar(eps), _gradE);
   expMap(_normalDir, _tmpA.copy(_normN).multiplyScalar(eps), _gradN);
-  const dhE = (sampleHeightDir(_gradE) - h0) / eps;
-  const dhN = (sampleHeightDir(_gradN) - h0) / eps;
+  const dhE = (sampleHeightDir(_gradE) - h) / eps;
+  const dhN = (sampleHeightDir(_gradN) - h) / eps;
 
   return out
     .copy(_normalDir)

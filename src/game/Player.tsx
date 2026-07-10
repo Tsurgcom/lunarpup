@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CameraRig } from "./CameraRig";
 import { SkateDog } from "./SkateDog";
+import { setLocalBody } from "./localBody";
 import { setLocalPose } from "./localPose";
 import {
   BOARD_CLEARANCE,
@@ -113,6 +114,7 @@ export function Player({
       };
 
       stepBody(b, input, dt);
+      setLocalBody(b);
 
       boardAxes(b.yaw, b.normal, forward.current, right.current);
       look.current.makeBasis(right.current, b.normal, forward.current);
@@ -139,6 +141,7 @@ export function Player({
       quat.current.slerp(targetQuat.current, follow);
     } else {
       jumpHeld.current = false;
+      setLocalBody(b);
     }
 
     const dog = group.current;

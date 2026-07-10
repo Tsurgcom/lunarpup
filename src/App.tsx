@@ -130,10 +130,14 @@ export function App() {
 
       <KeyboardControls map={keyMap}>
         <Canvas
-          shadows
-          dpr={[1, 1.75]}
-          camera={{ position: [0, 20, 170], fov: 68, near: 0.1, far: 1600 }}
-          gl={{ antialias: true, toneMappingExposure: 1.05 }}
+          shadows="soft"
+          dpr={[1, 2]}
+          camera={{ position: [0, 20, 170], fov: 68, near: 0.15, far: 4000 }}
+          gl={{
+            antialias: true,
+            toneMappingExposure: 1.15,
+            powerPreference: "high-performance",
+          }}
         >
           <World
             fur={style.fur}
