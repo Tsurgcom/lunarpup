@@ -52,25 +52,28 @@ Full gate green (`bun install && bun run typecheck && bun run test && bun script
 intent views (C/R/T), HUD-only play, chat line, and E2E multiplayer relay all coexist.
 Browser verification happens at land time by the orchestrator.
 
-## BLOCKED: architecture fork discovered mid-merge (2026-07-10)
+## RESOLVED (2026-07-09)
 
-Upstream's E2E encryption (merged #5/#19) converts BOTH multiplayer relays (Netlify and
-the dev WS server) into **blind relays**: the server stores/forwards encrypted
-name/state/chat envelopes and can never read player names, positions, or chat.
+**Execution:** user chose REBASE ONTO UPSTREAM. Done by hand in an isolated scratchpad
+worktree (the omp-squad daemon is cross-driven from multiple terminals and reaped three
+prior attempts). Commit incrementally. The verified conflict map above is the resolution
+guide — resolving the `git merge origin/main` per that map produces the rebased tree.
 
-That is philosophically incompatible with three landed server-authoritative systems:
-- **Leaderboards** (concern 09) read run samples server-side → impossible under blind
-  relay (times become client-claimed).
-- **Cosmetics sync**: equip validation stays server-side at the API, but snapshot
-  contents become unverifiable by the relay (a client could render unowned cosmetics).
-- **Server-side chat rate-limit** (now moot — their relay rate-limits by envelope).
+**Architecture fork → option B (hybrid).** Blind relay is the default for social
+free-skate (privacy: server never reads names/positions/chat). Leaderboard eligibility
+requires a ranked gamemode room that opts into server-verified mode (plaintext run
+samples the server can validate). So:
+- Free-skate / casual rooms: blind relay, no leaderboard writes.
+- Ranked race/parkour rooms: server-verified state → run samples to the ledger →
+  leaderboards. Cosmetics equip validation already lives at the authenticated HTTP API
+  (not the relay), so it is unaffected; a client rendering an unowned cosmetic on a
+  blind relay is a cosmetic-only spoof with no economic effect (ownership is checked at
+  buy/equip). This is acceptable for free-skate and enforced in ranked.
+- Server-side chat rate-limit is moot (relay rate-limits by envelope; WS chat throttle
+  from PR #30 still applies to the dev relay).
 
-Rooms, agent events, shop/lootbox, wallet, and the extension system are unaffected
-(they ride our authenticated HTTP API, not the relay).
-
-Decision needed before the merge can resolve — options:
-A) Privacy-first: blind relay wholesale; leaderboards become client-attested.
-B) Hybrid (recommended): blind relay by default for social free-skate; ranked gamemode
-   rooms opt into a server-verified (plaintext-state) mode — leaderboard eligibility
-   requires it. Privacy by default, verifiability when competing.
-C) Keep server-authoritative everything (permanent divergence from upstream — rejected).
+Rooms, agent events, shop/lootbox, wallet, and extensions ride the authenticated HTTP
+API and are unaffected by the relay model. This decision is reversible and does not block
+the rebase; ranked-mode server-verification is a follow-up (new concern) — the rebase
+lands the blind-relay default now and leaves leaderboards reading the ledger for whatever
+run samples exist.
