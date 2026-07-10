@@ -97,9 +97,9 @@ The multiplayer relays (Bun WS + Netlify Functions) are hardened per the audit i
 | Variable | Default | Production requirement |
 |----------|---------|------------------------|
 | `MP_SESSION_SECRET` | *(dev-only public constant)* | **Required.** Signs the HMAC session tokens that bind a player id to a room (SEC-1/SEC-8). If unset in a deployed context (`NETLIFY=true`, `CONTEXT=production`, or `NODE_ENV=production`), token issuance **throws** — the code refuses to sign with the public dev fallback rather than accept forgeable sessions. Set it to a long random string in the Netlify site's environment. |
-| `ALLOWED_ORIGINS` | localhost dev origins | Comma-separated allow-list of the game's real origins. Used for the WebSocket `Origin` check and the Function CORS reflection (SEC-2/SEC-3). Set it to your deployed origin(s). |
+| `MP_ALLOWED_ORIGINS` | localhost dev origins | Comma-separated allow-list of the game's real origins. Used for the WebSocket `Origin` check (`src/server.ts`) **and** the Netlify Function CORS reflection (`netlify/lib/cors.ts`) — one setting covers both (SEC-2/SEC-3). `ALLOWED_ORIGINS` is accepted as a fallback name. Set it to your deployed origin(s). |
 
-Optional tuning caps (sane defaults, override only if needed): `MAX_ROOMS` (50), `GLOBAL_MAX_CONNECTIONS` (200), `MIN_STATE_INTERVAL_MS` (20 → ≤50 state updates/s per connection).
+Optional tuning caps (sane defaults, override only if needed): `MAX_ROOMS` (50), `MAX_ROOM_PLAYERS` (32 per room), `GLOBAL_MAX_CONNECTIONS` (200), `MIN_STATE_INTERVAL_MS` (20 → ≤50 state updates/s per connection), `MIN_CHAT_INTERVAL_MS` (500 → ≤2 chat msgs/s per connection).
 
 ## Multiplayer on Netlify — important limitations
 

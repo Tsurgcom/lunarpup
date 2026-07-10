@@ -25,6 +25,7 @@ interface PlayerConnection {
     stateEnvelope: EncryptedEnvelope;
     seq: number;
     lastStateAt: number;
+    lastChatAt: number;
 }
 
 interface Room {
@@ -35,13 +36,18 @@ interface Room {
 const rooms = new Map<string, Room>();
 
 const ALLOWED_ORIGINS = (
-    process.env.ALLOWED_ORIGINS
+    // Canonical MP_ALLOWED_ORIGINS (matches MP_SESSION_SECRET + the Netlify CORS lib);
+    // ALLOWED_ORIGINS kept as a fallback so a single operator setting covers both.
+    process.env.MP_ALLOWED_ORIGINS
+    ?? process.env.ALLOWED_ORIGINS
     ?? 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000'
 ).split(',').map((origin) => origin.trim()).filter(Boolean);
 
 const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 50;
+const MAX_ROOM_PLAYERS = Number(process.env.MAX_ROOM_PLAYERS) || 32;
 const GLOBAL_MAX_CONNECTIONS = Number(process.env.GLOBAL_MAX_CONNECTIONS) || 200;
 const MIN_STATE_INTERVAL_MS = Number(process.env.MIN_STATE_INTERVAL_MS) || 20;
+const MIN_CHAT_INTERVAL_MS = Number(process.env.MIN_CHAT_INTERVAL_MS) || 500;
 const MAX_PAYLOAD_LENGTH = 1 << 16;
 const IDLE_TIMEOUT = 60;
 
@@ -84,6 +90,7 @@ function pendingConnection(): PlayerConnection {
         stateEnvelope: { iv: '', data: '' },
         seq: 0,
         lastStateAt: 0,
+        lastChatAt: 0,
     };
 }
 
@@ -122,6 +129,10 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMe
         ws.close(1013, 'Room capacity exceeded');
         return;
     }
+    if (room.players.size >= MAX_ROOM_PLAYERS) {
+        ws.close(1013, 'Room full');
+        return;
+    }
 
     const id = crypto.randomUUID();
     const color = pickColor(room);
@@ -135,6 +146,7 @@ function handleJoin(ws: ServerWebSocket<PlayerConnection>, msg: Extract<ClientMe
         stateEnvelope: msg.state,
         seq: msg.seq,
         lastStateAt: 0,
+        lastChatAt: 0,
     };
 
     ws.data = conn;
@@ -166,6 +178,10 @@ function handleState(conn: PlayerConnection, msg: Extract<ClientMessage, { type:
 }
 
 function handleChat(conn: PlayerConnection, msg: Extract<ClientMessage, { type: 'chat' }>) {
+    const now = Date.now();
+    if (now - conn.lastChatAt < MIN_CHAT_INTERVAL_MS) return;
+    conn.lastChatAt = now;
+
     const room = rooms.get(conn.room);
     if (!room) return;
     broadcast(room, {
