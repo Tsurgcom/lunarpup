@@ -13,6 +13,25 @@ body,
     background: #020208;
 }
 
+.r3f-canvas-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.r3f-hud-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.r3f-hud-layer #tuning-panel,
+.r3f-hud-layer #chat-panel,
+.r3f-hud-layer #update-notice {
+    pointer-events: auto;
+}
+
 .r3f-shell-label {
     position: absolute;
     top: 1rem;

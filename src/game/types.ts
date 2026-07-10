@@ -28,15 +28,24 @@ export interface JumpInputState {
 }
 
 export interface PhysicsState {
-    speed: number;
+    mass: number;
+    thrustForce: number;
+    hoverStiffness: number;
+    hoverDamping: number;
+    maxHoverForce: number;
+    maxHoverRange: number;
+    coastFriction: number;
+    coastDrag: number;
+    airDrag: number;
     maxSpeed: number;
-    accel: number;
-    decel: number;
     rotationSpeed: number;
     gravity: number;
-    jumpForce: number;
-    suspension: number;
+    jumpImpulse: number;
     tiltSmoothing: number;
+    driftSlideMultiplier: number;
+    slideGrip: number;
+    driftGripMultiplier: number;
+    driftThreshold: number;
     boostMultiplier: number;
     boostAccelMultiplier: number;
     cameraBaseFov: number;
@@ -63,7 +72,6 @@ export interface CameraControlState {
 }
 
 export interface ScratchVectors {
-    forwardVector: THREE.Vector3;
     upAxis: THREE.Vector3;
     camOffset: THREE.Vector3;
     targetCamPos: THREE.Vector3;
@@ -78,6 +86,9 @@ export interface ScratchVectors {
     baseForward: THREE.Vector3;
     slopeForward: THREE.Vector3;
     slopeRight: THREE.Vector3;
+    acceleration: THREE.Vector3;
+    normalAcceleration: THREE.Vector3;
+    tangentVelocity: THREE.Vector3;
 }
 
 export interface FrameHudCallbacks {

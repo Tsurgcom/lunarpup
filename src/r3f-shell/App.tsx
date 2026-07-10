@@ -24,27 +24,31 @@ export function App() {
     return (
         <GameProvider>
             <main className="r3f-shell">
-                <div id="ui">
-                    <h1>🌙 Lunar Pup Skater</h1>
-                    <div className="controls">
-                        <span className="key">▲</span> / <span className="key">W</span> Accelerate<br />
-                        <span className="key">▼</span> / <span className="key">S</span> Brake / Reverse<br />
-                        <span className="key">◀</span> <span className="key">▶</span> / <span className="key">A</span> <span className="key">D</span> Steer<br />
-                        <span className="key">Spacebar</span> Low-Gravity Ollie (Jump)<br />
-                        <span className="key">Shift</span> Boost<br />
-                        <span className="key">Mouse drag</span> Orbit Camera<br />
-                        <span className="key">Wheel</span> Zoom In / Out
-                    </div>
+                <div id="canvas-container" className="r3f-canvas-layer">
+                    <GameCanvas />
                 </div>
-                <TuningPanel />
-                <TrickHud />
-                <MinimapPanel />
-                <MultiplayerPanel />
-                <ChatPanelWrapper />
-                <SpeedHud />
-                <SpeedLines />
-                <UpdateNotice />
-                <div id="canvas-container"><GameCanvas /></div>
+                <div id="hud-layer" className="r3f-hud-layer">
+                    <div id="ui">
+                        <h1>🌙 Lunar Pup Hover</h1>
+                        <div className="controls">
+                            <span className="key">▲</span> / <span className="key">W</span> Thrust Forward<br />
+                            <span className="key">▼</span> / <span className="key">S</span> Brake / Reverse<br />
+                            <span className="key">◀</span> <span className="key">▶</span> / <span className="key">A</span> <span className="key">D</span> Steer<br />
+                            <span className="key">Spacebar</span> Hover Burst (Jump)<br />
+                            <span className="key">Shift</span> Boost<br />
+                            <span className="key">Mouse drag</span> Orbit Camera<br />
+                            <span className="key">Wheel</span> Zoom In / Out
+                        </div>
+                    </div>
+                    <TuningPanel />
+                    <TrickHud />
+                    <MinimapPanel />
+                    <MultiplayerPanel />
+                    <ChatPanelWrapper />
+                    <SpeedHud />
+                    <SpeedLines />
+                    <UpdateNotice />
+                </div>
             </main>
         </GameProvider>
     );

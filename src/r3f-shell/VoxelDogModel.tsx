@@ -15,9 +15,11 @@ type VoxelDogModelProps = {
     deckColor?: number;
 };
 
-const WHEEL_POSITIONS: Array<[number, number, number]> = [
-    [-0.7, 0.2, 1.2], [0.7, 0.2, 1.2],
-    [-0.7, 0.2, -1.2], [0.7, 0.2, -1.2],
+const HOVER_PAD_POSITIONS: Array<[number, number, number, number]> = [
+    [-0.7, 0.08, 1.2, 0],
+    [0.7, 0.08, 1.2, 1.2],
+    [-0.7, 0.08, -1.2, 2.4],
+    [0.7, 0.08, -1.2, 3.6],
 ];
 
 const LEG_POSITIONS: Array<[number, number, number]> = [
@@ -34,6 +36,7 @@ export const VoxelDogModel = forwardRef(function VoxelDogModel(
     const dog = useRef<THREE.Group>(null!);
     const tail = useRef<THREE.Mesh>(null!);
     const snoutColor = new THREE.Color(dogColor).lerp(new THREE.Color(0xdda15e), 0.45).getHex();
+    const hoverGlow = new THREE.Color(deckColor).lerp(new THREE.Color(0x66ccff), 0.55);
 
     useImperativeHandle(ref, () => ({
         group: group.current,
@@ -49,12 +52,25 @@ export const VoxelDogModel = forwardRef(function VoxelDogModel(
                 <group ref={skateboard}>
                     <mesh position={[0, 0.3, 0]} castShadow>
                         <boxGeometry args={[1.6, 0.15, 3.8]} />
-                        <meshStandardMaterial color={deckColor} roughness={0.5} />
+                        <meshStandardMaterial color={deckColor} roughness={0.45} metalness={0.15} />
                     </mesh>
-                    {WHEEL_POSITIONS.map((position) => (
-                        <mesh key={position.join(',')} position={position} castShadow rotation={[0, 0, Math.PI / 2]}>
-                            <cylinderGeometry args={[0.25, 0.25, 0.3, 8]} />
-                            <meshStandardMaterial color="#eeeeee" roughness={0.2} />
+                    {HOVER_PAD_POSITIONS.map(([x, y, z, phase]) => (
+                        <mesh
+                            key={`hover-${phase}`}
+                            position={[x, y, z]}
+                            castShadow
+                            userData={{ hoverPad: true, hoverPhase: phase }}
+                        >
+                            <cylinderGeometry args={[0.28, 0.34, 0.08, 12]} />
+                            <meshStandardMaterial
+                                color={hoverGlow}
+                                emissive={hoverGlow}
+                                emissiveIntensity={0.4}
+                                roughness={0.25}
+                                metalness={0.35}
+                                transparent
+                                opacity={0.92}
+                            />
                         </mesh>
                     ))}
                 </group>

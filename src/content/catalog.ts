@@ -18,7 +18,7 @@ export const animals: Record<string, AnimalDefinition> = {
 export const skateboards: Record<string, SkateboardDefinition> = {
     classic: {
         id: 'classic',
-        displayName: 'Classic Board',
+        displayName: 'Classic Hoverboard',
         wheelRadius: 0.12,
         deckOffset: [0, 0, 0],
     },

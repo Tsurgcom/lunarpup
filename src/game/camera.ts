@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { GameRuntime } from './types.ts';
+import { getDisplaySpeed, getSpeedRatio } from './playerPhysics.ts';
 import { getPlayerRoot } from './runtime.ts';
 
 function lerpAngle(a: number, b: number, t: number) {
@@ -13,7 +14,14 @@ export function updateCamera(runtime: GameRuntime, camera: THREE.PerspectiveCame
     if (!playerGroup) return;
 
     const frameScale = dt * 60;
-    if (!cameraControl.isDragging && Math.abs(physics.speed) > 0.03) {
+    const displaySpeed = getDisplaySpeed(
+        physics,
+        playerGroup.position.x,
+        playerGroup.position.z,
+        scratch,
+    );
+
+    if (!cameraControl.isDragging && Math.abs(displaySpeed) > 0.03) {
         const followStrength = 1 - Math.pow(1 - cameraControl.autoFollowStrength, frameScale);
         cameraControl.yaw = lerpAngle(cameraControl.yaw, physics.heading + Math.PI, followStrength);
     }
@@ -37,7 +45,7 @@ export function updateCamera(runtime: GameRuntime, camera: THREE.PerspectiveCame
     scratch.lookTarget.y += 1.4;
     camera.lookAt(scratch.lookTarget);
 
-    const speedRatio = THREE.MathUtils.clamp(Math.abs(physics.speed) / (physics.maxSpeed * physics.boostMultiplier), 0, 1);
+    const speedRatio = getSpeedRatio(physics, displaySpeed);
     const targetFov = THREE.MathUtils.lerp(physics.cameraBaseFov, physics.cameraMaxFov, Math.pow(speedRatio, 1.35));
     const fovSmoothing = 1 - Math.pow(1 - cameraControl.fovSmoothing, frameScale);
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, fovSmoothing);
