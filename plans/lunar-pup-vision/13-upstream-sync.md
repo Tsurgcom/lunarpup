@@ -51,3 +51,26 @@ Full gate green (`bun install && bun run typecheck && bun run test && bun script
 — NEVER docker; the pg tests skip offline correctly), merge + fixups committed, and the
 intent views (C/R/T), HUD-only play, chat line, and E2E multiplayer relay all coexist.
 Browser verification happens at land time by the orchestrator.
+
+## BLOCKED: architecture fork discovered mid-merge (2026-07-10)
+
+Upstream's E2E encryption (merged #5/#19) converts BOTH multiplayer relays (Netlify and
+the dev WS server) into **blind relays**: the server stores/forwards encrypted
+name/state/chat envelopes and can never read player names, positions, or chat.
+
+That is philosophically incompatible with three landed server-authoritative systems:
+- **Leaderboards** (concern 09) read run samples server-side → impossible under blind
+  relay (times become client-claimed).
+- **Cosmetics sync**: equip validation stays server-side at the API, but snapshot
+  contents become unverifiable by the relay (a client could render unowned cosmetics).
+- **Server-side chat rate-limit** (now moot — their relay rate-limits by envelope).
+
+Rooms, agent events, shop/lootbox, wallet, and the extension system are unaffected
+(they ride our authenticated HTTP API, not the relay).
+
+Decision needed before the merge can resolve — options:
+A) Privacy-first: blind relay wholesale; leaderboards become client-attested.
+B) Hybrid (recommended): blind relay by default for social free-skate; ranked gamemode
+   rooms opt into a server-verified (plaintext-state) mode — leaderboard eligibility
+   requires it. Privacy by default, verifiability when competing.
+C) Keep server-authoritative everything (permanent divergence from upstream — rejected).
