@@ -20,9 +20,14 @@ export async function setupExtensions(): Promise<void> {
     const listing = await response.json() as ExtensionListing;
     for (const extension of listing.extensions ?? []) {
         if (!extension.clientModule) continue;
-        // Extension client entries are server-provided at runtime, so static imports cannot name them.
-        const mod = await import(entryUrl(extension.clientModule, apiBase)) as ClientExtensionModule;
-        if (typeof mod.setupClient !== 'function') throw new Error(`extension ${extension.name} clientModule must export setupClient()`);
-        await mod.setupClient();
+        // A broken extension must never take down the game: isolate each one.
+        try {
+            // Extension client entries are server-provided at runtime, so static imports cannot name them.
+            const mod = await import(entryUrl(extension.clientModule, apiBase)) as ClientExtensionModule;
+            if (typeof mod.setupClient !== 'function') throw new Error(`extension ${extension.name} clientModule must export setupClient()`);
+            await mod.setupClient();
+        } catch (error) {
+            console.warn(`[extensions] ${extension.name} failed to load:`, error);
+        }
     }
 }

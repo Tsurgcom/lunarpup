@@ -90,9 +90,35 @@ export async function loadEnabledExtensions(router: ModularRouter<PlayerConnecti
         const clientPath = safeEntryPath(extension.rootDir, entry);
         if (!clientPath) throw new Error(`extension ${extension.name} clientModule escapes package root`);
         const routePath = new URL(`http://localhost${extension.clientUrl}`).pathname;
-        router.registerHttp('GET', routePath, async () => new Response(await readFile(clientPath), {
-            headers: { 'Content-Type': 'text/javascript; charset=utf-8' },
-        }));
+        // Browsers can't execute raw TypeScript: bundle the client entry (once, lazily)
+        // to browser ESM so extensions can be authored in TS and import shared modules.
+        let bundled: Promise<string> | undefined;
+        const bundleClient = () => {
+            bundled ??= Bun.build({ entrypoints: [clientPath], target: 'browser', format: 'esm' })
+                .then(async (result) => {
+                    const output = result.outputs[0];
+                    if (!result.success || !output) throw new AggregateError(result.logs, `extension ${extension.name} client bundle failed`);
+                    return output.text();
+                })
+                .catch((error) => {
+                    bundled = undefined; // don't cache failures
+                    throw error;
+                });
+            return bundled;
+        };
+        router.registerHttp('GET', routePath, async () => {
+            try {
+                return new Response(await bundleClient(), {
+                    headers: { 'Content-Type': 'text/javascript; charset=utf-8' },
+                });
+            } catch (error) {
+                console.error(`[extensions] ${extension.name} client bundle error:`, error);
+                return new Response(`// extension ${extension.name} failed to bundle`, {
+                    status: 500,
+                    headers: { 'Content-Type': 'text/javascript; charset=utf-8' },
+                });
+            }
+        });
     }
 
     return enabled;
