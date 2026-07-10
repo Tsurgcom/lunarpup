@@ -2,15 +2,17 @@ import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
 import {
   ANCHOR_CRATERS,
+  CHART_HALF,
   CURVATURE_RADIUS,
   LUNAR_GENERATORS,
   MOON_HALF,
   MOON_SIZE,
+  chartHitToWorld,
   curvatureDrop,
-  globeHitToWorld,
   sampleHeight,
   sampleNormal,
-  worldToGlobe,
+  worldToChart,
+  worldToChartScale,
   wrapCoord,
   wrapDelta,
 } from "./terrain";
@@ -56,7 +58,10 @@ describe("finite lunar surface", () => {
     expect(MOON_SIZE).toBe(480);
   });
 
-  test("globe chart round-trips world points", () => {
+  test("chart maps world XZ 1:1", () => {
+    const s = worldToChartScale();
+    expect(s).toBeCloseTo((CHART_HALF * 2) / MOON_SIZE, 10);
+
     const samples: Array<[number, number]> = [
       [0, 14],
       [120, -80],
@@ -64,26 +69,37 @@ describe("finite lunar surface", () => {
       [-40, MOON_HALF - 8],
     ];
     for (const [x, z] of samples) {
-      const dir = worldToGlobe(x, z, 1, new THREE.Vector3(), 0);
-      const back = globeHitToWorld(dir);
-      expect(back).not.toBeNull();
-      expect(wrapDelta(back!.x, wrapCoord(x))).toBeCloseTo(0, 4);
-      expect(wrapDelta(back!.z, wrapCoord(z))).toBeCloseTo(0, 4);
+      const p = worldToChart(x, z, new THREE.Vector3(), 0);
+      expect(p.x).toBeCloseTo(wrapCoord(x) * s, 6);
+      expect(p.z).toBeCloseTo(wrapCoord(z) * s, 6);
+      const back = chartHitToWorld(p);
+      expect(wrapDelta(back.x, wrapCoord(x))).toBeCloseTo(0, 4);
+      expect(wrapDelta(back.z, wrapCoord(z))).toBeCloseTo(0, 4);
     }
   });
 
-  test("map pin stays continuous while circling the south pole", () => {
+  test("chart pin stays continuous across the date-line seam", () => {
     const out = new THREE.Vector3();
     const prev = new THREE.Vector3();
     let maxJump = 0;
-    // Constant latitude near the south edge — full longitude lap.
-    const z = -MOON_HALF + 15;
-    for (let i = 0; i <= 100; i++) {
-      const x = -MOON_HALF + (i / 100) * MOON_SIZE;
-      worldToGlobe(x, z, 1, out, 0);
-      if (i > 0) maxJump = Math.max(maxJump, prev.distanceTo(out));
+    const z = 20;
+    // Walk just inside the +X edge, then continue from the -X image.
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      const x =
+        t < 0.5
+          ? MOON_HALF - 8 + t * 16
+          : -MOON_HALF + (t - 0.5) * 16;
+      worldToChart(x, z, out, 0);
+      if (i > 0) {
+        // Wrapped chart coords jump at the seam — that is correct for a
+        // square chart. Continuity is in world space via wrapDelta.
+        const dx = wrapDelta(out.x / worldToChartScale(), prev.x / worldToChartScale());
+        const dz = wrapDelta(out.z / worldToChartScale(), prev.z / worldToChartScale());
+        maxJump = Math.max(maxJump, Math.hypot(dx, dz) * worldToChartScale());
+      }
       prev.copy(out);
     }
-    expect(maxJump).toBeLessThan(0.08);
+    expect(maxJump).toBeLessThan(0.05);
   });
 });

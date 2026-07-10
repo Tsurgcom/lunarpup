@@ -48,7 +48,11 @@ export const CHUNK_RADIUS = 2;
 const CRATER_CELL = 48;
 const MICRO_CELL = 16;
 const SPAWN_CLEAR_R = 24;
-const GLOBE_HEIGHT_SCALE = 0.045;
+/** Chart half-extent in HUD units — maps 1:1 onto [-MOON_HALF, MOON_HALF]. */
+export const CHART_HALF = 1;
+
+/** Vertical exaggeration on the HUD chart so bowls read at map scale. */
+export const CHART_HEIGHT_SCALE = 0.055;
 
 /** Wrap into [-MOON_HALF, MOON_HALF). */
 export function wrapCoord(v: number): number {
@@ -362,8 +366,6 @@ export function createChunkGeometry(
   return geo;
 }
 
-const _dir = new THREE.Vector3();
-
 /** Square chart UV in [0, 1]² for the finite moon. */
 export function worldToMapUv(
   x: number,
@@ -384,77 +386,61 @@ export function mapUvToWorld(u: number, v: number): { x: number; z: number } {
   };
 }
 
-/** Lon/lat chart: X → longitude, Z → latitude. */
-export function worldToLonLat(
+/** World units → HUD chart units (identity scale on XZ). */
+export function worldToChartScale(): number {
+  return (CHART_HALF * 2) / MOON_SIZE;
+}
+
+/**
+ * World XZ → HUD chart. Same proportions as the playable surface — no sphere
+ * projection — so bowls and distances match 1:1.
+ */
+export function worldToChart(
   x: number,
   z: number,
-): { lon: number; lat: number } {
-  const { u, v } = worldToMapUv(x, z);
+  out = new THREE.Vector3(),
+  heightScale = CHART_HEIGHT_SCALE,
+): THREE.Vector3 {
+  const wx = wrapCoord(x);
+  const wz = wrapCoord(z);
+  const s = worldToChartScale();
+  out.set(wx * s, sampleHeight(wx, wz) * heightScale, wz * s);
+  return out;
+}
+
+/** Ray/mesh hit on the chart → wrapped world XZ. */
+export function chartHitToWorld(
+  point: THREE.Vector3,
+): { x: number; z: number } {
+  const inv = MOON_SIZE / (CHART_HALF * 2);
   return {
-    lon: u * Math.PI * 2 - Math.PI,
-    lat: v * Math.PI - Math.PI / 2,
+    x: wrapCoord(point.x * inv),
+    z: wrapCoord(point.z * inv),
   };
 }
 
-export function lonLatToWorld(
-  lon: number,
-  lat: number,
-): { x: number; z: number } {
-  const u = (lon + Math.PI) / (Math.PI * 2);
-  const v = (lat + Math.PI / 2) / Math.PI;
-  return mapUvToWorld(u, v);
-}
-
 /**
- * World XZ → HUD globe. Longitude wraps continuously (date line); circling
- * the south pole stays smooth. Crossing the Z wrap still jumps south↔north —
- * a torus cannot embed continuously in a sphere.
+ * Flat heightfield for the HUD map — same XZ layout as the moon, scaled into
+ * [-CHART_HALF, CHART_HALF] with exaggerated relief for readability.
  */
-export function worldToGlobe(
-  x: number,
-  z: number,
-  radius: number,
-  out = new THREE.Vector3(),
-  heightScale = GLOBE_HEIGHT_SCALE,
-): THREE.Vector3 {
-  const { lon, lat } = worldToLonLat(x, z);
-  const cy = Math.cos(lat);
-  out.set(Math.sin(lon) * cy, Math.sin(lat), Math.cos(lon) * cy);
-  const h = sampleHeight(x, z);
-  return out.multiplyScalar(radius + h * heightScale);
-}
-
-export function globeHitToWorld(
-  point: THREE.Vector3,
-): { x: number; z: number } | null {
-  const len = point.length();
-  if (len < 1e-6) return null;
-  const y = THREE.MathUtils.clamp(point.y / len, -1, 1);
-  const lat = Math.asin(y);
-  const lon = Math.atan2(point.x, point.z);
-  return lonLatToWorld(lon, lat);
-}
-
-/**
- * Displaced sphere for the HUD map. Equirectangular XZ→lon/lat so the pin
- * can circle the poles without teleporting.
- */
-export function createMoonGlobeGeometry(
-  radius = 1,
-  detail = 4,
+export function createMoonChartGeometry(
+  half = CHART_HALF,
+  segments = 96,
+  heightScale = CHART_HEIGHT_SCALE,
 ): THREE.BufferGeometry {
-  const geo = new THREE.IcosahedronGeometry(radius, detail);
+  const size = half * 2;
+  const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+  geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   if (!pos) throw new Error("missing position attribute");
   const colors = new Float32Array(pos.count * 3);
+  const inv = MOON_SIZE / size;
 
   for (let i = 0; i < pos.count; i++) {
-    _dir.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
-    const hit = globeHitToWorld(_dir);
-    if (!hit) continue;
-    const h = sampleHeight(hit.x, hit.z);
-    _dir.multiplyScalar(radius + h * GLOBE_HEIGHT_SCALE);
-    pos.setXYZ(i, _dir.x, _dir.y, _dir.z);
+    const wx = wrapCoord(pos.getX(i) * inv);
+    const wz = wrapCoord(pos.getZ(i) * inv);
+    const h = sampleHeight(wx, wz);
+    pos.setY(i, h * heightScale);
 
     const t = THREE.MathUtils.clamp((h + 4) / 10, 0, 1);
     colors[i * 3] = THREE.MathUtils.lerp(0.55, 0.82, t);

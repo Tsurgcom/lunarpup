@@ -9,13 +9,12 @@ import {
   subscribeRoster,
 } from "./peerStore";
 import {
-  createMoonGlobeGeometry,
-  globeHitToWorld,
-  worldToGlobe,
+  CHART_HALF,
+  chartHitToWorld,
+  createMoonChartGeometry,
+  worldToChart,
 } from "./terrain";
 import { requestTeleport } from "./teleport";
-
-const GLOBE_RADIUS = 1;
 
 type LunarMapProps = {
   selfId: string;
@@ -28,7 +27,7 @@ export function LunarMap({ selfId }: LunarMapProps) {
       <div className="hud__map-canvas">
         <Canvas
           dpr={[1, 1.5]}
-          camera={{ position: [0, 0.35, 2.85], fov: 42, near: 0.1, far: 20 }}
+          camera={{ position: [0, 2.35, 1.55], fov: 38, near: 0.05, far: 20 }}
           gl={{ antialias: true, alpha: true }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -44,10 +43,10 @@ export function LunarMap({ selfId }: LunarMapProps) {
 }
 
 function LunarMapScene({ selfId }: { selfId: string }) {
-  const globe = useMemo(() => createMoonGlobeGeometry(GLOBE_RADIUS, 4), []);
+  const chart = useMemo(() => createMoonChartGeometry(CHART_HALF, 120), []);
   const drag = useRef({ active: false, x: 0, y: 0, moved: false });
 
-  const onGlobePointerDown = (e: ThreeEvent<PointerEvent>) => {
+  const onChartPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     drag.current = {
       active: true,
@@ -57,35 +56,34 @@ function LunarMapScene({ selfId }: { selfId: string }) {
     };
   };
 
-  const onGlobePointerMove = (e: ThreeEvent<PointerEvent>) => {
+  const onChartPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (!drag.current.active) return;
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
     if (dx * dx + dy * dy > 36) drag.current.moved = true;
   };
 
-  const onGlobePointerUp = (e: ThreeEvent<PointerEvent>) => {
+  const onChartPointerUp = (e: ThreeEvent<PointerEvent>) => {
     if (!drag.current.active) return;
     const wasClick = !drag.current.moved;
     drag.current.active = false;
     if (!wasClick) return;
     e.stopPropagation();
-    const hit = globeHitToWorld(e.point);
-    if (!hit) return;
+    const hit = chartHitToWorld(e.point);
     requestTeleport(hit.x, hit.z);
   };
 
   return (
     <>
       <ambientLight intensity={0.55} />
-      <directionalLight position={[3, 4, 2]} intensity={1.15} color="#fff4e0" />
+      <directionalLight position={[2.5, 4, 1.5]} intensity={1.15} color="#fff4e0" />
       <hemisphereLight args={["#9bb7ff", "#2a241c", 0.35]} />
 
       <mesh
-        geometry={globe}
-        onPointerDown={onGlobePointerDown}
-        onPointerMove={onGlobePointerMove}
-        onPointerUp={onGlobePointerUp}
+        geometry={chart}
+        onPointerDown={onChartPointerDown}
+        onPointerMove={onChartPointerMove}
+        onPointerUp={onChartPointerUp}
         onPointerLeave={() => {
           drag.current.active = false;
         }}
@@ -105,10 +103,13 @@ function LunarMapScene({ selfId }: { selfId: string }) {
         enablePan={false}
         enableDamping
         dampingFactor={0.08}
-        minDistance={1.7}
-        maxDistance={4.5}
-        rotateSpeed={0.7}
+        minDistance={1.4}
+        maxDistance={4.2}
+        minPolarAngle={0.18}
+        maxPolarAngle={Math.PI / 2.35}
+        rotateSpeed={0.65}
         zoomSpeed={0.85}
+        target={[0, 0, 0]}
       />
     </>
   );
@@ -122,14 +123,14 @@ function SelfMarker() {
     const m = mesh.current;
     if (!m) return;
     const pose = getLocalPose();
-    worldToGlobe(pose.x, pose.z, GLOBE_RADIUS, tmp.current);
-    tmp.current.multiplyScalar(1.04);
+    worldToChart(pose.x, pose.z, tmp.current);
+    tmp.current.y += 0.035;
     m.position.copy(tmp.current);
   });
 
   return (
     <mesh ref={mesh}>
-      <sphereGeometry args={[0.045, 12, 12]} />
+      <sphereGeometry args={[0.038, 12, 12]} />
       <meshStandardMaterial
         color="#f0c27a"
         emissive="#f0c27a"
@@ -180,8 +181,8 @@ function PeerMarker({
     const m = mesh.current;
     if (!snap || !m) return;
     accent.current = snap.accent;
-    worldToGlobe(snap.x, snap.z, GLOBE_RADIUS, tmp.current);
-    tmp.current.multiplyScalar(1.045);
+    worldToChart(snap.x, snap.z, tmp.current);
+    tmp.current.y += 0.04;
     m.position.copy(tmp.current);
     const mat = m.material as THREE.MeshStandardMaterial;
     if (mat.color.getStyle() !== snap.accent) {
@@ -200,7 +201,7 @@ function PeerMarker({
         onWarp(snap.x, snap.z);
       }}
     >
-      <sphereGeometry args={[0.05, 12, 12]} />
+      <sphereGeometry args={[0.042, 12, 12]} />
       <meshStandardMaterial
         color="#7eb6ff"
         emissive="#7eb6ff"
