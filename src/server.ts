@@ -27,7 +27,11 @@ export async function createServerRouter(): Promise<ModularRouter<PlayerConnecti
 const router = await createServerRouter();
 const port = Number(process.env.PORT) || DEFAULT_WS_PORT;
 const ALLOWED_WS_ORIGINS = (
-    process.env.ALLOWED_ORIGINS
+    // Canonical MP_ALLOWED_ORIGINS (matches netlify/lib/cors.ts + MP_SESSION_SECRET);
+    // ALLOWED_ORIGINS kept as a fallback so one operator setting hardens both the WS
+    // server and the Netlify CORS instead of silently covering only half.
+    process.env.MP_ALLOWED_ORIGINS
+    ?? process.env.ALLOWED_ORIGINS
     ?? 'http://localhost:3000,http://127.0.0.1:3000'
 ).split(',').map((origin) => origin.trim()).filter(Boolean);
 const GLOBAL_MAX_CONNECTIONS = Number(process.env.GLOBAL_MAX_CONNECTIONS) || 200;
