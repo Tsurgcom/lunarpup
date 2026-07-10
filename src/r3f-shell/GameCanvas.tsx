@@ -14,12 +14,18 @@ import { Terrain } from './Terrain.tsx';
 import { WorldEnvironment } from './WorldEnvironment.tsx';
 import type { VoxelDogParts } from '../game/types.ts';
 import { registerRuntimeScene } from '../game/runtimeRegistry.ts';
+import { recordReplayMeaningfulInput } from '../modes/client.ts';
+
+const MEANINGFUL_RUN_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight']);
 
 function useGameInput() {
     const { runtime } = useGame();
 
     useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => handleKeys(runtime.current, event, true);
+        const onKeyDown = (event: KeyboardEvent) => {
+            handleKeys(runtime.current, event, true);
+            if (!event.repeat && MEANINGFUL_RUN_KEYS.has(event.code)) recordReplayMeaningfulInput();
+        };
         const onKeyUp = (event: KeyboardEvent) => handleKeys(runtime.current, event, false);
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);

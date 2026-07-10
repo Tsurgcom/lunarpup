@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { TrickScore } from '../game/trickScoring.ts';
 import { useGame } from './GameProvider.tsx';
+import { recordReplaySkillBeat } from '../modes/client.ts';
 
 function getCurrentTrickLabel(rotation: number, grabbing: boolean) {
     const degrees = Math.round(Math.abs(rotation) * 180 / Math.PI);
@@ -30,6 +31,7 @@ export function TrickHud() {
         runtime.current.frameHud.showTrickResult = (result: TrickScore) => {
             const resultElement = resultRef.current;
             if (!resultElement || result.status === 'none') return;
+            if (result.status === 'scored') recordReplaySkillBeat();
 
             if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
             resultElement.textContent = result.status === 'scored'

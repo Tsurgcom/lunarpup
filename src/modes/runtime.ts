@@ -46,6 +46,15 @@ export interface GamemodeResult {
     falls: number;
 }
 
+export interface ScoreBreakdown {
+    completionBonus: number;
+    checkpointScore: number;
+    lapScore: number;
+    timePenalty: number;
+    fallPenalty: number;
+    total: number;
+}
+
 export interface RuntimeGamemodeState extends GamemodeRuntimeState {
     params: GamemodeParams;
     progress: Map<string, PlayerProgress>;
@@ -240,12 +249,23 @@ export function processCheckpoint(
 }
 
 export function calculateScore(params: GamemodeParams, progress: PlayerProgress, elapsedMs: number): number {
+    return calculateScoreBreakdown(params, progress, elapsedMs).total;
+}
+
+export function calculateScoreBreakdown(params: GamemodeParams, progress: PlayerProgress, elapsedMs: number): ScoreBreakdown {
     const completionBonus = progress.finishedAtMs !== undefined ? 100_000 : 0;
     const checkpointScore = progress.completedCheckpoints * 1_000;
     const lapScore = progress.lap * 5_000;
-    const speedPenalty = Math.floor(elapsedMs / 100);
+    const timePenalty = Math.floor(elapsedMs / 100);
     const fallPenalty = params.type === 'parkour' ? progress.falls * 500 : 0;
-    return Math.max(0, completionBonus + checkpointScore + lapScore - speedPenalty - fallPenalty);
+    return {
+        completionBonus,
+        checkpointScore,
+        lapScore,
+        timePenalty,
+        fallPenalty,
+        total: Math.max(0, completionBonus + checkpointScore + lapScore - timePenalty - fallPenalty),
+    };
 }
 
 export function isInsideCheckpoint(player: PlayerSnapshot, checkpoint: CheckpointDefinition): boolean {

@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { gamemodePackages } from '../../content/gamemodes/index.ts';
 import { groundClearance } from '../config.ts';
-import type { GamemodePackageDefinition, PlatformDefinition, RuntimeGamemodeState } from './runtime.ts';
-import { createGamemode, createRuntimeState, orderedCheckpoints, validateGamemodePackage } from './runtime.ts';
+import type { GamemodePackageDefinition, PlatformDefinition, RuntimeGamemodeState, ScoreBreakdown } from './runtime.ts';
+import { calculateScoreBreakdown, createGamemode, createRuntimeState, orderedCheckpoints, validateGamemodePackage } from './runtime.ts';
 import { getActiveRuntime, getRuntimeScene, registerUpdateHook, setCurrentGamemode } from '../game/runtimeRegistry.ts';
 import { getTerrainHeight } from '../game/terrain.ts';
 import { buildLocalSnapshot } from '../game/multiplayer.ts';
 import { getApiBaseUrl, type PlayerSnapshot } from '../net/protocol.ts';
+import { createReplayRunState, reduceReplayRun, type ReplayRunEvent } from './replayRun.ts';
 
 interface RunSample {
     t: number;
@@ -16,6 +16,54 @@ interface RunSample {
     speed: number;
 }
 
+export interface GamemodeHudBinding {
+    root: HTMLElement;
+    modeName: HTMLElement;
+    checkpoint: HTMLElement;
+    checkpointTotal: HTMLElement;
+    lap: HTMLElement;
+    lapTotal: HTMLElement;
+    score: HTMLElement;
+    time: HTMLElement;
+    announcement: HTMLElement;
+}
+
+export interface PracticeLeaderboardEntry {
+    playerId: string;
+    bestTimeMs: number;
+}
+
+export type LeaderboardView =
+    | { status: 'practice' }
+    | { status: 'loading' }
+    | { status: 'empty' }
+    | { status: 'ready'; entries: PracticeLeaderboardEntry[] }
+    | { status: 'error' };
+
+export interface PersonalBestView {
+    previousScore: number | null;
+    isNew: boolean;
+}
+
+export interface GamemodeResultView {
+    reason: 'finish' | 'ended';
+    modeId: string;
+    modeName: string;
+    elapsedMs: number;
+    bestLapMs?: number;
+    score: number;
+    breakdown: ScoreBreakdown;
+    personalBest: PersonalBestView;
+    leaderboard: LeaderboardView;
+}
+
+export interface GamemodePresentation {
+    active: boolean;
+    result: GamemodeResultView | null;
+}
+
+const IDLE_PRESENTATION: GamemodePresentation = { active: false, result: null };
+
 let activeState: RuntimeGamemodeState | null = null;
 let activePackage: GamemodePackageDefinition | null = null;
 let unregisterHook: (() => void) | null = null;
@@ -24,6 +72,38 @@ let sampleSocket: WebSocket | null = null;
 let lastSampleMs = 0;
 let samples: RunSample[] = [];
 let resultsVisible = false;
+let hudBinding: GamemodeHudBinding | null = null;
+let lastRunPackage: GamemodePackageDefinition | null = null;
+let presentation: GamemodePresentation = IDLE_PRESENTATION;
+let replayRun = createReplayRunState();
+const presentationListeners = new Set<() => void>();
+
+export function getGamemodePresentation(): GamemodePresentation {
+    return presentation;
+}
+
+export function subscribeGamemodePresentation(listener: () => void): () => void {
+    presentationListeners.add(listener);
+    return () => presentationListeners.delete(listener);
+}
+
+function publishPresentation(next: GamemodePresentation): void {
+    if (presentation === next) return;
+    presentation = next;
+    for (const listener of presentationListeners) listener();
+}
+
+export function bindGamemodeHud(binding: GamemodeHudBinding): () => void {
+    hudBinding = binding;
+    updateStatus();
+    return () => {
+        if (hudBinding === binding) hudBinding = null;
+    };
+}
+
+export function getReplayRunEvents(): readonly ReplayRunEvent[] {
+    return replayRun.events;
+}
 
 function runtimeParts() {
     const runtime = getActiveRuntime();
@@ -35,12 +115,18 @@ function runtimeParts() {
 }
 
 export function startGamemode(pkg: GamemodePackageDefinition): void {
+    startGamemodeAttempt(pkg, false);
+}
+
+function startGamemodeAttempt(pkg: GamemodePackageDefinition, replayAlreadyStarted: boolean): void {
     stopGamemode();
     const parts = runtimeParts();
     if (!parts) return;
     const { runtime, playerGroup, scene } = parts;
     const { physics } = runtime;
     activePackage = validateGamemodePackage(pkg);
+    lastRunPackage = activePackage;
+    if (!replayAlreadyStarted) replayRun = reduceReplayRun(replayRun, { type: 'START' });
     const snapshot = localPlayerSnapshot();
     const start = activePackage.params.startPosition;
     playerGroup.position.set(start.x, start.y || getTerrainHeight(start.x, start.z) + groundClearance, start.z);
@@ -52,7 +138,7 @@ export function startGamemode(pkg: GamemodePackageDefinition): void {
     snapshot.z = playerGroup.position.z;
     activeState = createRuntimeState(activePackage.params, snapshot);
     const gamemode = createGamemode(activePackage, event => {
-        if (event.type === 'finish') showResults('finish');
+        if (event.type === 'finish') completeGamemode('finish');
     });
     void gamemode.init({ roomId: 'local', now: () => performance.now(), broadcast: () => undefined });
     void gamemode.start(activeState);
@@ -62,14 +148,16 @@ export function startGamemode(pkg: GamemodePackageDefinition): void {
     samples = [];
     lastSampleMs = 0;
     resultsVisible = false;
-    const results = document.getElementById('gamemode-results');
-    if (results) results.hidden = true;
+    publishPresentation({ active: true, result: null });
     openSampleSocket();
     unregisterHook = registerUpdateHook((dt) => updateGamemode(dt));
     updateStatus();
 }
 
 export function stopGamemode(options: { preserveResults?: boolean } = {}): void {
+    if (activeState && replayRun.phase === 'running') {
+        replayRun = reduceReplayRun(replayRun, { type: 'ABANDON', atMs: activeState.elapsedMs });
+    }
     if (unregisterHook) unregisterHook();
     unregisterHook = null;
     setCurrentGamemode(null);
@@ -94,32 +182,40 @@ export function stopGamemode(options: { preserveResults?: boolean } = {}): void 
     activeState = null;
     activePackage = null;
     updateStatus();
-    if (!options.preserveResults) {
-        const results = document.getElementById('gamemode-results');
-        if (results) results.hidden = true;
-    }
+    publishPresentation({
+        active: false,
+        result: options.preserveResults ? presentation.result : null,
+    });
 }
 
 export function endGamemode(): void {
     if (!activeState || !activePackage) return;
-    showResults('ended');
-    stopGamemode({ preserveResults: true });
+    completeGamemode('ended');
+}
+
+export function retryGamemode(): void {
+    const pkg = lastRunPackage;
+    if (!pkg || replayRun.phase !== 'results') return;
+    replayRun = reduceReplayRun(replayRun, { type: 'RETRY', atMs: presentation.result?.elapsedMs ?? 0 });
+    startGamemodeAttempt(pkg, true);
+}
+
+export function dismissGamemodeResults(): void {
+    if (!presentation.result) return;
+    publishPresentation({ active: false, result: null });
+    window.requestAnimationFrame(() => document.getElementById('menu-button')?.focus({ preventScroll: true }));
+}
+
+export function retryLeaderboard(): void {
+    const result = presentation.result;
+    if (!result || result.reason !== 'finish') return;
+    publishPresentation({ active: false, result: { ...result, leaderboard: { status: 'loading' } } });
+    void loadLeaderboard(result.modeId);
 }
 
 export function disposeGamemodeUI(): void {
     stopGamemode();
-    const status = document.getElementById('gamemode-status');
-    const endButton = document.getElementById('gamemode-end-run');
-    const results = document.getElementById('gamemode-results');
-    if (status) {
-        status.hidden = true;
-        status.textContent = '';
-    }
-    if (endButton) endButton.hidden = true;
-    if (results) {
-        results.hidden = true;
-        results.replaceChildren();
-    }
+    presentation = IDLE_PRESENTATION;
 }
 
 function updateGamemode(dt: number): void {
@@ -130,7 +226,7 @@ function updateGamemode(dt: number): void {
     sampleRun(dt);
     updateCheckpointVisuals();
     updateStatus();
-    if (activeState.ended && !resultsVisible) showResults('finish');
+    if (activeState.ended && !resultsVisible) completeGamemode('finish');
 }
 
 function buildGamemodeMeshes(pkg: GamemodePackageDefinition): THREE.Group {
@@ -230,42 +326,63 @@ function openSampleSocket(): void {
     sampleSocket = new WebSocket(target);
 }
 
-function showResults(reason: 'finish' | 'ended'): void {
-    if (!activeState || !activePackage) return;
+export function recordReplayMeaningfulInput(): void {
+    if (!activeState || replayRun.phase !== 'running') return;
+    replayRun = reduceReplayRun(replayRun, { type: 'MEANINGFUL_INPUT', atMs: activeState.elapsedMs });
+}
+
+export function recordReplaySkillBeat(): void {
+    if (!activeState || replayRun.phase !== 'running') return;
+    replayRun = reduceReplayRun(replayRun, { type: 'SKILL_BEAT', atMs: activeState.elapsedMs });
+}
+
+function completeGamemode(reason: 'finish' | 'ended'): void {
+    if (!activeState || !activePackage || resultsVisible) return;
     resultsVisible = true;
+    const state = activeState;
+    const pkg = activePackage;
+    const progress = state.progress.get('local');
+    if (!progress) return;
+    const elapsedMs = progress.finishedAtMs ?? state.elapsedMs;
+    replayRun = reduceReplayRun(replayRun, {
+        type: reason === 'finish' ? 'FINISH' : 'ABANDON',
+        atMs: elapsedMs,
+    });
+    replayRun = reduceReplayRun(replayRun, { type: 'SHOW_RESULT', atMs: elapsedMs });
     flushRunSamples(reason === 'finish' ? 'finish' : 'abandon');
-    const result = activeState.results.find(entry => entry.playerId === 'local');
-    const progress = activeState.progress.get('local');
-    const elapsed = formatTime(progress?.finishedAtMs ?? activeState.elapsedMs);
-    const bestLap = result?.bestLapMs ? formatTime(result.bestLapMs) : '—';
-    const results = document.getElementById('gamemode-results');
-    if (!results) return;
-    results.hidden = false;
-    const outcome = reason === 'finish' ? `Finished in ${elapsed}` : `Run ended at ${elapsed}`;
-    const telemetry = reason === 'finish'
-        ? '<div id="gamemode-leaderboard" class="gamemode-leaderboard">Loading unverified run telemetry…</div>'
-        : '<div class="gamemode-leaderboard">Practice result · not submitted to the leaderboard</div>';
-    results.innerHTML = `<h2 class="lp-panel-title">${activePackage.manifest.displayName}</h2><p>${outcome}</p><p>Score ${result?.score ?? 0}</p><p>Best lap ${bestLap}</p>${telemetry}<button class="lp-button" type="button" id="gamemode-close-results">Close</button>`;
-    const closeButton = document.getElementById('gamemode-close-results');
-    closeButton?.addEventListener('click', () => { results.hidden = true; });
-    closeButton?.focus();
-    if (reason === 'finish') void loadLeaderboard(activePackage.manifest.id);
+    const breakdown = calculateScoreBreakdown(pkg.params, progress, elapsedMs);
+    const personalBest = updatePersonalBest(pkg.manifest.id, breakdown.total, reason === 'finish');
+    const result: GamemodeResultView = {
+        reason,
+        modeId: pkg.manifest.id,
+        modeName: pkg.manifest.displayName,
+        elapsedMs,
+        bestLapMs: progress.bestLapMs,
+        score: breakdown.total,
+        breakdown,
+        personalBest,
+        leaderboard: reason === 'finish' ? { status: 'loading' } : { status: 'practice' },
+    };
+    publishPresentation({ active: false, result });
+    stopGamemode({ preserveResults: true });
+    if (reason === 'finish') void loadLeaderboard(pkg.manifest.id);
 }
 
 async function loadLeaderboard(gamemodeId: string): Promise<void> {
-    const target = document.getElementById('gamemode-leaderboard');
-    if (!target) return;
     try {
         const response = await fetch(`${getApiBaseUrl()}/leaderboard/${encodeURIComponent(gamemodeId)}`);
         const payload = await response.json();
         if (!response.ok || !isLeaderboardPayload(payload)) throw new Error('leaderboard unavailable');
-        if (payload.entries.length === 0) {
-            target.textContent = 'No unverified run telemetry yet.';
-            return;
-        }
-        target.innerHTML = `<p>Unverified client telemetry · no rewards or ranked authority</p><ol>${payload.entries.map(entry => `<li><span>${escapeHtml(entry.playerId)}</span><strong>${formatTime(entry.bestTimeMs)}</strong></li>`).join('')}</ol>`;
-    } catch (error) {
-        target.textContent = error instanceof Error ? error.message : 'leaderboard unavailable';
+        const result = presentation.result;
+        if (!result || result.modeId !== gamemodeId) return;
+        const leaderboard: LeaderboardView = payload.entries.length === 0
+            ? { status: 'empty' }
+            : { status: 'ready', entries: payload.entries };
+        publishPresentation({ active: false, result: { ...result, leaderboard } });
+    } catch {
+        const result = presentation.result;
+        if (!result || result.modeId !== gamemodeId) return;
+        publishPresentation({ active: false, result: { ...result, leaderboard: { status: 'error' } } });
     }
 }
 
@@ -283,20 +400,49 @@ function isLeaderboardPayload(value: unknown): value is {
 }
 
 function updateStatus(): void {
-    const status = document.getElementById('gamemode-status');
-    const endButton = document.getElementById('gamemode-end-run');
-    if (!status || !activeState || !activePackage) {
-        if (status) status.hidden = true;
-        if (endButton) endButton.hidden = true;
+    const binding = hudBinding;
+    if (!binding) return;
+    if (!activeState || !activePackage) {
+        binding.root.hidden = true;
         return;
     }
-    status.hidden = false;
-    if (endButton) endButton.hidden = false;
+    binding.root.hidden = false;
     const progress = activeState.progress.get('local');
-    const score = activeState.scores.get('local') ?? 0;
+    if (!progress) return;
+    const score = calculateScoreBreakdown(activePackage.params, progress, activeState.elapsedMs).total;
     const total = activePackage.params.checkpoints.length;
-    const next = progress ? progress.nextCheckpointIndex + 1 : 1;
-    status.textContent = `${activePackage.manifest.displayName}: gate ${next}/${total} lap ${progress?.lap ?? 0} score ${score} time ${formatTime(activeState.elapsedMs)}`;
+    const next = progress.nextCheckpointIndex + 1;
+    const lapTotal = activePackage.params.laps ?? 1;
+    const lap = Math.min(progress.lap + 1, lapTotal);
+    binding.modeName.textContent = activePackage.manifest.displayName;
+    binding.checkpoint.textContent = String(next);
+    binding.checkpointTotal.textContent = String(total);
+    binding.lap.textContent = String(lap);
+    binding.lapTotal.textContent = String(lapTotal);
+    binding.score.textContent = score.toLocaleString();
+    binding.time.textContent = formatRunTime(activeState.elapsedMs);
+    const progressKey = `${progress.completedCheckpoints}:${progress.lap}`;
+    if (binding.announcement.dataset.progressKey !== progressKey) {
+        binding.announcement.dataset.progressKey = progressKey;
+        binding.announcement.textContent = progress.completedCheckpoints === 0
+            ? `${activePackage.manifest.displayName} started. Gate one of ${total}.`
+            : `Gate ${Math.min(progress.completedCheckpoints, total)} cleared. Next gate ${next} of ${total}.`;
+    }
+}
+
+function updatePersonalBest(modeId: string, score: number, eligible: boolean): PersonalBestView {
+    let previousScore: number | null = null;
+    try {
+        const stored = window.localStorage.getItem(`lunarpup:practice-best:${modeId}`);
+        const parsed = stored === null ? Number.NaN : Number(stored);
+        previousScore = Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+        if (eligible && (previousScore === null || score > previousScore)) {
+            window.localStorage.setItem(`lunarpup:practice-best:${modeId}`, String(score));
+        }
+    } catch {
+        // Personal-best context is optional when storage is unavailable.
+    }
+    return { previousScore, isNew: eligible && (previousScore === null || score > previousScore) };
 }
 
 function localPlayerSnapshot(): PlayerSnapshot {
@@ -324,11 +470,7 @@ function copyLocalIntoSnapshot(player: PlayerSnapshot): void {
     player.boardTiltZ = snapshot.boardTiltZ;
 }
 
-function escapeHtml(value: string): string {
-    return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
-}
-
-function formatTime(ms: number): string {
+export function formatRunTime(ms: number): string {
     const seconds = ms / 1000;
     return `${seconds.toFixed(2)}s`;
 }

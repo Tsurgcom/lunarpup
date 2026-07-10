@@ -37,3 +37,11 @@ None.
 - Any failure of the enjoyment gate reopens this concern for control/camera/mode tuning rather than being papered over by rewards.
 - The documented load, input-response, p95 frame-time, reduced-motion, sound-off, focus, and recovery budgets pass for the complete run/result/retry loop.
 - `bun run typecheck`, `bun test`, and `bun run smoke` pass with zero browser console errors.
+
+## Implementation progress — 2026-07-10
+
+The first run-loop slice is implemented, but this concern remains open for gameplay tuning and the observed enjoyment gate. Play now launches Crater Circuit directly, while Free skate remains a secondary no-clock option. The run HUD and result/retry surface are React-owned; the result preserves the moon world, explains score inputs, reports local personal-best context, covers loading/empty/error practice-board states, traps focus, pauses simulation, and restarts the same run without a reload or menu round trip.
+
+`src/modes/replayRun.ts` records one deterministic sequence for run start, first meaningful input, first successful skill beat, finish or abandonment, result shown, and retry selected. Duplicate finish, result, input, skill, and retry actions are ignored by the pure reducer. Browser coverage exercises run → manual result → retry → result → keep skating at both 1280×720 and 390×844, including focus, inert background, 44px actions, extension-HUD coexistence, socket cleanup, reduced motion, and zero console/page errors.
+
+Still required before `STATUS: done`: tune and observe the actual 45–60 second skill beat, camera framing, encounter cadence, near-miss readability, and score comprehension with 5–8 representative desktop arcade players. Record results in `docs/playtests/solo-run.md`; at least four must understand the goal unaided and at least three must voluntarily retry.

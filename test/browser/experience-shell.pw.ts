@@ -126,7 +126,7 @@ test('React shell owns navigation, extensions, solo mode, pause, layers, and lif
     await expect(main).toBeVisible();
     await expect(page.locator('#main-play')).toBeFocused();
     await expect(main.getByRole('button')).toHaveCount(3);
-    await expect(page.locator('#main-crater-circuit')).toBeEnabled();
+    await expect(page.locator('#main-free-skate')).toBeEnabled();
     await expect(page.locator('body')).not.toContainText(/Shop|Rooms|Wallet|Moon Crate|SPL|Buy/i);
     await expect(page.locator('main')).toHaveAttribute('data-simulation-paused', 'true');
     await expect(page.locator('[data-experience-layer="canvas"]')).toHaveJSProperty('inert', true);
@@ -188,7 +188,7 @@ test('React shell owns navigation, extensions, solo mode, pause, layers, and lif
     expect(layers.hud).toBeLessThan(layers.transient);
     expect(layers.transient).toBeLessThan(layers.menu);
 
-    for (const selector of ['#speedometer', '#trick-score', '#minimap-panel', '#speed-lines']) {
+    for (const selector of ['#speedometer', '#trick-score', '#gamemode-hud', '#minimap-panel', '#speed-lines']) {
         const target = page.locator(selector);
         const evidence = await target.evaluate(element => {
             const rect = element.getBoundingClientRect();
@@ -240,20 +240,36 @@ test('React shell owns navigation, extensions, solo mode, pause, layers, and lif
     await expect(page.locator('#tuning-maxSpeed')).toHaveValue('0.8');
     await page.keyboard.press('Escape');
 
-    await page.locator('#main-crater-circuit').click();
+    await page.locator('#main-play').click();
     await expect(page.locator('main')).toHaveAttribute('data-experience-surface', 'play');
-    await expect(page.locator('#gamemode-status')).toBeVisible();
-    await expect(page.locator('#gamemode-status')).toContainText('Crater Circuit');
+    await expect(page.locator('#gamemode-hud')).toBeVisible();
+    await expect(page.locator('#gamemode-hud')).toContainText('Crater Circuit');
     await expect(page.locator('#gamemode-end-run')).toBeVisible();
-    await expect(page.locator('[data-experience-layer="hud"] #gamemode-status')).toHaveCount(1);
+    await expect(page.locator('[data-experience-layer="hud"] #gamemode-hud')).toHaveCount(1);
     await expect.poll(() => page.evaluate(() => window.__lpWebSockets?.active)).toBe(2);
     await page.locator('#gamemode-end-run').click();
-    await expect(page.locator('[data-experience-layer="transient"] > #gamemode-results')).toBeVisible();
+    await expect(page.locator('[data-experience-layer="menu"] > #gamemode-results')).toBeVisible();
     await expect(page.locator('#gamemode-results')).toContainText('Run ended');
     await expect(page.locator('#gamemode-results')).toContainText('Practice result');
-    await expect(page.locator('#gamemode-close-results')).toBeFocused();
-    await page.locator('#gamemode-close-results').click();
-    await expect(page.locator('#gamemode-results')).toBeHidden();
+    await expect(page.locator('#gamemode-results')).toContainText('Score');
+    await expect(page.locator('#gamemode-play-again')).toBeFocused();
+    await expect(page.locator('[data-experience-layer="canvas"]')).toHaveJSProperty('inert', true);
+    await expect(page.locator('main')).toHaveAttribute('data-simulation-paused', 'true');
+    await page.screenshot({ path: `/tmp/lunarpup-concern15-result-${testInfo.project.name}.png`, fullPage: true });
+    for (const selector of ['#gamemode-play-again', '#gamemode-keep-skating']) {
+        const box = await page.locator(selector).boundingBox();
+        expect(box?.width).toBeGreaterThanOrEqual(44);
+        expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.locator('#gamemode-play-again').click();
+    await expect(page.locator('#gamemode-results')).toHaveCount(0);
+    await expect(page.locator('#gamemode-hud')).toBeVisible();
+    await expect(page.locator('main')).toHaveAttribute('data-simulation-paused', 'false');
+    await expect.poll(() => page.evaluate(() => window.__lpWebSockets?.active)).toBe(2);
+    await page.locator('#gamemode-end-run').click();
+    await expect(page.locator('#gamemode-play-again')).toBeFocused();
+    await page.locator('#gamemode-keep-skating').click();
+    await expect(page.locator('#gamemode-results')).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => window.__lpWebSockets?.active)).toBe(1);
 
     const baselineLifecycle = await page.evaluate(() => ({
@@ -264,7 +280,7 @@ test('React shell owns navigation, extensions, solo mode, pause, layers, and lif
     for (let cycle = 0; cycle < 10; cycle += 1) {
         await page.locator('#menu-button').click();
         await expect(page.locator('#main-menu')).toHaveCount(1);
-        await page.locator('#main-play').click();
+        await page.locator('#main-free-skate').click();
         await expect(page.locator('#menu-button')).toHaveCount(1);
     }
     expect(await page.evaluate(() => ({
@@ -289,7 +305,7 @@ test('React shell owns navigation, extensions, solo mode, pause, layers, and lif
         await page.keyboard.press('Escape');
     } else {
         await page.setViewportSize({ width: 640, height: 360 });
-        for (const selector of ['#main-play', '#main-crater-circuit', '#main-settings']) {
+        for (const selector of ['#main-play', '#main-free-skate', '#main-settings']) {
             const target = page.locator(selector);
             await target.scrollIntoViewIfNeeded();
             await expect(target).toBeInViewport();

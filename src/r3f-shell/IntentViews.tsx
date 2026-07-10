@@ -14,14 +14,14 @@ const FOCUSABLE = [
     '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-function useDialogFocus(ref: RefObject<HTMLDivElement | null>) {
+function useDialogFocus(ref: RefObject<HTMLDivElement | null>, focusVersion: unknown = null) {
     useLayoutEffect(() => {
         const dialog = ref.current;
         if (!dialog) return;
-        const preferred = dialog.querySelector<HTMLElement>('[data-autofocus]');
+        const preferred = dialog.querySelector<HTMLElement>('[data-autofocus]:not([disabled])');
         const first = dialog.querySelector<HTMLElement>(FOCUSABLE);
         (preferred ?? first ?? dialog).focus({ preventScroll: true });
-    }, [ref]);
+    }, [ref, focusVersion]);
 }
 
 function trapDialogFocus(event: KeyboardEvent<HTMLDivElement>, onEscape: () => void) {
@@ -67,16 +67,16 @@ function MainMenu() {
     const { back, openSettings, play } = useExperience();
     const { gameReady } = useGame();
     const ref = useRef<HTMLDivElement>(null);
-    useDialogFocus(ref);
-
-    const startFreeSkate = () => {
-        stopGamemode();
-        play();
-    };
+    useDialogFocus(ref, gameReady);
 
     const startCraterCircuit = () => {
         if (!gameReady) return;
         startGamemode(raceGamemodePackage);
+        play();
+    };
+
+    const startFreeSkate = () => {
+        stopGamemode();
         play();
     };
 
@@ -105,21 +105,21 @@ function MainMenu() {
                         type="button"
                         data-menu-item
                         data-autofocus
-                        onClick={startFreeSkate}
-                    >
-                        <span>Play</span>
-                        <span className="main-menu-item-note">Drop in</span>
-                    </button>
-                    <button
-                        id="main-crater-circuit"
-                        className="main-menu-item main-menu-mode"
-                        type="button"
-                        data-menu-item
                         disabled={!gameReady}
                         onClick={startCraterCircuit}
                     >
-                        <span>Crater Circuit</span>
-                        <span className="main-menu-item-note">{gameReady ? 'Solo run' : 'Loading moon…'}</span>
+                        <span>Play</span>
+                        <span className="main-menu-item-note">{gameReady ? 'Crater Circuit' : 'Loading moon…'}</span>
+                    </button>
+                    <button
+                        id="main-free-skate"
+                        className="main-menu-item main-menu-mode"
+                        type="button"
+                        data-menu-item
+                        onClick={startFreeSkate}
+                    >
+                        <span>Free skate</span>
+                        <span className="main-menu-item-note">No clock</span>
                     </button>
                     <button
                         id="main-settings"

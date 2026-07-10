@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { PlayerSnapshot } from '../net/protocol.ts';
 import { gamemodePackages, parkourGamemodePackage, raceGamemodePackage } from '../../content/gamemodes/index.ts';
-import { createGamemode, createRuntimeState, maybeResetFallenPlayer, processCheckpoint, validateGamemodePackage } from './runtime.ts';
+import { calculateScoreBreakdown, createGamemode, createRuntimeState, maybeResetFallenPlayer, processCheckpoint, validateGamemodePackage } from './runtime.ts';
 
 function playerAt(id: string, x: number, y: number, z: number): PlayerSnapshot {
     return {
@@ -79,6 +79,14 @@ describe('scoring and win conditions', () => {
         expect(progress?.finishedAtMs).toBe(8_000);
         expect(progress?.bestLapMs).toBe(4_000);
         expect(mode.score('p1', state)).toBeGreaterThan(100_000);
+        expect(calculateScoreBreakdown(raceGamemodePackage.params, progress!, state.elapsedMs)).toEqual({
+            completionBonus: 100_000,
+            checkpointScore: 8_000,
+            lapScore: 10_000,
+            timePenalty: 80,
+            fallPenalty: 0,
+            total: 117_920,
+        });
     });
 
     test('parkour fall resets to last checkpoint and penalizes score', () => {

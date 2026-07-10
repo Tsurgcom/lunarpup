@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { setupExtensions } from '../extensions/client.ts';
 import { isDevMode } from '../ui/devFlag.ts';
-import { disposeGamemodeUI, endGamemode } from '../modes/client.ts';
+import { disposeGamemodeUI } from '../modes/client.ts';
 import { GameProvider, useGame } from './GameProvider.tsx';
 import { ExperienceProvider, useExperience } from './ExperienceProvider.tsx';
 import { ChatPanel } from './ChatPanel.tsx';
@@ -15,8 +15,10 @@ import { SpeedHud } from './SpeedHud.tsx';
 import { SpeedLines } from './SpeedLines.tsx';
 import { UpdateNotice } from './UpdateNotice.tsx';
 import { ToastHost } from './ToastHost.tsx';
+import { GamemodeHud, GamemodeResults, useGamemodePresentation } from './GamemodeOverlay.tsx';
 import '../styles.css';
 import './shell.css';
+import './run.css';
 
 function isTypingTarget(target: EventTarget | null): boolean {
     const element = target as HTMLElement | null;
@@ -53,11 +55,13 @@ function ExtensionLoader({ hudRoot, transientRoot }: {
 function ExperienceShell() {
     const { multiplayerConfig } = useGame();
     const { state, covered, simulationPaused, openMainMenu, openPauseMenu } = useExperience();
+    const gamemode = useGamemodePresentation();
     const [mapExpanded, setMapExpanded] = useState(false);
     const [rosterVisible, setRosterVisible] = useState(false);
     const extensionHudRoot = useRef<HTMLDivElement>(null);
     const extensionTransientRoot = useRef<HTMLDivElement>(null);
     const multiplayerEnabled = multiplayerConfig?.enabled ?? false;
+    const interfaceCovered = covered || gamemode.result !== null;
 
     useEffect(() => {
         document.body.classList.toggle('lp-dev', isDevMode());
@@ -113,14 +117,14 @@ function ExperienceShell() {
             className="r3f-shell"
             data-experience-surface={state.surface}
             data-presentation={state.presentation}
-            data-simulation-paused={simulationPaused}
+            data-simulation-paused={simulationPaused || gamemode.result !== null}
         >
             <div
                 id="canvas-container"
                 className="experience-layer experience-canvas"
                 data-experience-layer="canvas"
-                inert={covered}
-                aria-hidden={covered}
+                inert={interfaceCovered}
+                aria-hidden={interfaceCovered}
             >
                 <GameCanvas />
             </div>
@@ -128,15 +132,12 @@ function ExperienceShell() {
             <div
                 className="experience-layer experience-hud lp-gameplay"
                 data-experience-layer="hud"
-                inert={covered}
-                aria-hidden={covered}
+                inert={interfaceCovered}
+                aria-hidden={interfaceCovered}
             >
                 <SpeedHud />
                 <TrickHud />
-                <div className="gamemode-hud" aria-label="Solo run status">
-                    <div id="gamemode-status" role="status" aria-live="polite" hidden />
-                    <button id="gamemode-end-run" className="lp-button" type="button" onClick={endGamemode} hidden>End run</button>
-                </div>
+                <GamemodeHud />
                 <MinimapPanel expanded={mapExpanded} />
                 {multiplayerEnabled && <PresenceChip />}
                 <div ref={extensionHudRoot} id="extension-hud-root" className="extension-hud-root" />
@@ -145,17 +146,16 @@ function ExperienceShell() {
             <div
                 className="experience-layer experience-transient lp-gameplay"
                 data-experience-layer="transient"
-                inert={covered}
-                aria-hidden={covered}
+                inert={interfaceCovered}
+                aria-hidden={interfaceCovered}
             >
                 <SpeedLines />
                 <ToastHost />
                 <UpdateNotice />
-                <ChatPanel multiplayerEnabled={multiplayerEnabled} interactionEnabled={!covered} />
-                <div id="gamemode-results" className="lp-panel lp-panel-strong" role="status" aria-live="polite" hidden />
+                <ChatPanel multiplayerEnabled={multiplayerEnabled} interactionEnabled={!interfaceCovered} />
                 {multiplayerEnabled && <RosterOverlay visible={rosterVisible} />}
                 <div ref={extensionTransientRoot} id="extension-transient-root" className="extension-transient-root" />
-                {state.surface === 'play' && (
+                {state.surface === 'play' && !gamemode.result && (
                     <button
                         id="menu-button"
                         type="button"
@@ -170,6 +170,7 @@ function ExperienceShell() {
 
             <div className="experience-layer experience-menu" data-experience-layer="menu">
                 <IntentViews />
+                {gamemode.result && <GamemodeResults result={gamemode.result} />}
             </div>
             <ExtensionLoader hudRoot={extensionHudRoot} transientRoot={extensionTransientRoot} />
         </main>
