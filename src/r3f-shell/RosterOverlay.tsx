@@ -1,13 +1,13 @@
 import { useGame } from './GameProvider.tsx';
 
-export function RosterOverlay() {
+export function RosterOverlay({ visible = false }: { visible?: boolean }) {
     const { multiplayerConfig, remotePlayerIds, remotePlayersRef } = useGame();
     const remoteNames = remotePlayerIds
         .map((id) => remotePlayersRef.current.get(id)?.name)
         .filter((name): name is string => !!name);
 
     return (
-        <div id="roster-overlay" className="roster-overlay" role="dialog" aria-label="Player roster" hidden>
+        <div id="roster-overlay" className="roster-overlay" role="status" aria-label="Player roster" hidden={!visible}>
             <div className="roster-card">
                 <p className="lp-view-eyebrow">In this session</p>
                 <div id="roster-list" className="roster-list">

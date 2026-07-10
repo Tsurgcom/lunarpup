@@ -12,7 +12,9 @@ function entryUrl(clientModule: string, apiBase: string): string {
     return new URL(clientModule, apiBase || window.location.origin).href;
 }
 
-export async function setupExtensions(): Promise<void> {
+let setupPromise: Promise<void> | null = null;
+
+async function loadExtensions(): Promise<void> {
     const apiBase = getApiBaseUrl();
     const response = await fetch(`${apiBase}/extensions`);
     if (response.status === 404) return;
@@ -30,4 +32,13 @@ export async function setupExtensions(): Promise<void> {
             console.warn(`[extensions] ${extension.name} failed to load:`, error);
         }
     }
+}
+
+/** One browser load owns one extension setup, including under React StrictMode. */
+export function setupExtensions(): Promise<void> {
+    setupPromise ??= loadExtensions().catch(error => {
+        setupPromise = null;
+        throw error;
+    });
+    return setupPromise;
 }

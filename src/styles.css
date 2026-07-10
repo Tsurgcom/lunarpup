@@ -16,6 +16,36 @@ body {
     width: 100vw;
     height: 100vh;
 }
+
+/* One explicit stack: Canvas < ambient HUD < transient feedback < dialogs. */
+.experience-layer {
+    position: absolute;
+    inset: 0;
+}
+.experience-canvas { z-index: var(--z-canvas); }
+.experience-hud {
+    z-index: var(--z-hud);
+    pointer-events: none;
+}
+.experience-transient {
+    z-index: var(--z-transient);
+    pointer-events: none;
+}
+.experience-menu {
+    z-index: var(--z-overlay);
+    pointer-events: none;
+}
+.experience-menu > .experience-overlay { pointer-events: auto; }
+.experience-hud[aria-hidden="true"],
+.experience-transient[aria-hidden="true"] {
+    visibility: hidden;
+    opacity: 0;
+}
+#canvas-container canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 .key {
     background: var(--ink-primary);
     color: #000;
@@ -79,12 +109,18 @@ body {
     font-family: var(--font-ui);
     font-size: var(--fs-body);
     cursor: pointer;
-    transition: background var(--dur-fast) var(--ease-standard);
+    min-height: 40px;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out);
 }
 
 .lp-button:hover:not(:disabled),
 .lp-button:focus-visible {
     background: var(--surface-hover);
+}
+
+.lp-button:active:not(:disabled) {
+    transform: translateY(1px);
 }
 
 .lp-button:focus-visible {
@@ -632,6 +668,275 @@ body.lp-gameplay-hidden .lp-gameplay {
 @media (prefers-reduced-motion: reduce) {
     .agent-screen-pulse {
         opacity: 0;
+    }
+}
+
+/* =========================================================================
+   React-owned experience shell
+   ========================================================================= */
+
+.experience-backdrop {
+    appearance: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
+}
+
+.main-menu-content {
+    box-sizing: border-box;
+    width: min(560px, calc(100vw - 2 * var(--space-5)));
+    max-height: calc(100vh - 2 * var(--space-5));
+    overflow: auto;
+}
+
+.main-menu-brand,
+.main-menu-item,
+.main-menu-hint,
+.pause-item {
+    opacity: 1;
+    animation: none !important;
+}
+
+.main-menu-nav {
+    gap: var(--space-2);
+}
+
+.main-menu-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    min-height: 52px;
+    padding: var(--space-2) var(--space-4);
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out);
+}
+
+.main-menu-item:hover,
+.main-menu-item:focus-visible {
+    padding-left: var(--space-4);
+    transform: translateX(4px);
+}
+
+.main-menu-item:focus-visible,
+.pause-item:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
+}
+
+.main-menu-item:active,
+.pause-item:active {
+    transform: translateY(1px);
+}
+
+.main-menu-primary {
+    color: var(--ink-primary);
+    background: linear-gradient(90deg, rgba(76, 201, 240, 0.16), rgba(76, 201, 240, 0));
+    border-left-color: var(--accent-cyan);
+}
+
+.main-menu-utility {
+    min-height: 44px;
+    font-size: clamp(18px, 2.2vw, 24px);
+}
+
+.main-menu-item-note {
+    flex: none;
+    font-size: var(--fs-small);
+    font-weight: var(--fw-regular);
+    letter-spacing: var(--tracking-wide);
+    color: var(--ink-tertiary);
+}
+
+.pause-item {
+    min-height: 52px;
+    transition: color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out);
+}
+
+#menu-button {
+    width: 44px;
+    height: 44px;
+    top: max(12px, env(safe-area-inset-top));
+    pointer-events: auto;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out);
+}
+
+#menu-button:active {
+    transform: translateX(-50%) translateY(1px);
+}
+
+.lp-view-content {
+    box-sizing: border-box;
+    transition: opacity var(--dur-base) var(--ease-out),
+                transform var(--dur-base) var(--ease-out);
+}
+
+.lp-view-head {
+    align-items: flex-start;
+}
+
+.lp-view-back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.settings-section,
+.settings-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.settings-section {
+    padding-bottom: var(--space-5);
+    border-bottom: var(--panel-border);
+}
+
+.settings-section h3,
+.settings-section-heading h3 {
+    margin: 0;
+    font-size: var(--fs-heading);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+}
+
+.settings-section p,
+.settings-section-heading p,
+.settings-status {
+    margin: var(--space-1) 0 0;
+    color: var(--ink-secondary);
+    font-size: var(--fs-body);
+    line-height: var(--leading-normal);
+}
+
+#tuning-panel {
+    display: grid;
+    gap: var(--space-4);
+}
+
+#tuning-panel textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.slider-row input[type="range"] {
+    min-height: 44px;
+}
+
+#speedometer,
+#trick-hud,
+#minimap-panel,
+#speed-lines {
+    z-index: auto;
+}
+
+#speed-lines {
+    pointer-events: none;
+}
+
+#lp-toasts {
+    z-index: var(--z-transient);
+}
+
+@media (hover: hover) {
+    .main-menu-item:hover { transform: translateX(4px); }
+    .lp-button:hover:not(:disabled) { transform: translateY(-1px); }
+}
+
+@media (pointer: coarse) {
+    .lp-button,
+    .main-menu-item,
+    .pause-item,
+    #menu-button,
+    .slider-row input {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 600px) {
+    .main-menu-content {
+        width: calc(100vw - 2 * var(--space-3));
+        padding: var(--space-5);
+    }
+
+    .main-menu-title {
+        font-size: clamp(52px, 20vw, 84px);
+    }
+
+    .main-menu-item {
+        align-items: center;
+    }
+
+    .main-menu-item-note {
+        max-width: 12ch;
+        text-align: right;
+    }
+
+    .lp-view-content {
+        width: calc(100vw - 2 * var(--space-3));
+        max-height: calc(100vh - 2 * var(--space-3));
+        margin: var(--space-3) auto;
+        padding: var(--space-4);
+    }
+
+    .settings-section,
+    .settings-section-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .slider-row {
+        grid-template-columns: minmax(88px, 0.8fr) 1fr 48px;
+    }
+
+    .controls-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .controls-legend > div {
+        display: grid;
+        grid-template-columns: minmax(128px, 0.9fr) 1fr;
+        gap: var(--space-3);
+        padding: var(--space-3) 0;
+        border-bottom: 1px solid var(--panel-border-color);
+    }
+
+    #speedometer {
+        bottom: max(var(--space-4), env(safe-area-inset-bottom));
+        white-space: nowrap;
+    }
+
+    #trick-hud {
+        bottom: 72px;
+        min-width: min(280px, calc(100vw - 2 * var(--space-4)));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .experience-hud,
+    .experience-transient,
+    .lp-scrim,
+    .lp-view-content,
+    .main-menu-content,
+    .main-menu-item,
+    .pause-item,
+    #menu-button,
+    .lp-button {
+        transition: none;
+        animation: none;
     }
 }
 @keyframes agent-screen-pulse {
@@ -1551,5 +1856,136 @@ body.lp-dev .lp-dev-only { display: block; }
     .lp-view .lp-view-content {
         opacity: 1;
         transform: none;
+    }
+}
+
+/* Final shell overrides live after legacy feature styles during the strangler migration. */
+.main-menu-content {
+    box-sizing: border-box;
+    width: min(560px, calc(100vw - 2 * var(--space-5)));
+    max-height: calc(100vh - 2 * var(--space-5));
+    overflow: auto;
+}
+.main-menu-brand,
+.main-menu-item,
+.main-menu-hint,
+.pause-item {
+    opacity: 1;
+    animation: none !important;
+}
+.main-menu-nav { gap: var(--space-2); }
+.main-menu-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    min-height: 52px;
+    padding: var(--space-2) var(--space-4);
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out);
+}
+.main-menu-item:hover,
+.main-menu-item:focus-visible {
+    padding-left: var(--space-4);
+    transform: translateX(4px);
+}
+.main-menu-item:focus-visible,
+.pause-item:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
+}
+.main-menu-item:active,
+.pause-item:active { transform: translateY(1px); }
+.pause-item {
+    min-height: 52px;
+    transition: color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out);
+}
+#menu-button {
+    top: max(12px, env(safe-area-inset-top));
+    width: 44px;
+    height: 44px;
+    pointer-events: auto;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                transform var(--dur-instant) var(--ease-out);
+}
+#menu-button:active { transform: translateX(-50%) translateY(1px); }
+.lp-view-content {
+    box-sizing: border-box;
+    transition: opacity var(--dur-base) var(--ease-out),
+                transform var(--dur-base) var(--ease-out);
+}
+#speedometer,
+#trick-hud,
+#minimap-panel,
+#speed-lines { z-index: auto; }
+
+@media (pointer: coarse) {
+    .lp-button,
+    .main-menu-item,
+    .pause-item,
+    #menu-button,
+    .slider-row input { min-height: 44px; }
+}
+
+@media (max-width: 600px) {
+    .main-menu-content {
+        width: calc(100vw - 2 * var(--space-3));
+        padding: var(--space-5);
+    }
+    .main-menu-title { font-size: clamp(52px, 20vw, 84px); }
+    .main-menu-item { align-items: center; }
+    .main-menu-item-note {
+        max-width: 12ch;
+        text-align: right;
+    }
+    .lp-view-content {
+        width: calc(100vw - 2 * var(--space-3));
+        max-height: calc(100vh - 2 * var(--space-3));
+        margin: var(--space-3) auto;
+        padding: var(--space-4);
+    }
+    .settings-section,
+    .settings-section-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .slider-row { grid-template-columns: minmax(88px, 0.8fr) 1fr 48px; }
+    .controls-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    .controls-legend > div {
+        display: grid;
+        grid-template-columns: minmax(128px, 0.9fr) 1fr;
+        gap: var(--space-3);
+        padding: var(--space-3) 0;
+        border-bottom: 1px solid var(--panel-border-color);
+    }
+    #speedometer {
+        bottom: max(var(--space-4), env(safe-area-inset-bottom));
+        white-space: nowrap;
+    }
+    #trick-hud {
+        bottom: 72px;
+        min-width: min(280px, calc(100vw - 2 * var(--space-4)));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .experience-hud,
+    .experience-transient,
+    .lp-scrim,
+    .lp-view-content,
+    .main-menu-content,
+    .main-menu-item,
+    .pause-item,
+    #menu-button,
+    .lp-button {
+        transition: none;
+        animation: none;
     }
 }

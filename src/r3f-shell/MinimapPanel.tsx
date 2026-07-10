@@ -3,7 +3,7 @@ import { drawMinimap, MINIMAP_SIZE, resetMinimapCache } from './minimapDraw.ts';
 import { useGame } from './GameProvider.tsx';
 import { getPlayerRoot } from '../game/runtime.ts';
 
-export function MinimapPanel() {
+export function MinimapPanel({ expanded = false }: { expanded?: boolean }) {
     const { runtime, remotePlayersRef } = useGame();
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -47,7 +47,7 @@ export function MinimapPanel() {
     }, [remotePlayersRef, runtime]);
 
     return (
-        <section id="minimap-panel" className="lp-gameplay" aria-label="Map">
+        <section id="minimap-panel" className={expanded ? 'minimap-enlarged' : undefined} aria-label="Map">
             <canvas
                 ref={canvasRef}
                 className="minimap-canvas"

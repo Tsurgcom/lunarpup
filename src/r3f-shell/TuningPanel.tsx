@@ -17,6 +17,7 @@ export function TuningPanel() {
     const physics = useGameRuntime().physics;
     const [defaults] = useState<TuningValues>(() => readTuningValues(physics));
     const [values, setValues] = useState<TuningValues>(() => readTuningValues(physics));
+    const [copyStatus, setCopyStatus] = useState('');
 
     function updateSetting(key: PhysicsKey, value: number) {
         physics[key] = value;
@@ -32,19 +33,30 @@ export function TuningPanel() {
         const text = formatTuning(values);
         try {
             await navigator.clipboard.writeText(text);
+            setCopyStatus('Values copied.');
         } catch {
-            const output = document.createElement('textarea');
-            output.value = text;
-            document.body.append(output);
-            output.select();
-            document.execCommand('copy');
-            output.remove();
+            try {
+                const output = document.createElement('textarea');
+                output.value = text;
+                document.body.append(output);
+                output.select();
+                const copied = document.execCommand('copy');
+                output.remove();
+                setCopyStatus(copied ? 'Values copied.' : 'Copy failed. Select the values below and copy them.');
+            } catch {
+                setCopyStatus('Copy failed. Select the values below and copy them.');
+            }
         }
     }
 
     return (
-        <aside id="tuning-panel" aria-label="Live physics tuning">
-            <h2>Live Tuning</h2>
+        <section id="tuning-panel" aria-labelledby="ride-feel-title">
+            <header className="settings-section-heading">
+                <div>
+                    <h3 id="ride-feel-title">Ride feel</h3>
+                    <p>Fine-tune movement without leaving the moon.</p>
+                </div>
+            </header>
             <div id="sliders">
                 {tuningSettings.map(setting => (
                     <div className="slider-row" key={setting.key}>
@@ -65,10 +77,11 @@ export function TuningPanel() {
                 ))}
             </div>
             <div className="tuning-buttons">
-                <button type="button" onClick={() => void copySettings()}>Copy values</button>
-                <button type="button" onClick={resetSettings}>Reset</button>
+                <button className="lp-button" type="button" onClick={() => void copySettings()}>Copy values</button>
+                <button className="lp-button" type="button" onClick={resetSettings}>Reset</button>
             </div>
-            <textarea readOnly value={formatTuning(values)} aria-label="Physics settings source" />
-        </aside>
+            {copyStatus && <p className="settings-status" role="status">{copyStatus}</p>}
+            <textarea className="lp-field lp-dev-only" readOnly value={formatTuning(values)} aria-label="Physics settings source" />
+        </section>
     );
 }

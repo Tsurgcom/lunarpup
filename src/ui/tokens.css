@@ -78,11 +78,11 @@
     --leading-normal: 1.4;
 
     /* -------- Motion -------- */
-    --dur-instant: 80ms;
-    --dur-fast: 140ms;
+    --dur-instant: 100ms;
+    --dur-fast: 100ms;
     --dur-base: 240ms;
-    --dur-slow: 420ms;
-    --dur-slower: 680ms;
+    --dur-slow: 350ms;
+    --dur-slower: 500ms;
 
     /* Expo-out — decisive entrances that settle softly. */
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -102,10 +102,13 @@
     --rarity-legendary-glow: rgba(251, 191, 36, 0.45);
 
     /* -------- Layering -------- */
+    --z-canvas: 0;
     --z-hud: 20;
-    --z-menu-button: 40;
-    --z-pause: 900;
-    --z-main-menu: 1000;
+    --z-transient: 40;
+    --z-menu-button: 45;
+    --z-overlay: 100;
+    --z-pause: 110;
+    --z-main-menu: 120;
 }
 
 /* Tabular numerals for every value readout — numbers line up column-wise and

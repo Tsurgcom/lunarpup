@@ -1,9 +1,9 @@
 # 14 — Build a reliable experience shell
-STATUS: open
+STATUS: done
 PRIORITY: p0
 REPOS: lunarpup
 COMPLEXITY: architectural
-TOUCHES: src/r3f-shell/App.tsx, src/r3f-shell/IntentViews.tsx, src/r3f-shell/gameSystems.ts, src/ui/viewController.ts, src/ui/experienceState.ts, src/ui/mainMenu.ts, src/ui/pauseMenu.ts, src/ui/tokens.css, src/styles.css, docs/product-quality-budgets.md, src/ui/experienceState.test.ts, test/browser/experience-shell.spec.ts
+TOUCHES: src/r3f-shell/App.tsx, src/r3f-shell/ExperienceProvider.tsx, src/r3f-shell/IntentViews.tsx, src/r3f-shell/ChatPanel.tsx, src/r3f-shell/MinimapPanel.tsx, src/r3f-shell/RosterOverlay.tsx, src/r3f-shell/TuningPanel.tsx, src/extensions/client.ts, src/ui/experienceState.ts, src/ui/tokens.css, src/styles.css, docs/product-quality-budgets.md, playwright.config.ts, test/browser/experience-shell.pw.ts
 BLOCKED_BY: 13
 
 ## Goal
@@ -39,3 +39,11 @@ None. Any preview or deployment environment used for browser review must run the
 - Representative 1280×720 and 390×844 screenshots show stable composition and no raw wallet or acquisition dead ends.
 - Press, overlay, motion, contrast, target-size, load, frame-time, recovery, and lifecycle checks use the numerical budgets in `docs/product-quality-budgets.md`.
 - `bun run typecheck`, `bun test`, and `bun run smoke` pass with zero browser console errors.
+
+## Resolution
+
+Replaced the post-convergence imperative shell with a thin `ExperienceProvider` and pure reducer while leaving `GameProvider`, simulation refs, Canvas, camera, and `useFrame` ownership unchanged. React now owns the main menu, pause menu, Settings, and the Controls child, including origin-aware one-layer Back/Escape behavior, pause and menu presentation, focus trapping, inert background layers, and trigger focus restoration. Play is the sole primary destination; unfinished Customize, social, wallet, SPL, shop, and acquisition affordances are absent from player navigation.
+
+Removed the migrated `gameSystems`, `mainMenu`, `pauseMenu`, `viewController`, hotkey, and HUD-visibility listener paths rather than retaining dual owners. Canvas, ambient HUD, transient feedback, and menu/dialog layers now have an explicit tested stack. Coarse-pointer controls are at least 44px, reduced motion collapses transitions, press feedback stays within the shared vocabulary, and the numerical product budgets now live in `docs/product-quality-budgets.md`.
+
+Evidence: the pure state matrix passes 10 tests; the full Bun suite passes 169 tests with one opt-in Postgres test skipped; typecheck, smoke, production build, and `git diff --check` pass. Playwright passes the desktop 1280×720 and narrow 390×844 projects with navigation, backdrop, focus trap/return, inert, layer, rendered HUD, ten-cycle listener/DOM lifecycle, touch-target, reduced-motion, and zero console/page-error assertions. Evidence screenshots are `/tmp/lunarpup-concern14-desktop.png` and `/tmp/lunarpup-concern14-narrow.png`.

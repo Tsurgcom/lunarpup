@@ -9,6 +9,7 @@
     "dev:server": "bun --hot src/server.ts",
     "build": "bun scripts/build.ts",
     "test": "bun test",
+    "test:browser": "playwright test test/browser/experience-shell.pw.ts",
     "typecheck": "bunx tsc --noEmit",
     "smoke": "bun scripts/smoke.ts",
     "verify": "bun run typecheck && bun test && bun run smoke",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@netlify/edge-functions": "^3.0.3",
+    "@playwright/test": "1.61.1",
     "@types/bun": "latest",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

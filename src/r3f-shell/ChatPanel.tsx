@@ -1,7 +1,7 @@
 import { useEffect, useRef, type FormEvent } from 'react';
 import { useGame } from './GameProvider.tsx';
 
-export function ChatPanel({ multiplayerEnabled }: { multiplayerEnabled: boolean }) {
+export function ChatPanel({ multiplayerEnabled, interactionEnabled = true }: { multiplayerEnabled: boolean; interactionEnabled?: boolean }) {
     const { chatLines, appendChatLine, submitChatMessage, handleTpCommand } = useGame();
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -10,6 +10,7 @@ export function ChatPanel({ multiplayerEnabled }: { multiplayerEnabled: boolean 
     }, [appendChatLine, multiplayerEnabled]);
 
     useEffect(() => {
+        if (!interactionEnabled) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Enter' && document.activeElement !== inputRef.current && multiplayerEnabled) {
                 event.preventDefault();
@@ -21,7 +22,7 @@ export function ChatPanel({ multiplayerEnabled }: { multiplayerEnabled: boolean 
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [multiplayerEnabled]);
+    }, [interactionEnabled, multiplayerEnabled]);
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -56,7 +57,7 @@ export function ChatPanel({ multiplayerEnabled }: { multiplayerEnabled: boolean 
                     maxLength={200}
                     placeholder="Say something… (Enter)"
                     aria-label="Chat message"
-                    disabled={!multiplayerEnabled}
+                    disabled={!multiplayerEnabled || !interactionEnabled}
                 />
             </form>
         </div>
