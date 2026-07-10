@@ -35,6 +35,24 @@ open — the world is already dimmed behind the view). Preview must never mutate
 equipped state until the player confirms. All new views obey the intent-layer rules from
 concern 12 (one at a time, menu-grade typography, reduced-motion).
 
+## Premium-feel direction (from docs/ui-research/ui-reference-v2.md — 1,176-entry corpus)
+
+Three observed patterns that separate premium game UIs from ours; apply across every view:
+1. **Negative space frames, not borders.** The best exemplars (Control weapon-mods,
+   Warframe Market) drop card backgrounds entirely — icon + text float over the dimmed
+   world, spacing does the grouping. Our intent views should lean on the dimmed backdrop
+   and generous gaps, not nested panel chrome (reinforces concern-12's no-boxes-in-boxes).
+2. **One token recipe everywhere** — already true via tokens.css; keep every new view on it.
+3. **Two-tier typography**: one emphatic size + one quiet metadata size, not many
+   similar-weight labels. Match the main-menu title treatment we already have.
+
+**Highest-impact single change (research verdict):** the shop's only equip feedback today
+is an 18px swatch dot. Every strong exemplar (Cyberpunk inventory, The Ascent store,
+Control mods, Warframe market) makes "what does this look like on me" the PRIMARY visual.
+This is exactly the list-left / character-right preview already specced above — treat the
+live character preview as the shop's centerpiece, not an addition. The same preview render
+is reused by the character-select/loadout screen.
+
 ## Motion & feel (from docs/ui-research/emilkowalski-skills-assessment.md)
 
 Emil Kowalski's skills (MIT; author of Sonner/Vaul) — adopt as guidance, not a library.
