@@ -7,7 +7,10 @@ const root = join(import.meta.dir, '..');
 const version = { buildId: `${Date.now()}` };
 await writeFile(join(root, 'version.json'), JSON.stringify(version, null, 2));
 
-const game = Bun.spawn(['bun', '--hot', './index.html'], {
+// No --hot for the game: Bun 1.3's HMR chokes on the R3F/React import graph
+// ("Failed to load bundled module ... bug in Bun's bundler"). Plain serve still
+// rebundles on refresh; only in-place HMR is lost.
+const game = Bun.spawn(['bun', './index.html'], {
     stdout: 'inherit',
     stderr: 'inherit',
 });
