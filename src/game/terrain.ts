@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import type { PhysicsState } from './types.ts';
-import { chunkSize, terrainViewDistance } from '../config.ts';
+import { chunkSize, terrainViewDistance, terrainLodBias } from '../config.ts';
 import { calculateTerrainHeight } from './terrainMath.ts';
 
 export type TerrainChunkDescriptor = {
@@ -25,9 +25,11 @@ function chunkKey(cx: number, cz: number) {
     return `${cx},${cz}`;
 }
 
-function getChunkLod(distanceInChunks: number): Pick<TerrainChunkDescriptor, 'lodName' | 'segments'> {
-    if (distanceInChunks <= 1.25) return { lodName: 'near', segments: 56 };
-    if (distanceInChunks <= 2.25) return { lodName: 'mid', segments: 28 };
+export function getChunkLod(distanceInChunks: number, lodBias = terrainLodBias): Pick<TerrainChunkDescriptor, 'lodName' | 'segments'> {
+    // Higher bias pushes the near/mid boundaries further out (more detail, heavier).
+    const bias = lodBias > 0 ? lodBias : 1;
+    if (distanceInChunks <= 1.25 * bias) return { lodName: 'near', segments: 56 };
+    if (distanceInChunks <= 2.25 * bias) return { lodName: 'mid', segments: 28 };
     return { lodName: 'far', segments: 12 };
 }
 
