@@ -8,6 +8,10 @@ const MARE = { r: 0.58, g: 0.54, b: 0.68 };
 const RIM_CREST = { r: 1.0, g: 0.96, b: 0.9 };
 /** Darker inner wall under the lip. */
 const INNER_WALL = { r: 0.48, g: 0.44, b: 0.55 };
+/** Deep bowl floor — cool indigo so depth reads at a glance. */
+const ABYSS = { r: 0.22, g: 0.2, b: 0.34 };
+/** Mid-depth cavity — dusty violet. */
+const CAVITY = { r: 0.38, g: 0.34, b: 0.48 };
 
 /** ≈ MOON_RADIUS * 0.028 — blotch scale in unit-sphere space. */
 const NOISE_FREQ = 8.6;
@@ -49,8 +53,8 @@ function moonNoise(x: number, y: number, z: number): number {
 }
 
 /**
- * Bake pastel mare/highland (+ soft rim cues) into a vertex color.
- * Matches the old fragment shader look at facet resolution.
+ * Bake pastel mare/highland + depth / rim cues into a vertex color.
+ * `elev` is radial height offset (negative = crater floor).
  */
 export function writeMoonVertexColor(
   dir: THREE.Vector3,
@@ -64,33 +68,43 @@ export function writeMoonVertexColor(
     dir.y * NOISE_FREQ,
     dir.z * NOISE_FREQ,
   );
-  let mare = THREE.MathUtils.smoothstep(1.4, -3.2, elev);
+  let mare = THREE.MathUtils.smoothstep(1.6, -6.0, elev);
   mare = THREE.MathUtils.clamp(mare + (blotch - 0.5) * 0.28, 0, 1);
 
   let r = THREE.MathUtils.lerp(HIGHLAND.r, MARE.r, mare);
   let g = THREE.MathUtils.lerp(HIGHLAND.g, MARE.g, mare);
   let b = THREE.MathUtils.lerp(HIGHLAND.b, MARE.b, mare);
 
+  // Depth bands — shallow cavity → deep abyss so bowls read as chasms.
+  const midDepth = THREE.MathUtils.smoothstep(-1.5, -7.0, elev);
+  const deepDepth = THREE.MathUtils.smoothstep(-6.0, -14.0, elev);
+  r = THREE.MathUtils.lerp(r, CAVITY.r, midDepth * 0.75);
+  g = THREE.MathUtils.lerp(g, CAVITY.g, midDepth * 0.75);
+  b = THREE.MathUtils.lerp(b, CAVITY.b, midDepth * 0.75);
+  r = THREE.MathUtils.lerp(r, ABYSS.r, deepDepth * 0.85);
+  g = THREE.MathUtils.lerp(g, ABYSS.g, deepDepth * 0.85);
+  b = THREE.MathUtils.lerp(b, ABYSS.b, deepDepth * 0.85);
+
   const rimCrest =
-    THREE.MathUtils.smoothstep(0.12, 0.42, slope) *
-    THREE.MathUtils.smoothstep(-0.15, 1.35, elev) *
-    (1 - THREE.MathUtils.smoothstep(2.4, 4.0, elev));
-  const crestAmt = rimCrest * 0.72;
+    THREE.MathUtils.smoothstep(0.1, 0.45, slope) *
+    THREE.MathUtils.smoothstep(-0.4, 1.6, elev) *
+    (1 - THREE.MathUtils.smoothstep(2.2, 4.5, elev));
+  const crestAmt = rimCrest * 0.78;
   r = THREE.MathUtils.lerp(r, RIM_CREST.r, crestAmt);
   g = THREE.MathUtils.lerp(g, RIM_CREST.g, crestAmt);
   b = THREE.MathUtils.lerp(b, RIM_CREST.b, crestAmt);
 
   const innerLip =
-    THREE.MathUtils.smoothstep(0.18, 0.52, slope) *
-    THREE.MathUtils.smoothstep(0.9, -1.8, elev) *
+    THREE.MathUtils.smoothstep(0.16, 0.55, slope) *
+    THREE.MathUtils.smoothstep(0.5, -4.0, elev) *
     (1 - rimCrest);
-  const lipAmt = innerLip * 0.55;
+  const lipAmt = innerLip * 0.6;
   r = THREE.MathUtils.lerp(r, INNER_WALL.r, lipAmt);
   g = THREE.MathUtils.lerp(g, INNER_WALL.g, lipAmt);
   b = THREE.MathUtils.lerp(b, INNER_WALL.b, lipAmt);
 
   const apron =
-    THREE.MathUtils.smoothstep(0.05, 0.55, elev) *
+    THREE.MathUtils.smoothstep(0.05, 0.7, elev) *
     (1 - THREE.MathUtils.smoothstep(0.35, 0.7, slope)) *
     (1 - mare);
   const apronAmt = apron * 0.22;
@@ -98,16 +112,16 @@ export function writeMoonVertexColor(
   g = THREE.MathUtils.lerp(g, RIM_CREST.g, apronAmt);
   b = THREE.MathUtils.lerp(b, RIM_CREST.b, apronAmt);
 
-  // Soft cavity darkening in bowls (was lighting-side in the old shader).
-  const inBowl = THREE.MathUtils.smoothstep(1.2, -4.5, elev);
-  const cavity = THREE.MathUtils.lerp(1, 0.78, inBowl);
+  // Extra cavity darkening so floors drop away visually under lighting.
+  const inBowl = THREE.MathUtils.smoothstep(0.5, -10.0, elev);
+  const cavity = THREE.MathUtils.lerp(1, 0.62, inBowl);
   colors[offset] = r * cavity;
   colors[offset + 1] = g * cavity;
   colors[offset + 2] = b * cavity;
 }
 
 /**
- * Lit Standard material with baked vertex colors — v1-style lighting response.
+ * Lit Standard material with baked vertex colors — soft lunar response.
  */
 export function createMoonMaterial(): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
@@ -116,6 +130,6 @@ export function createMoonMaterial(): THREE.MeshStandardMaterial {
     fog: true,
     vertexColors: true,
     metalness: 0.02,
-    roughness: 0.82,
+    roughness: 0.84,
   });
 }

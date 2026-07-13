@@ -21,6 +21,7 @@ import {
 } from "./chunkLod";
 import { isDebugEnabled } from "./debugFrame";
 import { getLocalPose } from "./localPose";
+import { sampleHeightDir, sampleSlopeDir } from "./lunarTerrain";
 import {
   CHART_RADIUS,
   chartHitToDir,
@@ -58,7 +59,7 @@ type DragState = {
   moved: boolean;
 };
 
-const FOCUS_DUR = 0.45;
+const FOCUS_DUR = 0.28;
 const COLLAPSE_DELAY_MS = 320;
 /** Collapsed map refresh rate — avoids a full second WebGL loop at 60Hz. */
 const IDLE_MAP_HZ = 10;
@@ -435,7 +436,14 @@ function LunarMapScene({
   focused: boolean;
   dragRef: MutableRefObject<DragState>;
 }) {
-  const chart = useMemo(() => createMoonChartGeometry(CHART_RADIUS, 4), []);
+  const chart = useMemo(
+    () =>
+      createMoonChartGeometry(CHART_RADIUS, 5, {
+        height: sampleHeightDir,
+        slope: sampleSlopeDir,
+      }),
+    [],
+  );
   const hitDir = useRef(new THREE.Vector3());
 
   const onChartPointerUp = (e: ThreeEvent<PointerEvent>) => {

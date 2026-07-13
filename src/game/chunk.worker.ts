@@ -1,10 +1,14 @@
 import * as THREE from "three";
-import { createFaceGeometryData } from "./chunkGeometry";
+import { createFaceGeometryData, setChunkHeightSampler } from "./chunkGeometry";
 import type {
   ChunkBuildRequest,
   ChunkBuildResponse,
   ChunkWorkerOutbound,
 } from "./chunkWorkerMessages";
+import { sampleHeightDir } from "./lunarTerrain";
+
+// Workers get their own module graph — register the heightfield here.
+setChunkHeightSampler(sampleHeightDir);
 
 function corner(v: readonly [number, number, number]): THREE.Vector3 {
   return new THREE.Vector3(v[0], v[1], v[2]);

@@ -26,7 +26,7 @@ export const CHART_RADIUS = 1;
 
 const _chartDir = new THREE.Vector3();
 
-/** Free-space-style spawn position — short drop-in above the ride shell. */
+/** Free-space-style spawn position — short drop-in above the mean radius. */
 export function spawnPosition(out = new THREE.Vector3()): THREE.Vector3 {
   return out.copy(SPAWN_DIR).multiplyScalar(MOON_RADIUS + SPAWN_ALTITUDE);
 }
@@ -67,10 +67,19 @@ export function chartHitToDir(
   return out.copy(point).normalize();
 }
 
-/** Plain HUD globe (no heightfield). */
+type ChartHeightSample = {
+  height(dir: THREE.Vector3): number;
+  slope(dir: THREE.Vector3): number;
+};
+
+/**
+ * Flat HUD globe. Pass a height sampler for terrain vertex colours;
+ * without one colours are the base mare/highland ramp only.
+ */
 export function createMoonChartGeometry(
   radius = CHART_RADIUS,
   detail = 4,
+  terrain?: ChartHeightSample,
 ): THREE.BufferGeometry {
   const geo = new THREE.IcosahedronGeometry(radius, detail);
   const pos = geo.attributes.position;
@@ -80,7 +89,9 @@ export function createMoonChartGeometry(
 
   for (let i = 0; i < pos.count; i++) {
     dir.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
-    writeMoonVertexColor(dir, 0, 0, colors, i * 3);
+    const h = terrain ? terrain.height(dir) : 0;
+    const slope = terrain ? terrain.slope(dir) : 0;
+    writeMoonVertexColor(dir, h, slope, colors, i * 3);
   }
 
   geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));

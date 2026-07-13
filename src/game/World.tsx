@@ -1,11 +1,18 @@
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import type { DirectionalLight } from "three";
 import * as THREE from "three";
 import { ChunkLodDriver } from "./ChunkLodDriver";
 import { ChunkTerrain } from "./ChunkTerrain";
+import { setTerrainGenerator } from "./chunkLod";
 import { GhostRun } from "./GhostRun";
 import { getLocalPose } from "./localPose";
+import { lunarSurface } from "./lunarTerrain";
 import { MOON_RADIUS } from "./moon";
 import { PerfTierDriver } from "./PerfTierDriver";
 import { Player } from "./Player";
@@ -166,6 +173,11 @@ export function World({
   onSnapshot,
 }: WorldProps) {
   const fogDensity = 0.00115;
+
+  useLayoutEffect(() => {
+    setTerrainGenerator(lunarSurface);
+    return () => setTerrainGenerator(null);
+  }, []);
 
   return (
     <>

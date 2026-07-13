@@ -59,7 +59,7 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1.5,
     shadows: true,
     shadowMapSize: 1024,
-    lodSubdivScale: 0.85,
+    lodSubdivScale: 2,
     starCount: 700,
     moonWidthSegs: 56,
     moonHeightSegs: 42,
@@ -71,11 +71,11 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 2,
     shadows: true,
     shadowMapSize: 1024,
-    lodSubdivScale: 1,
+    lodSubdivScale: 4,
     starCount: 900,
     moonWidthSegs: 64,
     moonHeightSegs: 48,
-    maxChunkAttachPerFrame: 3,
+    maxChunkAttachPerFrame: 4,
   },
 ] as const;
 

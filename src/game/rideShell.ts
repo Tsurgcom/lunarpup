@@ -2,38 +2,52 @@ import * as THREE from "three";
 import { sampleTerrainHeight } from "./chunkLod";
 import { MOON_RADIUS } from "./moon";
 
-/** Board height above the terrain shell when planted (m). */
-export const BOARD_CLEARANCE = 0.85;
+/**
+ * Board origin height above the terrain shell when planted (m).
+ * SkateDog wheels sit ~0.05 below the group origin — keep this small so the
+ * deck isn't a hoverboard, with a little slack for clipmap chord error.
+ */
+export const BOARD_CLEARANCE = 0.14;
 
 /** Soft pre-load band above the shell (m). */
-export const SOFT_BAND = 0.55;
+export const SOFT_BAND = 0.7;
 
 /** Stylized lunar gravity magnitude (m/s²). */
 export const G_LUNAR = 3.2;
 
-/** Compression spring stiffness (N/m) — stiff plant. */
-export const COMPRESS_STIFFNESS = 4200;
+/**
+ * Compression spring stiffness (N/m).
+ * Firm enough to hold bowl walls at skate speed (centripetal), without buzz.
+ */
+export const COMPRESS_STIFFNESS = 3600;
 
-/** Soft-band spring stiffness (N/m) — light preload. */
-export const SOFT_STIFFNESS = 180;
+/**
+ * Soft-band spring stiffness (N/m).
+ * Must stay below weight/SOFT_BAND so gravity can pull the board into plant
+ * (otherwise it hovers forever in the preload cushion).
+ */
+export const SOFT_STIFFNESS = 48;
 
 /** Normal damper (N·s/m). */
-export const NORMAL_DAMPING = 220;
+export const NORMAL_DAMPING = 280;
 
 /** Hard floor: project out if penetration exceeds this (m). */
-export const MAX_PENETRATION = 0.35;
+export const MAX_PENETRATION = 0.4;
 
 /** Leave plant when outward and above this altitude (m). */
-export const LEAVE_EPSILON = 0.04;
+export const LEAVE_EPSILON = 0.05;
 
 /** Jump impulse along contact normal (m/s). */
 export const JUMP_SPEED = 7.5;
 
 /** Coyote window after leaving plant (s). */
-export const COYOTE_TIME = 0.12;
+export const COYOTE_TIME = 0.14;
 
-/** Finite-difference arc for shell normal (radians). */
-const NORMAL_EPS = 1.2e-3;
+/**
+ * Finite-difference angle (radians) for shell normals.
+ * Gradient is formed per meter of surface arc: ΔR / (ε · R).
+ */
+const NORMAL_EPS = 1.6e-3;
 
 const _dir = new THREE.Vector3();
 const _east = new THREE.Vector3();
@@ -84,6 +98,10 @@ export function shellTangentBasis(
 /**
  * Finite-difference surface normal of the ride shell.
  * On a flat sphere (height 0) this collapses to `dir`.
+ *
+ * `NORMAL_EPS` is an angle on the unit sphere; divide by arc length
+ * (ε · R) so ∇R is meters-per-meter — otherwise deep bowls make n ⊥ radial
+ * and the contact spring launches the board.
  */
 export function sampleShellNormal(
   dir: THREE.Vector3,
@@ -91,17 +109,17 @@ export function sampleShellNormal(
 ): THREE.Vector3 {
   shellTangentBasis(dir, _east, _north);
 
-  // Sample shell radius at ±eps along east and north (exp-map on the sphere).
   const r0 = rideRadius(dir);
+  const arc = Math.max(NORMAL_EPS * r0, 1e-4);
 
   _tmp.copy(dir).addScaledVector(_east, NORMAL_EPS).normalize();
   const rE = rideRadius(_tmp);
   _tmp.copy(dir).addScaledVector(_north, NORMAL_EPS).normalize();
   const rN = rideRadius(_tmp);
 
-  // Gradient of R in the tangent plane → outward normal ≈ dir − ∇_tang R.
-  const dRdE = (rE - r0) / NORMAL_EPS;
-  const dRdN = (rN - r0) / NORMAL_EPS;
+  // ∇_arc R in the tangent plane → outward normal ≈ dir − ∇_arc R.
+  const dRdE = (rE - r0) / arc;
+  const dRdN = (rN - r0) / arc;
   out.copy(dir).addScaledVector(_east, -dRdE).addScaledVector(_north, -dRdN);
   return out.normalize();
 }
@@ -160,22 +178,27 @@ export function applyRideShellField(
 
   _force.set(0, 0, 0);
 
-  // Always pull toward the shell (lunar gravity along −normal ≈ −radial).
-  _force.addScaledVector(n, -G_LUNAR * mass);
+  // Gravity toward moon center — never along the surface normal. On steep
+  // bowl walls, −normal gravity (plus thrust) was launching the board to space.
+  _force.addScaledVector(shell.dir, -G_LUNAR * mass);
 
   const vN = vel.dot(n);
 
   if (regime === "soft") {
-    // Weak preload spring only while approaching / settling in the band.
-    const softH = SOFT_BAND - h;
-    _force.addScaledVector(n, SOFT_STIFFNESS * softH);
-    if (vN < 0) {
-      _force.addScaledVector(n, -NORMAL_DAMPING * 0.35 * vN);
+    // Preload only while approaching / settling — never boost an outgoing lip.
+    if (vN < 0.2) {
+      const softH = SOFT_BAND - h;
+      _force.addScaledVector(n, SOFT_STIFFNESS * softH);
+      if (vN < 0) {
+        _force.addScaledVector(n, -NORMAL_DAMPING * 0.4 * vN);
+      }
     }
   } else if (regime === "planted") {
-    // Stiff compression: h ≤ 0 means penetrating below the ride shell.
     _force.addScaledVector(n, -COMPRESS_STIFFNESS * h);
-    _force.addScaledVector(n, -NORMAL_DAMPING * vN);
+    // Unilateral damper — only resist penetration, not jumps/lips.
+    if (vN < 0) {
+      _force.addScaledVector(n, -NORMAL_DAMPING * vN);
+    }
   }
 
   vel.addScaledVector(_force, dt / mass);
@@ -199,6 +222,43 @@ export function antiTunnel(
   if (vN < 0) {
     vel.addScaledVector(shell.normal, -vN);
   }
+}
+
+/**
+ * Hard stick to the ride shell while grounded — springs alone can't supply
+ * centripetal force on steep bowl walls, so the board separates and launches.
+ *
+ * Release on clear outward normal speed alone. Requiring altitude > ε was a
+ * catch-22: stick snaps you to the shell every substep, so you never clear ε
+ * unless already going ~18 m/s outward. Also never damp outward loft here —
+ * killing 85% of vN per substep annihilated jumps and lip launches.
+ */
+export function stickToShell(
+  pos: THREE.Vector3,
+  vel: THREE.Vector3,
+  grounded: boolean,
+  shell: RideShellSample,
+): boolean {
+  sampleRideShell(pos, shell);
+  if (!grounded) return false;
+
+  const vN = vel.dot(shell.normal);
+  // Lip / jump / spring loft — let the board leave.
+  if (vN > 0.85) {
+    return false;
+  }
+
+  if (shell.altitude < SOFT_BAND * 0.85) {
+    pos.copy(shell.dir).multiplyScalar(shell.radius);
+    sampleRideShell(pos, shell);
+    const vN2 = vel.dot(shell.normal);
+    // Centripetal assist only: kill inward normal speed, leave outward alone.
+    if (vN2 < 0) {
+      vel.addScaledVector(shell.normal, -vN2);
+    }
+    return true;
+  }
+  return false;
 }
 
 /** Place a point on the ride shell along `dir` (unit or not). */
@@ -232,21 +292,21 @@ export function updateContactState(
   let nextAir = airTime;
   let nextCoyote = coyote;
 
+  // Plant only while compressing / settling — never while lofting out.
+  // `h <= 0` alone used to re-ground mid-jump and hand you back to stickToShell.
   if (
-    regime === "planted" ||
-    (regime === "soft" && vN <= 0.15 && h < SOFT_BAND * 0.5)
+    vN <= 0.55 &&
+    (regime === "planted" ||
+      (regime === "soft" && vN <= 0.15 && h < SOFT_BAND * 0.5))
   ) {
-    // Plant when compressing into/near the shell.
-    if (vN <= LEAVE_EPSILON * 20 || h <= 0) {
-      nextGrounded = true;
-      nextAir = 0;
-      nextCoyote = COYOTE_TIME;
-    }
+    nextGrounded = true;
+    nextAir = 0;
+    nextCoyote = COYOTE_TIME;
   }
 
   if (nextGrounded) {
-    // Leave if rising clear of the shell.
-    if (vN > 0.4 && h > LEAVE_EPSILON) {
+    if (vN > 0.55) {
+      // Rising clear — leave even if still near the shell this substep.
       nextGrounded = false;
       nextAir = 0;
       nextCoyote = COYOTE_TIME;

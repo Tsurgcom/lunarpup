@@ -264,7 +264,7 @@ function inflightHasKey(key: FaceBuildKey): boolean {
  * Drop queued builds that are no longer live.
  * In-flight work is not interrupted (Workers have no cancel); the result is
  * discarded on completion when the streamer no longer wants that key.
- * Callers must **rebuild** on LOD change — never reuse a wrong-subdiv mesh.
+ * Callers keep the previous mesh until a new subdiv key is ready, then swap.
  */
 export function cancelStaleFaceBuilds(
   liveKeys: ReadonlySet<FaceBuildKey>,

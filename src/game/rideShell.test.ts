@@ -26,6 +26,16 @@ describe("rideShell", () => {
     expect(n.dot(dir)).toBeGreaterThan(0.999);
   });
 
+  test("heightfield floor normal stays near-radial", async () => {
+    const { setTerrainGenerator } = await import("./chunkLod");
+    const { lunarSurface } = await import("./lunarTerrain");
+    const { SPAWN_DIR } = await import("./moon");
+    setTerrainGenerator(lunarSurface);
+    const n = sampleShellNormal(SPAWN_DIR);
+    expect(n.dot(SPAWN_DIR)).toBeGreaterThan(0.98);
+    setTerrainGenerator(null);
+  });
+
   test("ride radius includes clearance", () => {
     const dir = new THREE.Vector3(0, 0, 1);
     expect(rideRadius(dir)).toBeCloseTo(MOON_RADIUS + BOARD_CLEARANCE, 5);

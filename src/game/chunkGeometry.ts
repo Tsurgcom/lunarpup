@@ -17,6 +17,10 @@ export type FaceGeometryData = {
 };
 
 const _dir = new THREE.Vector3();
+const _east = new THREE.Vector3();
+const _north = new THREE.Vector3();
+const _tmp = new THREE.Vector3();
+const _n = new THREE.Vector3();
 const _color = new Float32Array(3);
 
 /**
@@ -53,6 +57,47 @@ function sphereBary(
     .normalize();
 }
 
+function tangentBasis(
+  dir: THREE.Vector3,
+  east: THREE.Vector3,
+  north: THREE.Vector3,
+): void {
+  east.set(0, 1, 0).cross(dir);
+  if (east.lengthSq() < 1e-10) {
+    east.set(1, 0, 0).cross(dir);
+  }
+  east.normalize();
+  north.crossVectors(dir, east).normalize();
+}
+
+/** Analytic outward normal from the radial heightfield. */
+function heightfieldNormal(
+  dir: THREE.Vector3,
+  h0: number,
+  out: THREE.Vector3,
+  radius: number,
+  eps = 1.5e-3,
+): THREE.Vector3 {
+  tangentBasis(dir, _east, _north);
+
+  const r0 = radius + h0;
+  const arc = Math.max(eps * Math.max(r0, radius * 0.5), 1e-4);
+
+  _tmp.copy(dir).addScaledVector(_east, eps).normalize();
+  const hE = heightSampler(_tmp);
+  _tmp.copy(dir).addScaledVector(_north, eps).normalize();
+  const hN = heightSampler(_tmp);
+
+  // ∇_arc R (m/m) → n ≈ dir − ∇_arc R.
+  const dRdE = (hE - h0) / arc;
+  const dRdN = (hN - h0) / arc;
+  return out
+    .copy(dir)
+    .addScaledVector(_east, -dRdE)
+    .addScaledVector(_north, -dRdN)
+    .normalize();
+}
+
 /**
  * Tessellate one spherical triangle into transferable buffer data.
  * Pure CPU — safe on the main thread or in a worker.
@@ -83,11 +128,15 @@ export function createFaceGeometryData(
       positions[vi * 3] = _dir.x * r;
       positions[vi * 3 + 1] = _dir.y * r;
       positions[vi * 3 + 2] = _dir.z * r;
-      // Radial normal is correct for a sphere (and flat heightfield).
-      normals[vi * 3] = _dir.x;
-      normals[vi * 3 + 1] = _dir.y;
-      normals[vi * 3 + 2] = _dir.z;
-      writeMoonVertexColor(_dir, h, 0, _color, 0);
+
+      heightfieldNormal(_dir, h, _n, radius);
+      normals[vi * 3] = _n.x;
+      normals[vi * 3 + 1] = _n.y;
+      normals[vi * 3 + 2] = _n.z;
+
+      // Slope cue from how far the normal tips off radial.
+      const slope = Math.hypot(_n.x - _dir.x, _n.y - _dir.y, _n.z - _dir.z) * 4;
+      writeMoonVertexColor(_dir, h, slope, _color, 0);
       colors[vi * 3] = _color[0]!;
       colors[vi * 3 + 1] = _color[1]!;
       colors[vi * 3 + 2] = _color[2]!;

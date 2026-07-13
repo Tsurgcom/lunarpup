@@ -7,7 +7,7 @@ import { isDebugEnabled, tickDebugFrame } from "./debugFrame";
 import { endGhostLine, tickGhostLine } from "./ghostLine";
 import { setHudSpeed } from "./hudSpeed";
 import { setLocalPose } from "./localPose";
-import { orbitPoint, SPAWN_DIR } from "./moon";
+import { SPAWN_DIR } from "./moon";
 import {
   boardAxes,
   type ControlInput,
@@ -16,9 +16,9 @@ import {
   LEAN_ANGLE,
   PITCH_ANGLE,
   type PlayerState,
-  shellSpawnAltitude,
   stepPlayer,
 } from "./movement";
+import { plantOnShell, SOFT_BAND } from "./rideShell";
 import { SkateDog } from "./SkateDog";
 import { setSpeedFx } from "./speedLinesUtil";
 import { consumeTeleport } from "./teleport";
@@ -132,7 +132,8 @@ export function Player({
         if (warpDir.current.lengthSq() < 1e-8) {
           warpDir.current.copy(SPAWN_DIR);
         }
-        orbitPoint(warpDir.current, shellSpawnAltitude(), s.pos);
+        plantOnShell(warpDir.current, s.pos);
+        s.pos.addScaledVector(warpDir.current, SOFT_BAND * 0.35 + 0.8);
         s.up.copy(warpDir.current);
         s.contactNormal.copy(warpDir.current);
         s.vel.set(0, 0, 0);

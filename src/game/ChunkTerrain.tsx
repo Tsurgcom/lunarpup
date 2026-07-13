@@ -10,13 +10,9 @@ import {
   resetChunkBuildQueue,
 } from "./chunkBuild";
 import { setChunkHeightSampler } from "./chunkGeometry";
-import {
-  getChunkLodSnapshot,
-  getIcoFaces,
-  type IcoFace,
-  sampleTerrainHeight,
-} from "./chunkLod";
+import { getChunkLodSnapshot, getIcoFaces, type IcoFace } from "./chunkLod";
 import { isDebugEnabled } from "./debugFrame";
+import { sampleHeightDir } from "./lunarTerrain";
 import { createMoonMaterial } from "./moonMaterial";
 import { getPerfSettings } from "./performanceTiers";
 
@@ -50,8 +46,8 @@ export function getDebugChunkWorkers(): number {
 /**
  * Streams icosphere face patches from the LOD plan via a multi-worker pool.
  *
- * Rebuild policy: when subdiv changes, the old mesh is removed immediately
- * and a fresh build is queued — no “keep previous LOD while recovering”.
+ * Rebuild policy: when subdiv changes (up or down), keep the previous mesh
+ * until the new LOD geometry is built — then swap atomically.
  */
 export function ChunkTerrain() {
   const group = useRef<THREE.Group>(null);
@@ -68,8 +64,8 @@ export function ChunkTerrain() {
 
   useLayoutEffect(() => {
     getIcoFaces();
-    // Main-thread sampler follows the registered terrain generator API.
-    setChunkHeightSampler(sampleTerrainHeight);
+    // Main-thread sync fallback (workers register their own sampler).
+    setChunkHeightSampler(sampleHeightDir);
     return () => {
       for (const entry of meshes.current.values()) {
         group.current?.remove(entry.mesh);
@@ -118,11 +114,9 @@ export function ChunkTerrain() {
       const existing = meshes.current.get(c.faceIndex);
       if (existing && existing.subdiv === c.subdiv) continue;
 
-      // Don't recover — drop the wrong LOD and rebuild from scratch.
+      // Keep showing the previous LOD (up or down) until the new mesh is ready.
       if (existing) {
-        root.remove(existing.mesh);
-        releaseMesh(existing.mesh, meshPool.current);
-        meshes.current.delete(c.faceIndex);
+        live.add(faceBuildKey(c.faceIndex, existing.subdiv));
       }
 
       const geometry = geoCache.current.get(key);
@@ -175,6 +169,7 @@ export function ChunkTerrain() {
       if (!geoCache.current.has(next.key)) continue;
       const existing = meshes.current.get(next.face.index);
       if (existing && existing.subdiv === next.subdiv) continue;
+      // Swap only once the new LOD has finished calculating.
       if (existing) {
         root.remove(existing.mesh);
         releaseMesh(existing.mesh, meshPool.current);

@@ -33,6 +33,15 @@ describe("performanceTiers", () => {
     expect(scaleLodSubdiv(40, 0.45)).toBe(18);
     expect(scaleLodSubdiv(4, 0.45)).toBe(2);
     expect(scaleLodSubdiv(40, 1)).toBe(40);
+    expect(scaleLodSubdiv(40, 4)).toBe(160);
+  });
+
+  test("high doubles clipmap subdiv", () => {
+    expect(PERF_TIERS[2]!.lodSubdivScale).toBe(2);
+  });
+
+  test("ultra quadruples clipmap subdiv", () => {
+    expect(PERF_TIERS[3]!.lodSubdivScale).toBe(4);
   });
 
   test("climbs after warm-up when fps stays high", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MOON_RADIUS, SPAWN_ALTITUDE, spawnPosition } from "./moon";
+import { MOON_RADIUS } from "./moon";
 import { type ControlInput, createPlayer, stepPlayer } from "./movement";
 import {
   BOARD_CLEARANCE,
@@ -23,12 +23,11 @@ function idleInput(overrides: Partial<ControlInput> = {}): ControlInput {
 }
 
 describe("ride-shell movement", () => {
-  test("createPlayer spawns at fixed drop-in altitude", () => {
+  test("createPlayer spawns on a short drop-in above the ride shell", () => {
     const p = createPlayer();
-    const expected = spawnPosition();
-    expect(p.pos.distanceTo(expected)).toBeLessThan(1e-6);
-    expect(p.pos.length()).toBeCloseTo(MOON_RADIUS + SPAWN_ALTITUDE, 5);
     expect(signedAltitude(p.pos)).toBeGreaterThan(SOFT_BAND);
+    expect(signedAltitude(p.pos)).toBeLessThan(SOFT_BAND + 3);
+    expect(p.pos.length()).toBeGreaterThan(MOON_RADIUS + BOARD_CLEARANCE);
   });
 
   test("idle fall plants on the ride shell", () => {

@@ -1,13 +1,16 @@
 import * as THREE from "three";
-import { MAX_SPEED, SPAWN_DIR, spawnPosition } from "./moon";
+import { MAX_SPEED, SPAWN_DIR } from "./moon";
 import {
   antiTunnel,
   applyRideShellField,
   BOARD_CLEARANCE,
+  COYOTE_TIME,
   contactRegime,
   createShellSample,
+  plantOnShell,
   type RideShellSample,
   SOFT_BAND,
+  stickToShell,
   tryJump,
   updateContactState,
 } from "./rideShell";
@@ -37,16 +40,16 @@ const STEER_SPEED_HALF = 14;
 /** Airborne pitch rate at full R/F (rad/s). */
 const PITCH_RATE = 2.2;
 /** How quickly board up tracks surface normal when planted. */
-const UP_TRACK = 14;
+const UP_TRACK = 9;
 /** Soft-contact up blend rate. */
-const UP_TRACK_SOFT = 5;
+const UP_TRACK_SOFT = 4;
 
 const LEAN_ENGAGE = 5.5;
 const LEAN_RECOVER = 3.2;
 const PITCH_ENGAGE = 5.5;
 const PITCH_RECOVER = 3.2;
 
-const SUBSTEPS = 4;
+const SUBSTEPS = 6;
 
 export { MAX_SPEED };
 
@@ -150,7 +153,9 @@ function blendUpToward(
 
 export function createPlayer(): PlayerState {
   const up = SPAWN_DIR.clone();
-  const pos = spawnPosition();
+  // Short drop-in above the local ride shell (respects crater floors).
+  const pos = plantOnShell(SPAWN_DIR);
+  pos.addScaledVector(SPAWN_DIR, SOFT_BAND * 0.35 + 1.6);
   const yaw = 0;
   boardAxes(yaw, up, _forward, _right);
   return {
@@ -226,7 +231,10 @@ function substep(
   if (input.forward) axis += 1;
   if (input.back) axis -= REVERSE_MULT;
   if (axis !== 0) {
-    const thrust = THRUST * (input.boosting ? BOOST_MULT : 1);
+    // Airborne thrust is weak — full W with a wall-frozen attitude was a
+    // skyrocket under lunar gravity after leaving a steep lip.
+    const airFade = state.grounded ? 1 : 0.12;
+    const thrust = THRUST * (input.boosting ? BOOST_MULT : 1) * airFade;
     _force.addScaledVector(_forward, axis * thrust);
   }
 
@@ -259,6 +267,11 @@ function substep(
 
   state.pos.addScaledVector(state.vel, dt);
   antiTunnel(state.pos, state.vel, shell);
+  if (stickToShell(state.pos, state.vel, state.grounded, shell)) {
+    state.grounded = true;
+    state.airTime = 0;
+    state.coyote = COYOTE_TIME;
+  }
   state.contactNormal.copy(shell.normal);
 
   const contact = updateContactState(
