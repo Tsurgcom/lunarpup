@@ -1,6 +1,6 @@
 import type { MultiplayerStatus } from "./multiplayer";
 
-export type MenuScreen = "main" | "options" | "credits";
+export type MenuScreen = "main" | "options" | "credits" | "controls";
 
 type StartMenuProps = {
   screen: MenuScreen;
@@ -20,6 +20,7 @@ type PauseMenuProps = {
   onApplyRoom: () => void;
   roomId: string;
   peerCount: number;
+  selfId: string;
   status: MultiplayerStatus;
   statusDetail: string;
 };
@@ -61,6 +62,22 @@ function OptionsFields({
   );
 }
 
+function ControlsBody() {
+  return (
+    <div className="menu__credits">
+      <p className="menu__controls">
+        <kbd>W</kbd> push · <kbd>S</kbd> brake · <kbd>A</kbd>/<kbd>D</kbd> turn
+        · <kbd>F</kbd> nose up · <kbd>R</kbd> nose down · <kbd>Space</kbd>{" "}
+        ollie · <kbd>Shift</kbd> jetpack · <kbd>Esc</kbd> pause
+      </p>
+      <p>
+        W pulses push strokes on the ground. Shift burns jet fuel (recharges
+        on the deck). Pause to watch your best ghost line.
+      </p>
+    </div>
+  );
+}
+
 function CreditsBody() {
   return (
     <div className="menu__credits">
@@ -76,6 +93,18 @@ function CreditsBody() {
         (not official).
       </p>
     </div>
+  );
+}
+
+function BackButton({ onScreen }: { onScreen: (s: MenuScreen) => void }) {
+  return (
+    <button
+      type="button"
+      className="menu__btn menu__btn--ghost"
+      onClick={() => onScreen("main")}
+    >
+      Back
+    </button>
   );
 }
 
@@ -110,6 +139,13 @@ export function StartMenu({
             <button
               type="button"
               className="menu__btn menu__btn--ghost"
+              onClick={() => onScreen("controls")}
+            >
+              Controls
+            </button>
+            <button
+              type="button"
+              className="menu__btn menu__btn--ghost"
               onClick={() => onScreen("credits")}
             >
               Credits
@@ -120,26 +156,21 @@ export function StartMenu({
         {screen === "options" ? (
           <>
             <OptionsFields draftRoom={draftRoom} onDraftRoom={onDraftRoom} />
-            <button
-              type="button"
-              className="menu__btn menu__btn--ghost"
-              onClick={() => onScreen("main")}
-            >
-              Back
-            </button>
+            <BackButton onScreen={onScreen} />
+          </>
+        ) : null}
+
+        {screen === "controls" ? (
+          <>
+            <ControlsBody />
+            <BackButton onScreen={onScreen} />
           </>
         ) : null}
 
         {screen === "credits" ? (
           <>
             <CreditsBody />
-            <button
-              type="button"
-              className="menu__btn menu__btn--ghost"
-              onClick={() => onScreen("main")}
-            >
-              Back
-            </button>
+            <BackButton onScreen={onScreen} />
           </>
         ) : null}
       </div>
@@ -157,6 +188,7 @@ export function PauseMenu({
   onApplyRoom,
   roomId,
   peerCount,
+  selfId,
   status,
   statusDetail,
 }: PauseMenuProps) {
@@ -180,6 +212,13 @@ export function PauseMenu({
               onClick={() => onScreen("options")}
             >
               Options
+            </button>
+            <button
+              type="button"
+              className="menu__btn menu__btn--ghost"
+              onClick={() => onScreen("controls")}
+            >
+              Controls
             </button>
             <button
               type="button"
@@ -217,27 +256,25 @@ export function PauseMenu({
                 net <strong data-status={status}>{status}</strong>
                 <span> — {statusDetail}</span>
               </div>
+              <div>
+                you <strong>{selfId.slice(0, 6)}</strong>
+              </div>
             </div>
-            <button
-              type="button"
-              className="menu__btn menu__btn--ghost"
-              onClick={() => onScreen("main")}
-            >
-              Back
-            </button>
+            <BackButton onScreen={onScreen} />
+          </>
+        ) : null}
+
+        {screen === "controls" ? (
+          <>
+            <ControlsBody />
+            <BackButton onScreen={onScreen} />
           </>
         ) : null}
 
         {screen === "credits" ? (
           <>
             <CreditsBody />
-            <button
-              type="button"
-              className="menu__btn menu__btn--ghost"
-              onClick={() => onScreen("main")}
-            >
-              Back
-            </button>
+            <BackButton onScreen={onScreen} />
           </>
         ) : null}
       </div>

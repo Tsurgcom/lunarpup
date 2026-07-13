@@ -3,9 +3,10 @@ import { KeyboardControls } from "@react-three/drei";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Hud } from "./game/Hud";
 import { PauseMenu, StartMenu, type MenuScreen } from "./game/Menus";
+import { resetGhostSession } from "./game/ghostLine";
+import { setHudSpeed } from "./game/hudSpeed";
 import { useMultiplayer } from "./game/multiplayer";
 import { defaultRoomId } from "./game/types";
-import type { PlayerSnapshot } from "./game/types";
 import { World } from "./game/World";
 
 const keyMap = [
@@ -13,8 +14,8 @@ const keyMap = [
   { name: "back", keys: ["ArrowDown", "KeyS"] },
   { name: "left", keys: ["ArrowLeft", "KeyA"] },
   { name: "right", keys: ["ArrowRight", "KeyD"] },
-  { name: "pitchUp", keys: ["KeyR"] },
-  { name: "pitchDown", keys: ["KeyF"] },
+  { name: "pitchUp", keys: ["KeyF"] },
+  { name: "pitchDown", keys: ["KeyR"] },
   { name: "jump", keys: ["Space"] },
   { name: "jetpack", keys: ["ShiftLeft", "ShiftRight"] },
 ];
@@ -25,20 +26,12 @@ export function App() {
   const initial = useMemo(() => defaultRoomId(), []);
   const [roomId, setRoomId] = useState(initial);
   const [draftRoom, setDraftRoom] = useState(initial);
-  const [speed, setSpeed] = useState(0);
   const [phase, setPhase] = useState<Phase>("menu");
   const [menuScreen, setMenuScreen] = useState<MenuScreen>("main");
 
   const online = phase !== "menu";
   const { peerCount, selfId, status, statusDetail, sendState, style } =
     useMultiplayer(roomId, online);
-
-  const onSnapshot = useCallback(
-    (snap: PlayerSnapshot) => {
-      sendState(snap);
-    },
-    [sendState],
-  );
 
   const applyRoom = useCallback(() => {
     const next = draftRoom.trim() || "moon-bowl";
@@ -63,7 +56,8 @@ export function App() {
   const onQuit = () => {
     setMenuScreen("main");
     setPhase("menu");
-    setSpeed(0);
+    setHudSpeed(0);
+    resetGhostSession();
   };
 
   useEffect(() => {
@@ -112,30 +106,22 @@ export function App() {
           onApplyRoom={applyRoom}
           roomId={roomId}
           peerCount={peerCount}
+          selfId={selfId}
           status={status}
           statusDetail={statusDetail}
         />
       ) : null}
 
-      {phase === "playing" ? (
-        <Hud
-          roomId={roomId}
-          peerCount={peerCount}
-          selfId={selfId}
-          speed={speed}
-          status={status}
-          statusDetail={statusDetail}
-        />
-      ) : null}
+      {phase === "playing" ? <Hud selfId={selfId} /> : null}
 
       <KeyboardControls map={keyMap}>
         <Canvas
-          shadows="soft"
+          shadows="percentage"
           dpr={[1, 2]}
-          camera={{ position: [0, 20, 170], fov: 68, near: 0.15, far: 4000 }}
+          camera={{ position: [0, 20, 170], fov: 68, near: 0.15, far: 8000 }}
           gl={{
             antialias: true,
-            toneMappingExposure: 1.15,
+            toneMappingExposure: 1.05,
             powerPreference: "high-performance",
           }}
         >
@@ -145,8 +131,7 @@ export function App() {
             name={selfId.slice(0, 6)}
             active={online}
             paused={phase === "paused"}
-            onSnapshot={onSnapshot}
-            onSpeed={setSpeed}
+            onSnapshot={sendState}
           />
         </Canvas>
       </KeyboardControls>

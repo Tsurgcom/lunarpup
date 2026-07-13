@@ -9,6 +9,7 @@ import {
   ANCHOR_CRATERS,
   MOON_RADIUS,
   SPAWN_DIR,
+  sampleContactHeightDir,
   sampleHeightDir,
   sampleNormalDir,
   surfacePoint,
@@ -162,8 +163,9 @@ function hash01(i: number, salt: number): number {
 export function snapRockToSurface(rock: RockState): void {
   const r = Math.max(rock.pos.length(), 1e-4);
   _radial.copy(rock.pos).multiplyScalar(1 / r);
-  const h = sampleHeightDir(_radial);
-  sampleNormalDir(_radial, _n);
+  const hAnalytic = sampleHeightDir(_radial);
+  const h = sampleContactHeightDir(_radial, hAnalytic);
+  sampleNormalDir(_radial, _n, 0.7, hAnalytic);
   _surface.copy(_radial).multiplyScalar(MOON_RADIUS + h);
   rock.pos.copy(_surface).addScaledVector(_n, rock.radius);
 
@@ -264,9 +266,9 @@ function substepRock(rock: RockState, dt: number): void {
 
   const r2 = Math.max(rock.pos.length(), 1e-4);
   _radial.copy(rock.pos).multiplyScalar(1 / r2);
-  const h = sampleHeightDir(_radial);
-  // Reuse h as h0 inside the normal finite-difference (avoids a 4th sample).
-  sampleNormalDir(_radial, _n, 0.45, h);
+  const hAnalytic = sampleHeightDir(_radial);
+  const h = sampleContactHeightDir(_radial, hAnalytic);
+  sampleNormalDir(_radial, _n, 0.7, hAnalytic);
   _surface.copy(_radial).multiplyScalar(MOON_RADIUS + h);
 
   const height = heightAbove(_surface, _n, rock.pos);
@@ -466,7 +468,7 @@ function separatePair(c: ContactPair): boolean {
   const invSum = invA + invB;
   if (invSum < 1e-12) return false;
 
-  const push = overlap + 0.015;
+  const push = overlap + 0.005;
   c.posA.addScaledVector(_n, -push * (invA / invSum));
   if (invB > 0) {
     c.posB.addScaledVector(_n, push * (invB / invSum));

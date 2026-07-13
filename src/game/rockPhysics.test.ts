@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
-import { MASS, gravityAccel } from "./physics";
+import { BOARD_CLEARANCE, MASS, gravityAccel } from "./physics";
 import {
   PLAYER_RADIUS,
   ROCK_COUNT,
@@ -67,7 +67,7 @@ describe("lunar rock physics", () => {
     rock.pos.copy(surfacePoint(SPAWN_DIR, rock.radius));
     rock.vel.set(0, 0, 0);
 
-    const playerPos = surfacePoint(SPAWN_DIR, 0.18).addScaledVector(
+    const playerPos = surfacePoint(SPAWN_DIR, BOARD_CLEARANCE).addScaledVector(
       east,
       -(PLAYER_RADIUS + rock.radius - 0.08),
     );
@@ -96,7 +96,7 @@ describe("lunar rock physics", () => {
 
   test("local pup separates from a remote peer", () => {
     const east = new THREE.Vector3(0, 1, 0).cross(SPAWN_DIR).normalize();
-    const playerPos = surfacePoint(SPAWN_DIR, 0.18);
+    const playerPos = surfacePoint(SPAWN_DIR, BOARD_CLEARANCE);
     const playerVel = new THREE.Vector3();
     const peerPos = playerPos.clone().addScaledVector(east, 0.4);
 

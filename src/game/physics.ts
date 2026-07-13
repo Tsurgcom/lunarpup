@@ -2,7 +2,7 @@ import * as THREE from "three";
 import {
   MOON_RADIUS,
   SPAWN_DIR,
-  sampleHeightDir,
+  sampleContactHeightDir,
   sampleNormalDir,
   surfacePoint,
 } from "./terrain";
@@ -25,13 +25,52 @@ export const GRAVITY_SOFT = MOON_RADIUS * 2;
 export const MU = G * (MOON_RADIUS + GRAVITY_SOFT) * (MOON_RADIUS + GRAVITY_SOFT);
 
 export const MASS = 18;
-export const BOARD_CLEARANCE = 0.18;
+export const BOARD_CLEARANCE = 0.36;
 
-/** Continuous push force along the deck (N) — ground only. */
-export const PUSH_FORCE = 70;
+/**
+ * Hoverboard spring (N/m). Holds the deck near BOARD_CLEARANCE without
+ * hard positional snaps that chatter on slope changes.
+ */
+export const HOVER_STIFFNESS = 1600;
+
+/** Hover damper (N·s/m) — near-critical for MASS/HOVER_STIFFNESS. */
+export const HOVER_DAMPING = 320;
+
+/**
+ * Still "on deck" within this height above clearance (m). Beyond it the
+ * board goes ballistic — no coyote sticky, just a soft hover envelope.
+ */
+export const HOVER_BAND = 0.62;
+
+/**
+ * Only tunnel this deep before a soft positional push (m below clearance).
+ * Normal riding never hits this — spring handles ordinary contact.
+ */
+export const HOVER_SNAP_DEPTH = 0.4;
+
+/** How fast grounded board normals follow the terrain (1/s). */
+export const NORMAL_FOLLOW = 14;
+
+/** Separating speed (m/s) that breaks hover without an ollie. */
+export const HOVER_TAKEOFF_VN = 3.2;
+
+/** Peak push force during a stroke (N) — ground only. */
+export const PUSH_FORCE = 118;
+
+/** Active stroke duration while W is held (s). */
+export const PUSH_STROKE = 0.3;
+
+/** Coast between strokes while W is held (s). */
+export const PUSH_GAP = 0.4;
 
 /** Board jetpack thrust along local forward (N). */
 export const JETPACK_FORCE = 95;
+
+/** Seconds of continuous jetpack thrust at full fuel. */
+export const JET_FUEL_MAX = 2.2;
+
+/** Fuel recharge rate while grounded and not thrusting (1/s). */
+export const JET_RECHARGE = 0.7;
 
 /** W/S (push / brake) only within this height above the deck clearance. */
 export const NEAR_GROUND = 2.8;
@@ -54,8 +93,14 @@ export const MU_LATERAL = 0.55;
 /** Kinetic friction while braking with S (ground only). */
 export const MU_BRAKE = 0.55;
 
-/** Coefficient of restitution on landing. */
+/**
+ * Coefficient of restitution on hard landings from air only.
+ * Soft hover contact is spring-damper — never bounce while seated.
+ */
 export const RESTITUTION = 0.08;
+
+/** Impact speed (m/s into deck) above which restitution applies on first touch. */
+export const RESTITUTION_SPEED = 3.5;
 
 /** Ollie impulse (N·s) along the surface normal. */
 export const OLLIE_IMPULSE = 72;
@@ -104,12 +149,12 @@ export type ControlInput = {
   back: boolean;
   left: boolean;
   right: boolean;
-  /** R — nose up / weight back. */
+  /** F — nose up / weight back. */
   pitchUp: boolean;
-  /** F — nose down / weight forward. */
+  /** R — nose down / weight forward. */
   pitchDown: boolean;
   jump: boolean;
-  /** Hold Shift — thrust along board up (works in vacuum). */
+  /** Hold Shift — thrust along board forward/back with W/S (works in vacuum). */
   jetpack: boolean;
 };
 
@@ -125,7 +170,7 @@ export type BodyState = {
    */
   lean: number;
   /**
-   * Continuous nose pitch in [-1, 1]. Positive = nose up (R).
+   * Continuous nose pitch in [-1, 1]. Positive = nose up (F).
    * Visual on ground; rotates attitude while airborne.
    */
   pitch: number;
@@ -133,6 +178,22 @@ export type BodyState = {
   /** Surface normal — updated on contact, held inertial while airborne. */
   normal: THREE.Vector3;
   normalForce: number;
+  /**
+   * Push stroke clock (s). >0 = thrusting; <0 = recovering; 0 = ready.
+   * Cycles automatically while W is held on the ground.
+   */
+  pushTimer: number;
+  /** True while the current frame is inside an active push stroke. */
+  pushing: boolean;
+  /** Jetpack fuel remaining (s of thrust). */
+  jetFuel: number;
+  /** Seconds continuously airborne (0 while grounded). */
+  airTime: number;
+  /**
+   * Landing impulse for camera/feel — set on touchdown, decays to 0.
+   * Magnitude ≈ airTime at impact (capped).
+   */
+  landingPunch: number;
 };
 
 const _radial = new THREE.Vector3();
@@ -240,13 +301,19 @@ export function createBody(): BodyState {
     grounded: true,
     normal,
     normalForce: MASS * G,
+    pushTimer: 0,
+    pushing: false,
+    jetFuel: JET_FUEL_MAX,
+    airTime: 0,
+    landingPunch: 0,
   };
 }
 
 /**
- * Semi-implicit Euler with inverse-square gravity and non-sticky contact.
- * High-speed paths go ballistic over crevices; circular orbit is reachable
- * above the atmosphere.
+ * Semi-implicit Euler with inverse-square gravity and hoverboard contact.
+ * Grounded riding uses a spring-damper (no hard surface snap); high-speed
+ * paths go ballistic over crevices; circular orbit is reachable above the
+ * atmosphere.
  */
 export function stepBody(
   body: BodyState,
@@ -266,13 +333,13 @@ function substep(
   dt: number,
   jumpUsed: boolean,
 ): boolean {
-  // Deck follows the crust normal while grounded. In the air the attitude is
-  // inertial — terrain under a jump must not twist the pup.
+  // Soft-follow crust normal while grounded so slope changes don't jerk yaw.
   boardAxes(body.yaw, body.normal, _prevFwd, _right);
   if (body.grounded) {
     sampleNormalAtSafe(body.pos, _n);
-    retargetYaw(body, _n, _prevFwd);
-    body.normal.copy(_n);
+    const follow = 1 - Math.exp(-NORMAL_FOLLOW * dt);
+    body.normal.lerp(_n, follow).normalize();
+    retargetYaw(body, body.normal, _prevFwd);
   }
 
   const n = body.normal;
@@ -286,7 +353,7 @@ function substep(
     (leanTarget - body.lean) * (1 - Math.exp(-leanRate * dt));
   if (Math.abs(body.lean) < 1e-4) body.lean = 0;
 
-  // Smooth pitch: R = nose up, F = nose down.
+  // Smooth pitch: F = nose up, R = nose down.
   const pitchTarget = (input.pitchUp ? 1 : 0) - (input.pitchDown ? 1 : 0);
   const pitchEase = pitchTarget === 0 ? PITCH_RECOVER : PITCH_ENGAGE;
   body.pitch +=
@@ -319,34 +386,62 @@ function substep(
   const r = Math.max(body.pos.length(), 1e-4);
   _radial.copy(body.pos).multiplyScalar(1 / r);
 
-  // How far above the crust (along surface normal) — gates wheel thrust.
-  const h0 = sampleHeightDir(_radial);
-  sampleNormalDir(_radial, _n);
+  // Height above crust gates wheel thrust + hover spring.
+  const h0 = sampleContactHeightDir(_radial);
+  sampleNormalDir(_radial, _n, 0.7, h0);
   _surface.copy(_radial).multiplyScalar(MOON_RADIUS + h0);
   const alt = heightAbove(_surface, _n, body.pos);
   const nearGround = body.grounded || alt < BOARD_CLEARANCE + NEAR_GROUND;
+  const inHover =
+    !jumpUsed &&
+    alt < BOARD_CLEARANCE + HOVER_BAND &&
+    (body.grounded || alt < BOARD_CLEARANCE + HOVER_BAND * 0.55);
 
   // Gravity toward the moon center. On the deck, drop the tangential part so
   // radial pull can't drain the pup into crater bowls — only the into-board
   // component remains. Airborne keeps full CoM gravity for orbits.
   const g = gravityAccel(r);
   _force.copy(_radial).multiplyScalar(-MASS * g);
-  if (body.grounded) {
-    const intoDeck = _force.dot(n);
-    _force.copy(n).multiplyScalar(intoDeck);
+  const supportN = body.grounded ? n : _n;
+  if (body.grounded || inHover) {
+    const intoDeck = _force.dot(supportN);
+    _force.copy(supportN).multiplyScalar(intoDeck);
   }
 
-  // Wheel push — only with traction (on / very near the crust).
-  if (nearGround && input.forward) {
+  // Hover spring-damper: float at clearance; preload cancels 1g into-deck.
+  if (inHover) {
+    const vnHover = body.vel.dot(supportN);
+    const err = BOARD_CLEARANCE - alt;
+    const hoverF =
+      MASS * g + HOVER_STIFFNESS * err - HOVER_DAMPING * vnHover;
+    _force.addScaledVector(supportN, hoverF);
+    body.normalForce = Math.max(0, hoverF);
+  }
+
+  // Wheel push — pulsed strokes while W is held (on / very near the crust).
+  body.pushing = false;
+  if (!nearGround || !input.forward) {
+    body.pushTimer = 0;
+  } else if (body.pushTimer < 0) {
+    body.pushTimer = Math.min(0, body.pushTimer + dt);
+  } else if (body.pushTimer === 0) {
+    body.pushTimer = PUSH_STROKE;
+  }
+  if (nearGround && input.forward && body.pushTimer > 0) {
     _long.copy(_forward).addScaledVector(n, -_forward.dot(n));
     if (_long.lengthSq() > 1e-8) {
       _long.normalize();
       _force.addScaledVector(_long, PUSH_FORCE);
+      body.pushing = true;
     }
+    body.pushTimer -= dt;
+    if (body.pushTimer <= 0) body.pushTimer = -PUSH_GAP;
   }
 
   // Jetpack: Shift + W/S along board forward/back (Shift alone = forward).
-  if (input.jetpack) {
+  // Fuel drains in vacuum thrust; recharges on the deck when not firing.
+  let jetting = false;
+  if (input.jetpack && body.jetFuel > 0) {
     let axis = 0;
     if (input.forward) axis += 1;
     if (input.back) axis -= 1;
@@ -355,7 +450,18 @@ function substep(
     if (_long.lengthSq() > 1e-8) {
       _long.normalize();
       _force.addScaledVector(_long, axis * JETPACK_FORCE);
+      jetting = true;
     }
+  }
+  if (jetting) {
+    body.jetFuel = Math.max(0, body.jetFuel - dt);
+  } else if (body.grounded) {
+    body.jetFuel = Math.min(JET_FUEL_MAX, body.jetFuel + JET_RECHARGE * dt);
+  }
+
+  // Landing punch decays every substep; air clock updates after contact.
+  if (body.landingPunch > 0) {
+    body.landingPunch = Math.max(0, body.landingPunch - dt * 3.5);
   }
 
   const speed = body.vel.length();
@@ -364,7 +470,7 @@ function substep(
     _force.addScaledVector(body.vel, -AIR_DRAG * rho * speed);
   }
 
-  if (body.grounded) {
+  if (body.grounded || inHover) {
     const N = Math.max(body.normalForce, MASS * g * 0.25);
     const vn = body.vel.dot(n);
     _tangent.copy(body.vel).addScaledVector(n, -vn);
@@ -379,12 +485,13 @@ function substep(
       }
     }
 
-    const muLat = nearGround && input.forward ? MU_LATERAL_PUSH : MU_LATERAL;
+    const muLat = nearGround && body.pushing ? MU_LATERAL_PUSH : MU_LATERAL;
     const vLat = body.vel.dot(_right);
     if (Math.abs(vLat) > 1e-4) {
       const maxLat = muLat * N;
+      // Softer than a hard kill — stiff grip felt snappy/sticky on slides.
       const latForce = THREE.MathUtils.clamp(
-        -vLat * MASS * 16,
+        -vLat * MASS * 8,
         -maxLat,
         maxLat,
       );
@@ -396,57 +503,60 @@ function substep(
   body.vel.addScaledVector(_accel, dt);
   body.pos.addScaledVector(body.vel, dt);
 
-  // Sample crust under the new position.
+  // Re-sample crust under the new position.
   const r2 = Math.max(body.pos.length(), 1e-4);
   _radial.copy(body.pos).multiplyScalar(1 / r2);
-  const h = sampleHeightDir(_radial);
-  sampleNormalDir(_radial, _n);
+  const h = sampleContactHeightDir(_radial);
+  sampleNormalDir(_radial, _n, 0.7, h);
   _surface.copy(_radial).multiplyScalar(MOON_RADIUS + h);
 
   const height = heightAbove(_surface, _n, body.pos);
-  const penetration = BOARD_CLEARANCE - height;
   const wantJump = input.jump && !jumpUsed;
+  const vnProbe = body.vel.dot(_n);
 
-  // Non-sticky: only resolve while intersecting the crust. When a crevice
-  // drops away under a fast pup, height rises above clearance → ballistic.
-  if (penetration >= 0) {
+  // Soft tunnel escape only — ordinary riding never snaps onto the crust.
+  if (height < BOARD_CLEARANCE - HOVER_SNAP_DEPTH) {
+    const push = BOARD_CLEARANCE - HOVER_SNAP_DEPTH - height;
+    body.pos.addScaledVector(_n, push);
+    if (vnProbe < 0) body.vel.addScaledVector(_n, -vnProbe);
+  }
+
+  const seated =
+    !jumpUsed &&
+    height < BOARD_CLEARANCE + HOVER_BAND &&
+    vnProbe < HOVER_TAKEOFF_VN;
+
+  if (seated) {
     boardAxes(body.yaw, body.normal, _prevFwd, _right);
-    retargetYaw(body, _n, _prevFwd);
-    body.normal.copy(_n);
+    // Blend toward fresh normal — avoid instant attitude snaps on slope joins.
+    const follow = 1 - Math.exp(-NORMAL_FOLLOW * dt);
+    body.normal.lerp(_n, follow).normalize();
+    retargetYaw(body, body.normal, _prevFwd);
 
-    // Correct along the surface normal only. Snapping to the radial sample
-    // point walks the pup downhill inside concave bowls.
-    body.pos.addScaledVector(_n, BOARD_CLEARANCE - height);
-
-    const contactN = body.normal;
-    const vn = body.vel.dot(contactN);
-    let jn = 0;
-    if (vn < 0) {
-      jn = -(1 + RESTITUTION) * MASS * vn;
-      body.vel.addScaledVector(contactN, jn / MASS);
+    // Hard-landing cushion from air (spring already supports soft rides).
+    if (!body.grounded && vnProbe < -RESTITUTION_SPEED) {
+      const e = RESTITUTION;
+      const jn = -(1 + e) * MASS * vnProbe;
+      body.vel.addScaledVector(body.normal, jn / MASS);
     }
 
-    boardAxes(body.yaw, contactN, _forward, _right);
-    const vLat = body.vel.dot(_right);
-    if (Math.abs(vLat) > 1e-5 && jn > 0) {
-      const maxJt = MU_LATERAL * jn;
-      const jt = Math.min(MASS * Math.abs(vLat), maxJt);
-      body.vel.addScaledVector(_right, -Math.sign(vLat) * (jt / MASS));
+    if (!body.grounded && body.airTime > 0.05) {
+      body.landingPunch = Math.min(1.2, 0.35 + body.airTime * 0.55);
     }
-
-    const gNow = gravityAccel(body.pos.length());
-    body.normalForce = Math.max(jn / Math.max(dt, 1e-4), MASS * gNow * 0.2);
     body.grounded = true;
+    body.airTime = 0;
 
     if (wantJump && body.vel.length() > 0.35) {
-      body.vel.addScaledVector(contactN, OLLIE_IMPULSE / MASS);
+      body.vel.addScaledVector(body.normal, OLLIE_IMPULSE / MASS);
       body.grounded = false;
       body.normalForce = 0;
+      body.airTime = 0;
       return true;
     }
   } else {
     body.grounded = false;
     body.normalForce = 0;
+    body.airTime += dt;
   }
   return false;
 }

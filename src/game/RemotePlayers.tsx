@@ -1,97 +1,134 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { SkateDog } from "./SkateDog";
+import { applySkateDogStyle, SkateDog } from "./SkateDog";
 import { getPeer, getPeerIds, subscribeRoster } from "./peerStore";
 
+type PupEntry = {
+  group: THREE.Group | null;
+  pos: THREE.Vector3;
+  quat: THREE.Quaternion;
+  euler: THREE.Euler;
+  initialized: boolean;
+  fur: string;
+  accent: string;
+  ghost: boolean;
+};
+
+function ensureEntry(peerId: string, entries: Map<string, PupEntry>): PupEntry {
+  let entry = entries.get(peerId);
+  if (entry) return entry;
+  const snap = getPeer(peerId);
+  entry = {
+    group: null,
+    pos: new THREE.Vector3(),
+    quat: new THREE.Quaternion(),
+    euler: new THREE.Euler(),
+    initialized: false,
+    fur: snap?.fur ?? "#d4a574",
+    accent: snap?.accent ?? "#f0c27a",
+    ghost: Boolean(snap?.ghost),
+  };
+  entries.set(peerId, entry);
+  return entry;
+}
+
+/**
+ * Remote pups — one useFrame for the whole roster (R3F pitfalls: mutate, don't
+ * setState; batch subscriptions). Style changes apply imperatively.
+ */
 export function RemotePlayers() {
   const peerIds = useSyncExternalStore(
     subscribeRoster,
     getPeerIds,
     getPeerIds,
   );
+  const entries = useRef(new Map<string, PupEntry>());
+  const alive = useRef(new Set<string>());
+
+  useFrame((_, dt) => {
+    const map = entries.current;
+    const live = alive.current;
+    live.clear();
+    for (const id of peerIds) live.add(id);
+    for (const id of map.keys()) {
+      if (!live.has(id)) map.delete(id);
+    }
+
+    const alpha = 1 - Math.exp(-14 * dt);
+    for (const peerId of peerIds) {
+      const entry = map.get(peerId);
+      const g = entry?.group;
+      const snap = getPeer(peerId);
+      if (!entry || !g || !snap) continue;
+
+      const ghost = Boolean(snap.ghost);
+      if (
+        snap.fur !== entry.fur ||
+        snap.accent !== entry.accent ||
+        ghost !== entry.ghost
+      ) {
+        entry.fur = snap.fur;
+        entry.accent = snap.accent;
+        entry.ghost = ghost;
+        applySkateDogStyle(g, snap.fur, snap.accent, ghost);
+      }
+
+      entry.pos.set(snap.x, snap.y, snap.z);
+      entry.euler.set(snap.pitch, snap.yaw, snap.roll, "YXZ");
+      entry.quat.setFromEuler(entry.euler);
+
+      if (!entry.initialized) {
+        g.position.copy(entry.pos);
+        g.quaternion.copy(entry.quat);
+        entry.initialized = true;
+        continue;
+      }
+
+      // Far jump (teleport) — snap instead of lerping through the moon.
+      if (g.position.distanceToSquared(entry.pos) > 40 * 40) {
+        g.position.copy(entry.pos);
+        g.quaternion.copy(entry.quat);
+        continue;
+      }
+
+      g.position.lerp(entry.pos, alpha);
+      g.quaternion.slerp(entry.quat, alpha);
+    }
+  });
 
   return (
     <>
       {peerIds.map((id) => (
-        <RemotePup key={id} peerId={id} />
+        <RemotePupMount key={id} peerId={id} entries={entries.current} />
       ))}
     </>
   );
 }
 
-function RemotePup({ peerId }: { peerId: string }) {
-  const ref = useRef<THREE.Group>(null);
-  const [style, setStyle] = useState(() => {
-    const snap = getPeer(peerId);
-    return {
-      fur: snap?.fur ?? "#d4a574",
-      accent: snap?.accent ?? "#f0c27a",
-      ghost: Boolean(snap?.ghost),
-    };
-  });
-
-  const target = useRef({
-    pos: new THREE.Vector3(),
-    quat: new THREE.Quaternion(),
-    initialized: false,
-  });
-  const euler = useRef(new THREE.Euler());
-
-  useEffect(() => {
-    const snap = getPeer(peerId);
-    if (!snap) return;
-    setStyle({
-      fur: snap.fur,
-      accent: snap.accent,
-      ghost: Boolean(snap.ghost),
-    });
-  }, [peerId]);
-
-  useFrame((_, dt) => {
-    const snap = getPeer(peerId);
-    const g = ref.current;
-    if (!snap || !g) return;
-
-    const ghost = Boolean(snap.ghost);
-    if (
-      snap.fur !== style.fur ||
-      snap.accent !== style.accent ||
-      ghost !== style.ghost
-    ) {
-      setStyle({ fur: snap.fur, accent: snap.accent, ghost });
-    }
-
-    // Snapshots are moon-centered Cartesian — no toroidal unwrap.
-    target.current.pos.set(snap.x, snap.y, snap.z);
-    euler.current.set(snap.pitch, snap.yaw, snap.roll, "YXZ");
-    target.current.quat.setFromEuler(euler.current);
-
-    if (!target.current.initialized) {
-      g.position.copy(target.current.pos);
-      g.quaternion.copy(target.current.quat);
-      target.current.initialized = true;
-      return;
-    }
-
-    // Far jump (teleport) — snap instead of lerping through the moon.
-    if (g.position.distanceToSquared(target.current.pos) > 40 * 40) {
-      g.position.copy(target.current.pos);
-      g.quaternion.copy(target.current.quat);
-      return;
-    }
-
-    const alpha = 1 - Math.exp(-14 * dt);
-    g.position.lerp(target.current.pos, alpha);
-    g.quaternion.slerp(target.current.quat, alpha);
-  });
+function RemotePupMount({
+  peerId,
+  entries,
+}: {
+  peerId: string;
+  entries: Map<string, PupEntry>;
+}) {
+  // Mount-only style props — mid-session changes go through applySkateDogStyle.
+  const initial = useRef<PupEntry | null>(null);
+  if (!initial.current) initial.current = ensureEntry(peerId, entries);
+  const { fur, accent, ghost } = initial.current;
 
   return (
     <SkateDog
-      ref={ref}
-      fur={style.fur}
-      accent={style.accent}
-      ghost={style.ghost}
+      ref={(node) => {
+        const entry = ensureEntry(peerId, entries);
+        entry.group = node;
+        if (!node) entry.initialized = false;
+      }}
+      fur={fur}
+      accent={accent}
+      ghost={ghost}
+      frustumCulled
     />
   );
 }

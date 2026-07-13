@@ -2,17 +2,11 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-const STAR_COUNT = 3500;
-/** Unit-sphere directions; scaled each frame so stars sit past the mare. */
-const STAR_DISTANCE = 2400;
+const STAR_COUNT = 900;
+const STAR_DISTANCE = 4800;
 
 /**
- * Inertial celestial sphere at infinity.
- *
- * Stars are world-axis aligned and recentered on the camera every frame, so
- * there is no motion parallax from skating around the small moon. Overhead at
- * the north pole (+Y) is the opposite sky from the south pole (−Y); turning
- * the board still pans the sky, but translation alone does not whip it around.
+ * Soft, sparse starfield — pastel points, no dense photoreal milky way.
  */
 export function Starfield() {
   const group = useRef<THREE.Group>(null);
@@ -24,6 +18,7 @@ export function Starfield() {
     const color = new THREE.Color();
     const spherical = new THREE.Spherical();
     const vec = new THREE.Vector3();
+    const tints = ["#ffffff", "#ffe9a8", "#c8e0ff", "#ffd6e8", "#b8f0e0"];
 
     for (let i = 0; i < STAR_COUNT; i++) {
       spherical.set(
@@ -36,19 +31,19 @@ export function Starfield() {
       positions[i * 3 + 1] = vec.y;
       positions[i * 3 + 2] = vec.z;
 
-      const bright = 0.65 + Math.random() * 0.35;
-      color.setRGB(bright, bright, bright * (0.92 + Math.random() * 0.08));
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
+      color.set(tints[i % tints.length]!);
+      const bright = 0.55 + Math.random() * 0.45;
+      colors[i * 3] = color.r * bright;
+      colors[i * 3 + 1] = color.g * bright;
+      colors[i * 3 + 2] = color.b * bright;
     }
     return { positions, colors };
   }, []);
 
+  // Stars only track the camera — keep priority ≤ 0 so R3F auto-renders.
   useFrame(() => {
     const g = group.current;
     if (!g) return;
-    // Keep world orientation (identity); only follow the lens so rays are parallel.
     g.position.copy(camera.position);
     g.quaternion.identity();
   });
@@ -61,11 +56,11 @@ export function Starfield() {
           <bufferAttribute attach="attributes-color" args={[colors, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={1.6}
+          size={2.4}
           sizeAttenuation={false}
           vertexColors
           transparent
-          opacity={0.85}
+          opacity={0.9}
           depthWrite={false}
           fog={false}
           blending={THREE.AdditiveBlending}

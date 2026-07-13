@@ -19,11 +19,11 @@ const MATRIX_RADIUS2 = 14 * 14;
 const KINDS: RockKind[] = ["pebble", "chunk", "slab", "shard", "boulder"];
 
 const KIND_COLOR: Record<RockKind, string> = {
-  pebble: "#c4bdb0",
-  chunk: "#a39c90",
-  slab: "#8f887c",
-  shard: "#d0c9bc",
-  boulder: "#7a7468",
+  pebble: "#e8dcc8",
+  chunk: "#c4b4d4",
+  slab: "#9a8fb0",
+  shard: "#f0e4c8",
+  boulder: "#7a7088",
 };
 
 /** Unit-radius base mesh per kind — instance matrix carries size + pose. */
@@ -62,13 +62,15 @@ function writeRockMatrix(
   matrix.compose(rock.pos, rock.quat, scale);
 }
 
-export function LunarRocks() {
+export function LunarRocks({ active = true }: { active?: boolean }) {
   const rocks = useMemo(() => spawnRocks(), []);
   const peerBuf = useRef<PeerCollider[]>([]);
   const matrix = useRef(new THREE.Matrix4());
   const scale = useRef(new THREE.Vector3());
   /** Rock indices that moved last frame — need one more matrix upload when they sleep. */
-  const prevAwake = useRef<Set<number>>(new Set());
+  const awakeA = useRef(new Set<number>());
+  const awakeB = useRef(new Set<number>());
+  const useA = useRef(true);
 
   const buckets = useMemo(() => {
     const byKind = new Map<RockKind, number[]>();
@@ -101,7 +103,7 @@ export function LunarRocks() {
     const s = scale.current;
     for (const bucket of buckets) {
       for (let slot = 0; slot < bucket.indices.length; slot++) {
-        const rock = rocks[bucket.indices[slot]!] as RockState;
+        const rock = rocks[bucket.indices[slot]!]!;
         writeRockMatrix(rock, m, s);
         bucket.mesh.setMatrixAt(slot, m);
       }
@@ -109,8 +111,11 @@ export function LunarRocks() {
     }
   }, [buckets, rocks]);
 
-  // After Player (default 0) so localBody is fresh; before remotes is fine.
+  // Priority -1: after Player physics (-2), before mesh/camera (0).
+  // Must stay ≤ 0 — positive priority disables R3F auto-render.
   useFrame((_, rawDt) => {
+    if (!active) return;
+
     const dt = Math.min(rawDt, 0.05);
     const body = getLocalBody();
     const playerPos = body?.pos ?? null;
@@ -131,8 +136,9 @@ export function LunarRocks() {
 
     // Upload matrices for awake rocks, rocks that just slept, and anything
     // near the pup (collision may have nudged a sleeper this frame).
-    const awake = prevAwake.current;
-    const nextAwake = new Set<number>();
+    const awake = useA.current ? awakeA.current : awakeB.current;
+    const nextAwake = useA.current ? awakeB.current : awakeA.current;
+    nextAwake.clear();
     const m = matrix.current;
     const s = scale.current;
     const px = playerPos?.x;
@@ -143,7 +149,7 @@ export function LunarRocks() {
       let dirty = false;
       for (let slot = 0; slot < bucket.indices.length; slot++) {
         const idx = bucket.indices[slot]!;
-        const rock = rocks[idx] as RockState;
+        const rock = rocks[idx]!;
         const moving = rockIsActive(rock);
         if (moving) nextAwake.add(idx);
 
@@ -162,8 +168,8 @@ export function LunarRocks() {
       }
       if (dirty) bucket.mesh.instanceMatrix.needsUpdate = true;
     }
-    prevAwake.current = nextAwake;
-  });
+    useA.current = !useA.current;
+  }, -1);
 
   return (
     <group>

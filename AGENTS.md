@@ -15,7 +15,7 @@ bun install          # install deps
 bun run dev          # Vite dev server at http://localhost:3000
 bun run build        # typecheck + production build
 bun run preview      # preview dist/
-bun test src/game/physics.test.ts   # physics unit tests
+bun test --only-failures   # run unit tests
 bunx tsc --noEmit    # typecheck only
 ```
 
@@ -27,19 +27,17 @@ Use **Bun** as the package manager/runtime. Port **3000** is configured with
 ```
 src/
   main.tsx           # React entry
-  App.tsx            # HUD + KeyboardControls + Canvas shell
-  styles.css         # HUD overlay styles
+  App.tsx            # Phase machine + KeyboardControls + Canvas shell
+  styles.css         # HUD / menu overlay styles
   game/
-    World.tsx        # Scene: lights, stars, terrain, player, rocks, remotes
+    World.tsx        # Scene: lights, stars, terrain, player, rocks, remotes, ghost
     Player.tsx       # Local player loop (input → physics → mesh → net sync)
     CameraRig.tsx    # Arcade board-frame orbit; soft follow + boom susp
-    MoonTerrain.tsx  # Heightfield mesh (clipmap patches)
-    moonMaterial.ts  # MeshPhysicalMaterial + triplanar PBR + sun POM
-    moonPbrMaps.ts   # Baked albedo / normal / ORM+height DataTextures
-    sun.ts           # Shared sun direction for light / disc / crater shadows
+    MoonTerrain.tsx  # Spherical clipmap (contact-height verts + LOD stitch)
+    moonMaterial.ts  # Flat Lambert + baked vertex colors (mare/highland)
     LunarRocks.tsx   # Pushable lunar rocks (parallel physics + meshes)
-    terrain.ts       # Crater bowl height/normal sampling (shared by physics + mesh)
-    physics.ts       # Newtonian integrator (forces, contact, ollie)
+    terrain.ts       # Sphere height/normal + clipmap topology (shared by physics + mesh)
+    physics.ts       # Newtonian integrator (forces, contact, ollie, jetpack)
     physics.test.ts  # Bun tests for physics (excluded from tsc include)
     rockPhysics.ts   # Rock integrator + sphere collisions with player
     rockPhysics.test.ts
@@ -49,7 +47,12 @@ src/
     RemotePlayers.tsx# Interpolated remote pups (reads peerStore in useFrame)
     multiplayer.ts   # Trystero room session + useMultiplayer hook
     peerStore.ts     # Module-level peer pose map (avoids React re-render spam)
-    Hud.tsx          # Room UI, speed, connection status
+    Hud.tsx          # Speed chip + LunarMap
+    LunarMap.tsx     # Floating minimap; click to teleport
+    teleport.ts      # One-shot warp request (map → Player)
+    GhostRun.tsx     # Best-lap ghost mesh
+    ghostLine.ts     # Session ghost trail record / replay
+    Menus.tsx        # Start / pause / controls / credits
     types.ts         # PlayerSnapshot, palettes, defaultRoomId()
 ```
 
@@ -61,28 +64,35 @@ src/
    against the local pup and other rocks.
 3. `Player` broadcasts `PlayerSnapshot` ~20 Hz through `useMultiplayer().sendState`.
 4. `multiplayer.ts` owns a **singleton Trystero session** (survives React StrictMode).
+   Session joins when `useMultiplayer(roomId, enabled)` runs with `enabled=true`
+   (after leaving the start menu) — not on module load.
 5. Remote poses land in `peerStore`; `RemotePlayers` interpolates in `useFrame`.
 
 ### Physics (`physics.ts`)
 
-- Semi-implicit Euler: ΣF = ma, then contact impulses.
-- Ground contact when `penetration >= 0` against the heightfield.
+- Semi-implicit Euler: ΣF = ma, then hoverboard spring-damper contact.
+- Grounded when within a soft hover band above the heightfield (no hard snap).
 - Board yaw is kinematic from continuous lean (A/D ease in/out; harder turn at speed on ground); R/F pitch (nose up/down) is visual on ground and rotates attitude in air; roll follows lean.
-- **No** hover, coyote time, or air-leveling hacks — keep physics honest unless asked.
+- Shift burns jet fuel (recharges on deck). Space ollies.
+- Hover spring floats the deck near clearance; normals soft-follow terrain so slope joins stay smooth.
 - Tune constants at the top of `physics.ts`. Add/adjust tests in `physics.test.ts`.
 
 ### Terrain (`terrain.ts`)
 
-- `sampleHeightDir` / `sampleNormalDir` must stay in sync with the visual mesh.
-- `MoonTerrain` streams icosphere face patches; `moonMaterial.ts` shades regolith.
-- Craters are cosine-profile bowls (`ANCHOR_CRATERS` + procedural fields).
+- `sampleHeightDir` / `sampleContactHeightDir` share the same analytic crust
+  (mesh verts + physics). Bowls use soft cosine profiles — no sheer cliffs.
+- `MoonTerrain` streams a spherical clipmap (`CLIPMAP_LODS`): denser near the
+  pup, coarser on the horizon. Adjacent faces promote to the finer shared
+  subdiv (`stitchFaceSubdivs`) so LOD rings do not crack.
+- Craters are cosine-profile bowls: hand-placed `ANCHOR_CRATERS` plus a fixed
+  OG-lattice `getCraterCatalog()` (spatial buckets, no cube-lattice ownership).
+- Rendering: Lambert + vertex colors + studio key light (`World.tsx`); no PBR maps.
 
 ### Multiplayer (`multiplayer.ts`)
 
 - Strategy: **`@trystero-p2p/nostr`** with a small `RELAYS` list (fast connect).
 - `APP_ID` and action namespace (`"pup"`) must match across clients.
-- Session joins **eagerly on module load** (`ensureSession(defaultRoomId())`) so peers
-  discover each other before React mounts.
+- Join via `acquireSession` from `useMultiplayer` when play starts (`enabled`).
 - StrictMode: refcounted session + delayed `leave()` — do not call `room.leave()` per
   effect cleanup without the refcount pattern.
 - Peer count comes from `room.getPeers()`, not just message receipt.
@@ -97,7 +107,9 @@ src/
 ### Rendering
 
 - R3F `Canvas` in `App.tsx`; game objects live under `World`.
-- Mutate transforms in `useFrame` via refs — avoid per-frame React state for poses.
+- Frame order: Player physics (−2) → rocks/light (−1) → pup mesh/pose (0) →
+  clipmap (0, after Player in tree). Mutate transforms via refs.
+- Local pup: rigid `SkateDog` (Lambert, `frustumCulled={false}`); no feel bobbing.
 - Remote players: read `peerStore` in `useFrame`, lerp position/quaternion.
 
 ## Conventions
@@ -113,9 +125,12 @@ src/
 | Task | Where to look |
 | --- | --- |
 | Change controls | `App.tsx` keyMap, `Player.tsx`, `physics.ts` `ControlInput` |
-| Tune bowl shape | `terrain.ts` `CRATERS`, `sampleHeight` |
+| Tune bowl shape | `terrain.ts` `ANCHOR_CRATERS`, `sampleHeightDir` |
 | Fix net sync | `multiplayer.ts`, `peerStore.ts`, `RemotePlayers.tsx` |
-| HUD copy / room UX | `Hud.tsx`, `types.ts` `defaultRoomId` |
+| HUD / minimap / warp | `Hud.tsx`, `LunarMap.tsx`, `teleport.ts` |
+| Frame debug (`?debug`) | `DebugPanel.tsx`, `debugFrame.ts` |
+| Ghost line | `ghostLine.ts`, `GhostRun.tsx`, `Menus.tsx` |
+| Menu / pause UX | `Menus.tsx`, `App.tsx` phase machine |
 | Visual dog / board | `SkateDog.tsx` |
 | Camera feel | `CameraRig.tsx` |
 
@@ -123,7 +138,8 @@ src/
 
 1. `bun run dev`
 2. Open two tabs on `http://localhost:3000/?room=test`
-3. HUD should show `pups nearby: 1` within a few seconds
-4. Both tabs should see the other dog skating
+3. Leave the start menu on both (session joins on play)
+4. HUD / status should show a peer within a few seconds
+5. Both tabs should see the other dog skating
 
 First connect can take 1–3s while Nostr relays and WebRTC negotiate.

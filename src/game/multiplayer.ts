@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { joinRoom, selfId } from "@trystero-p2p/nostr";
 import type { MessageAction, Room } from "@trystero-p2p/core";
+import * as THREE from "three";
+import { BOARD_CLEARANCE, boardAxes } from "./physics";
 import { clearPeers, removePeer, upsertPeer } from "./peerStore";
+import {
+  SPAWN_DIR,
+  sampleNormalDir,
+  surfacePoint,
+} from "./terrain";
 import type { PlayerSnapshot } from "./types";
 import { pickStyle } from "./types";
 
@@ -45,6 +52,13 @@ type SessionListener = () => void;
 let session: Session | null = null;
 const listeners = new Set<SessionListener>();
 
+const _spawnNormal = new THREE.Vector3();
+const _spawnFwd = new THREE.Vector3();
+const _spawnRight = new THREE.Vector3();
+const _spawnLook = new THREE.Matrix4();
+const _spawnQuat = new THREE.Quaternion();
+const _spawnEuler = new THREE.Euler();
+
 function emit(): void {
   for (const listener of listeners) listener();
 }
@@ -60,32 +74,86 @@ function peerIdsFromRoom(room: Room): string[] {
   return Object.keys(room.getPeers());
 }
 
-function isValidSnap(snap: unknown): snap is PlayerSnapshot {
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+/** Gate peer poses before they land in peerStore / RemotePlayers. */
+export function isValidSnap(snap: unknown): snap is PlayerSnapshot {
   if (!snap || typeof snap !== "object") return false;
-  const s = snap as PlayerSnapshot;
-  return (
-    typeof s.x === "number" &&
-    typeof s.y === "number" &&
-    typeof s.z === "number" &&
-    Number.isFinite(s.x) &&
-    Number.isFinite(s.y) &&
-    Number.isFinite(s.z)
-  );
+  const s = snap as Record<string, unknown>;
+  if (
+    !isFiniteNumber(s.x) ||
+    !isFiniteNumber(s.y) ||
+    !isFiniteNumber(s.z) ||
+    !isFiniteNumber(s.yaw) ||
+    !isFiniteNumber(s.pitch) ||
+    !isFiniteNumber(s.roll) ||
+    !isFiniteNumber(s.speed)
+  ) {
+    return false;
+  }
+  if (
+    typeof s.fur !== "string" ||
+    typeof s.accent !== "string" ||
+    typeof s.name !== "string"
+  ) {
+    return false;
+  }
+  if (s.ghost !== undefined && typeof s.ghost !== "boolean") return false;
+  return true;
 }
 
-function styleForSelf(): { fur: string; accent: string } {
-  return pickStyle(selfId);
+/** Accept partial wire payloads — fill style/orientation defaults from peer id. */
+export function normalizeSnap(
+  snap: unknown,
+  peerId: string,
+): PlayerSnapshot | null {
+  if (!snap || typeof snap !== "object") return null;
+  const s = snap as Record<string, unknown>;
+  if (
+    !isFiniteNumber(s.x) ||
+    !isFiniteNumber(s.y) ||
+    !isFiniteNumber(s.z)
+  ) {
+    return null;
+  }
+  const style = pickStyle(peerId);
+  const normalized: PlayerSnapshot = {
+    x: s.x,
+    y: s.y,
+    z: s.z,
+    yaw: isFiniteNumber(s.yaw) ? s.yaw : 0,
+    pitch: isFiniteNumber(s.pitch) ? s.pitch : 0,
+    roll: isFiniteNumber(s.roll) ? s.roll : 0,
+    speed: isFiniteNumber(s.speed) ? s.speed : 0,
+    fur: typeof s.fur === "string" ? s.fur : style.fur,
+    accent: typeof s.accent === "string" ? s.accent : style.accent,
+    name: typeof s.name === "string" ? s.name : peerId.slice(0, 6),
+    ghost: typeof s.ghost === "boolean" ? s.ghost : false,
+  };
+  return isValidSnap(normalized) ? normalized : null;
 }
 
-function spawnSnapshot(): PlayerSnapshot {
-  const style = styleForSelf();
+/**
+ * Hello pose matching createBody() position + Player's YXZ euler broadcast.
+ * Used before the local Player loop sends its first real snapshot.
+ */
+export function spawnSnapshot(): PlayerSnapshot {
+  const style = pickStyle(selfId);
+  sampleNormalDir(SPAWN_DIR, _spawnNormal);
+  const pos = surfacePoint(SPAWN_DIR, BOARD_CLEARANCE);
+  boardAxes(0, _spawnNormal, _spawnFwd, _spawnRight);
+  _spawnLook.makeBasis(_spawnRight, _spawnNormal, _spawnFwd);
+  _spawnQuat.setFromRotationMatrix(_spawnLook);
+  _spawnEuler.setFromQuaternion(_spawnQuat, "YXZ");
   return {
-    x: 0,
-    y: 2,
-    z: 14,
-    yaw: Math.PI,
-    pitch: 0,
-    roll: 0,
+    x: pos.x,
+    y: pos.y,
+    z: pos.z,
+    yaw: _spawnEuler.y,
+    pitch: _spawnEuler.x,
+    roll: _spawnEuler.z,
     speed: 0,
     fur: style.fur,
     accent: style.accent,
@@ -95,12 +163,12 @@ function spawnSnapshot(): PlayerSnapshot {
 }
 
 function safeSend(action: PupAction, snap: PlayerSnapshot, peerId?: string): void {
-  try {
-    if (peerId) action.send(snap, { target: peerId });
-    else action.send(snap);
-  } catch {
-    /* channel may not be ready yet */
-  }
+  const send = peerId
+    ? action.send(snap, { target: peerId })
+    : action.send(snap);
+  void send.catch(() => {
+    /* data channel may not be open yet */
+  });
 }
 
 /** Data channel can lag handshake — retry the intro pose a few times. */
@@ -125,7 +193,7 @@ function stopHello(target: Session): void {
 
 function startHello(target: Session): void {
   stopHello(target);
-  // Burst presence while discovering peers so late joiners see us immediately
+  // Burst presence while discovering peers so late joiners see us immediately.
   let ticks = 0;
   target.helloTimer = setInterval(() => {
     if (!session || session !== target) {
@@ -134,7 +202,7 @@ function startHello(target: Session): void {
     }
     if (session.lastSnap) safeSend(session.action, session.lastSnap);
     ticks += 1;
-    // Fast for 8s, then slow heartbeat
+    // Fast for 8s, then slow heartbeat while still alone on the relay.
     if (ticks === 40 && target.helloTimer) {
       clearInterval(target.helloTimer);
       target.helloTimer = setInterval(() => {
@@ -159,8 +227,9 @@ function wireRoom(room: Room, action: PupAction): void {
   };
 
   action.onMessage = (snap, { peerId }) => {
-    if (!isValidSnap(snap)) return;
-    upsertPeer(peerId, snap);
+    const normalized = normalizeSnap(snap, peerId);
+    if (!normalized) return;
+    upsertPeer(peerId, normalized);
     emit();
   };
 }
@@ -194,20 +263,27 @@ function ensureSession(roomId: string): Session {
       relayConfig: { urls: RELAYS, redundancy: 4 },
     },
     roomId,
+    {
+      onJoinError: (details) => {
+        console.warn(`${APP_ID} join error:`, details.error);
+        emit();
+      },
+    },
   );
   const action = room.makeAction<PlayerSnapshot>("pup");
+  const snap = spawnSnapshot();
   session = {
     roomId,
     room,
     action,
     refs: 0,
-    lastSnap: spawnSnapshot(),
+    lastSnap: snap,
     leaveTimer: null,
     helloTimer: null,
   };
   wireRoom(room, action);
   // Announce spawn pose immediately so peers can see us on open
-  safeSend(action, session.lastSnap!);
+  safeSend(action, snap);
   startHello(session);
   emit();
   return session;
@@ -293,10 +369,11 @@ export function useMultiplayer(
     }
 
     const sync = () => {
-      setPeerCount(getPeerCount());
+      const count = getPeerCount();
+      setPeerCount((prev) => (prev === count ? prev : count));
       const next = getStatus();
-      setStatus(next.status);
-      setStatusDetail(next.detail);
+      setStatus((prev) => (prev === next.status ? prev : next.status));
+      setStatusDetail((prev) => (prev === next.detail ? prev : next.detail));
     };
 
     sync();
@@ -332,4 +409,17 @@ export function useMultiplayer(
     sendState,
     style,
   };
+}
+
+// Dev HMR reloads this module — leave the old Trystero room so peers can reconnect.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    if (!session) return;
+    const target = session;
+    session = null;
+    stopHello(target);
+    clearPeers();
+    void target.room.leave().catch(() => {});
+    emit();
+  });
 }

@@ -20,7 +20,11 @@ query (or join from the HUD) to skate with friends — no game server required.
 | --- | --- |
 | W / ↑ | Push |
 | A D / ← → | Turn |
-| S / ↓ / Shift | Brake |
+| S / ↓ | Brake |
+| R / F | Pitch (nose down / up) |
 | Space | Ollie |
+| Shift | Jetpack (recharges on deck) |
+| Esc | Pause |
 
-Point the board, then push. Drop into the big center crater and ride the walls.
+Point the board, then push. Drop into the spawn-park bowls and ride the walls.
+Pause to watch your best ghost line. Hover the map and click to warp.

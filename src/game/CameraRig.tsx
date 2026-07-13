@@ -2,11 +2,16 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { boardAxes, type BodyState } from "./physics";
-import { MOON_RADIUS, sampleHeightDir } from "./terrain";
+import { MOON_RADIUS, sampleContactHeightDir } from "./terrain";
 
 type CameraRigProps = {
   body: RefObject<BodyState | null>;
+  /** Interpolated mesh pose — keep the lens locked to what you see. */
+  renderPos: RefObject<THREE.Vector3>;
 };
+
+/** After Player physics (-2) and LunarRocks (-1); before auto-render. */
+const RENDER_PRIORITY = 0;
 
 const CHASE_DIST = 8;
 const CHASE_HEIGHT = 3.4;
@@ -38,7 +43,9 @@ const MAX_BOOM = 6.5;
 
 const FOV_MOVE = 68;
 const FOV_IDLE = 71;
+const FOV_AIR = 76;
 const IDLE_SPEED = 1.2;
+const AIR_FOV_RISE = 0.55;
 
 const _radial = new THREE.Vector3();
 const _forward = new THREE.Vector3();
@@ -56,7 +63,7 @@ const _tmp = new THREE.Vector3();
  * Arcade board-frame orbit with rate-limited distance/boom — no snap crust
  * resolves, so the lens doesn't jerk in/out or up/down over rims.
  */
-export function CameraRig({ body }: CameraRigProps) {
+export function CameraRig({ body, renderPos }: CameraRigProps) {
   const { camera, gl } = useThree();
   const wantYaw = useRef(0);
   const wantPitch = useRef(0.32);
@@ -118,7 +125,8 @@ export function CameraRig({ body }: CameraRigProps) {
 
   useFrame((_, rawDt) => {
     const b = body.current;
-    if (!b) return;
+    const anchor = renderPos.current;
+    if (!b || !anchor) return;
     const dt = Math.min(rawDt, 0.05);
 
     orbitYaw.current = approachAngle(
@@ -132,7 +140,7 @@ export function CameraRig({ body }: CameraRigProps) {
       ORBIT_MAX_RATE * dt,
     );
 
-    _radial.copy(b.pos).normalize();
+    _radial.copy(anchor).normalize();
     boardAxes(b.yaw, b.normal, _forward, _right);
 
     const cy = Math.cos(orbitYaw.current);
@@ -160,7 +168,7 @@ export function CameraRig({ body }: CameraRigProps) {
 
     // Probe crust at the nominal seat; ease dist/boom toward clearance — no snaps.
     _pos
-      .copy(b.pos)
+      .copy(anchor)
       .addScaledVector(_chase, -dist.current)
       .addScaledVector(_radial, boomH.current);
     const pen = crustPenetration(_pos);
@@ -197,7 +205,7 @@ export function CameraRig({ body }: CameraRigProps) {
     boomH.current = THREE.MathUtils.clamp(boomH.current, 1.5, MAX_BOOM);
 
     _pos
-      .copy(b.pos)
+      .copy(anchor)
       .addScaledVector(_chase, -dist.current)
       .addScaledVector(_radial, boomH.current);
 
@@ -220,36 +228,52 @@ export function CameraRig({ body }: CameraRigProps) {
     }
 
     _lookWant
-      .copy(b.pos)
+      .copy(anchor)
       .addScaledVector(_radial, LOOK_HEIGHT)
       .addScaledVector(_chase, LOOK_AHEAD)
       .add(_velT);
 
     if (!ready.current) {
-      lookOff.current.copy(_lookWant).sub(b.pos);
+      lookOff.current.copy(_lookWant).sub(anchor);
       fov.current = FOV_MOVE;
       ready.current = true;
     } else {
-      _tmp.copy(_lookWant).sub(b.pos);
+      _tmp.copy(_lookWant).sub(anchor);
       const lookK = 1 - Math.exp(-LOOK_DRAG * dt);
       lookOff.current.lerp(_tmp, lookK);
 
       const idleT = 1 - THREE.MathUtils.clamp(speed / IDLE_SPEED, 0, 1);
-      const targetFov = THREE.MathUtils.lerp(FOV_MOVE, FOV_IDLE, idleT);
+      let targetFov = THREE.MathUtils.lerp(FOV_MOVE, FOV_IDLE, idleT);
+      if (!b.grounded) {
+        const airT = THREE.MathUtils.clamp(b.airTime / AIR_FOV_RISE, 0, 1);
+        targetFov = THREE.MathUtils.lerp(targetFov, FOV_AIR, airT);
+      }
+      // Brief widen on landing so the catch reads.
+      targetFov += b.landingPunch * 3.2;
       const fovK = 1 - Math.exp(-FOV_DRAG * dt);
       fov.current += (targetFov - fov.current) * fovK;
     }
 
-    _look.copy(b.pos).add(lookOff.current);
+    // Soft boom lift on landing punch.
+    if (b.landingPunch > 0.05) {
+      boomH.current = Math.min(
+        MAX_BOOM,
+        boomH.current + b.landingPunch * 2.2 * dt,
+      );
+    }
+
+    _look.copy(anchor).add(lookOff.current);
 
     camera.position.copy(_pos);
     camera.up.copy(_radial);
     camera.lookAt(_look);
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = fov.current;
-      camera.updateProjectionMatrix();
+      if (Math.abs(camera.fov - fov.current) > 0.05) {
+        camera.fov = fov.current;
+        camera.updateProjectionMatrix();
+      }
     }
-  });
+  }, RENDER_PRIORITY);
 
   return null;
 }
@@ -281,7 +305,7 @@ function crustPenetration(cam: THREE.Vector3): number {
   const len = cam.length();
   if (len < 1e-6) return 0;
   _liftDir.copy(cam).multiplyScalar(1 / len);
-  const floorR = MOON_RADIUS + sampleHeightDir(_liftDir) + MIN_CLEARANCE;
+  const floorR = MOON_RADIUS + sampleContactHeightDir(_liftDir) + MIN_CLEARANCE;
   return floorR - len;
 }
 

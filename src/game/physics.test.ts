@@ -2,11 +2,15 @@ import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
 import {
   AIR_DRAG,
+  BOARD_CLEARANCE,
   G,
   GRAVITY_SOFT,
+  JET_FUEL_MAX,
   MASS,
   MU,
   MU_ROLL,
+  PUSH_GAP,
+  PUSH_STROKE,
   atmosphereDensity,
   boardAxes,
   circularOrbitSpeed,
@@ -19,6 +23,7 @@ import {
 import {
   MOON_RADIUS,
   SPAWN_DIR,
+  sampleContactHeightDir,
   sampleHeightDir,
   sampleNormalDir,
 } from "./terrain";
@@ -83,6 +88,127 @@ describe("newtonian physics on a sphere", () => {
     const before = body.vel.length();
     stepBody(body, input, 1 / 60);
     expect(body.vel.length()).toBeGreaterThan(before);
+    expect(body.pushing).toBe(true);
+  });
+
+  test("held push strokes then coasts", () => {
+    const body = createBody();
+    body.vel.set(0, 0, 0);
+    const input = { ...idle, forward: true };
+
+    // First frames are in the stroke window.
+    stepBody(body, input, 1 / 60);
+    expect(body.pushing).toBe(true);
+    expect(body.pushTimer).toBeGreaterThan(0);
+
+    // Burn through the stroke into the gap.
+    const steps = Math.ceil((PUSH_STROKE + 0.02) * 60);
+    for (let i = 0; i < steps; i++) stepBody(body, input, 1 / 60);
+    expect(body.pushing).toBe(false);
+    expect(body.pushTimer).toBeLessThan(0);
+
+    // After the gap, another stroke begins.
+    const gapSteps = Math.ceil((PUSH_GAP + 0.05) * 60);
+    for (let i = 0; i < gapSteps; i++) stepBody(body, input, 1 / 60);
+    expect(body.pushing).toBe(true);
+  });
+
+  test("sustained push does not chatter on/off the crust", () => {
+    const body = createBody();
+    const input = { ...idle, forward: true };
+    let flips = 0;
+    let airFrames = 0;
+    let prev = body.grounded;
+    // First ~1.5s on the spawn plaza — soft restitution used to flicker
+    // grounded every few frames and twitch the pup pose.
+    for (let i = 0; i < 90; i++) {
+      stepBody(body, input, 1 / 60);
+      if (body.grounded !== prev) flips++;
+      if (!body.grounded) airFrames++;
+      prev = body.grounded;
+    }
+    expect(flips).toBe(0);
+    expect(airFrames).toBe(0);
+
+    // Longer skate may loft for real (bowl curvature), but must not
+    // micro-chatter (air spans of only a few substeps).
+    let span = 0;
+    const micro: number[] = [];
+    for (let i = 0; i < 210; i++) {
+      stepBody(body, input, 1 / 60);
+      if (!body.grounded) span++;
+      if (body.grounded !== prev) {
+        if (!prev && span > 0 && span <= 4) micro.push(span);
+        span = 0;
+      }
+      prev = body.grounded;
+    }
+    expect(micro.length).toBeLessThan(5);
+  });
+
+  test("jetpack drains fuel and stops when empty", () => {
+    const body = createBody();
+    body.pos.addScaledVector(body.pos.clone().normalize(), 8);
+    body.vel.set(0, 0, 0);
+    body.grounded = false;
+    body.normalForce = 0;
+    body.jetFuel = 0.05;
+
+    stepBody(body, { ...idle, jetpack: true }, 1 / 60);
+    expect(body.jetFuel).toBeLessThan(0.05);
+
+    body.jetFuel = 0;
+    body.vel.set(0, 0, 0);
+    const before = body.vel.clone();
+    stepBody(body, { ...idle, jetpack: true }, 1 / 60);
+    const fwd = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    boardAxes(body.yaw, body.normal, fwd, right);
+    const tangGain = body.vel.dot(fwd) - before.dot(fwd);
+    expect(Math.abs(tangGain)).toBeLessThan(0.02);
+  });
+
+  test("jetpack recharges while grounded", () => {
+    const body = createBody();
+    body.jetFuel = 0;
+    for (let i = 0; i < 90; i++) stepBody(body, idle, 1 / 60);
+    expect(body.jetFuel).toBeGreaterThan(0.5);
+    expect(body.jetFuel).toBeLessThanOrEqual(JET_FUEL_MAX);
+  });
+
+  test("airTime accumulates while airborne", () => {
+    const body = createBody();
+    body.pos.addScaledVector(body.pos.clone().normalize(), 6);
+    body.vel.set(0, 0, 0);
+    body.grounded = false;
+    body.normalForce = 0;
+    for (let i = 0; i < 30; i++) stepBody(body, idle, 1 / 60);
+    expect(body.airTime).toBeGreaterThan(0.2);
+  });
+
+  test("landing after air sets landingPunch and clears airTime", () => {
+    const body = createBody();
+    const east = new THREE.Vector3(0, 1, 0).cross(body.pos).normalize();
+    body.vel.copy(east).multiplyScalar(4);
+    for (let i = 0; i < 5; i++) stepBody(body, idle, 1 / 60);
+    stepBody(body, { ...idle, jump: true }, 1 / 60);
+    expect(body.grounded).toBe(false);
+
+    let landed = false;
+    for (let i = 0; i < 240; i++) {
+      const wasAir = !body.grounded;
+      const airBefore = body.airTime;
+      stepBody(body, idle, 1 / 60);
+      if (wasAir && body.grounded) {
+        expect(body.airTime).toBe(0);
+        if (airBefore > 0.05) {
+          expect(body.landingPunch).toBeGreaterThan(0);
+        }
+        landed = true;
+        break;
+      }
+    }
+    expect(landed).toBe(true);
   });
 
   test("air drag opposes velocity (F = -c|v|v)", () => {
@@ -107,6 +233,54 @@ describe("newtonian physics on a sphere", () => {
     expect(body.vel.length()).toBeLessThan(3);
   });
 
+  test("low-speed dwell stays seated without radial chatter", () => {
+    const body = createBody();
+    // Nudge to a crawl, then coast — contact eps / micro-sep must not flip.
+    body.vel.set(0, 0, 0);
+    for (let i = 0; i < 30; i++) stepBody(body, idle, 1 / 60);
+    const east = new THREE.Vector3(0, 1, 0).cross(SPAWN_DIR).normalize();
+    body.vel.copy(east).multiplyScalar(0.8);
+
+    let flips = 0;
+    let prev = body.grounded;
+    let maxRadialJump = 0;
+    let prevR = body.pos.length();
+    for (let i = 0; i < 180; i++) {
+      stepBody(body, idle, 1 / 60);
+      if (body.grounded !== prev) flips++;
+      prev = body.grounded;
+      const r = body.pos.length();
+      maxRadialJump = Math.max(maxRadialJump, Math.abs(r - prevR));
+      prevR = r;
+      // Keep crawling — don't let roll drag kill all speed.
+      if (body.vel.length() < 0.4 && body.grounded) {
+        body.vel.copy(east).multiplyScalar(0.7);
+      }
+    }
+    expect(flips).toBe(0);
+    expect(body.grounded).toBe(true);
+    // Hover spring should keep radial motion gentle at crawl speed.
+    expect(maxRadialJump).toBeLessThan(0.1);
+  });
+
+  test("hover spring keeps deck near clearance without hard snaps", () => {
+    const body = createBody();
+    body.vel.set(0, 0, 0);
+    for (let i = 0; i < 90; i++) stepBody(body, idle, 1 / 60);
+    expect(body.grounded).toBe(true);
+
+    const dir = body.pos.clone().normalize();
+    const h = sampleContactHeightDir(dir);
+    const n = sampleNormalDir(dir, new THREE.Vector3());
+    const height =
+      (body.pos.x - dir.x * (MOON_RADIUS + h)) * n.x +
+      (body.pos.y - dir.y * (MOON_RADIUS + h)) * n.y +
+      (body.pos.z - dir.z * (MOON_RADIUS + h)) * n.z;
+    expect(height).toBeGreaterThan(BOARD_CLEARANCE - 0.12);
+    expect(height).toBeLessThan(BOARD_CLEARANCE + 0.15);
+    expect(body.vel.length()).toBeLessThan(0.8);
+  });
+
   test("fast ballistic path does not stick into a crevice", () => {
     const body = createBody();
     const east = new THREE.Vector3(0, 1, 0).cross(SPAWN_DIR).normalize();
@@ -114,8 +288,8 @@ describe("newtonian physics on a sphere", () => {
     const rimDir = SPAWN_DIR.clone()
       .applyAxisAngle(east, 16 / MOON_RADIUS)
       .normalize();
-    const h = sampleHeightDir(rimDir);
-    const r = MOON_RADIUS + h + 0.18;
+    const h = sampleContactHeightDir(rimDir);
+    const r = MOON_RADIUS + h + BOARD_CLEARANCE;
     body.pos.copy(rimDir).multiplyScalar(r);
     sampleNormalDir(rimDir, body.normal);
     body.grounded = true;
@@ -219,12 +393,12 @@ describe("newtonian physics on a sphere", () => {
     const wallDir = SPAWN_DIR.clone()
       .applyAxisAngle(east, 10 / MOON_RADIUS)
       .normalize();
-    const h = sampleHeightDir(wallDir);
+    const h = sampleContactHeightDir(wallDir);
     sampleNormalDir(wallDir, body.normal);
     body.pos
       .copy(wallDir)
       .multiplyScalar(MOON_RADIUS + h)
-      .addScaledVector(body.normal, 0.18);
+      .addScaledVector(body.normal, BOARD_CLEARANCE);
     body.vel.set(0, 0, 0);
     body.grounded = true;
 
@@ -243,12 +417,12 @@ describe("newtonian physics on a sphere", () => {
     const wallDir = SPAWN_DIR.clone()
       .applyAxisAngle(east, 10 / MOON_RADIUS)
       .normalize();
-    const h = sampleHeightDir(wallDir);
+    const h = sampleContactHeightDir(wallDir);
     sampleNormalDir(wallDir, body.normal);
     body.pos
       .copy(wallDir)
       .multiplyScalar(MOON_RADIUS + h)
-      .addScaledVector(body.normal, 0.18);
+      .addScaledVector(body.normal, BOARD_CLEARANCE);
     body.vel.set(0, 0, 0);
     body.grounded = true;
 
@@ -367,7 +541,7 @@ describe("newtonian physics on a sphere", () => {
     expect(body.lean).toBeLessThan(0);
   });
 
-  test("pitch eases in on R and recovers on release", () => {
+  test("pitch eases in on F and recovers on release", () => {
     const body = createBody();
     body.vel.set(0, 0, 0);
 
@@ -386,7 +560,7 @@ describe("newtonian physics on a sphere", () => {
     expect(body.pitch).toBeGreaterThan(held * 0.85);
   });
 
-  test("airborne R pitches nose up (normal tips aft)", () => {
+  test("airborne F pitches nose up (normal tips aft)", () => {
     const body = createBody();
     body.pos.addScaledVector(body.pos.clone().normalize(), 8);
     body.vel.set(0, 0, 0);
