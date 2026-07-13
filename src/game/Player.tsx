@@ -191,7 +191,15 @@ export function Player({
       dog.quaternion.copy(quat.current);
     }
 
-    setLocalPose(s.pos.x, s.pos.y, s.pos.z, s.yaw);
+    setLocalPose(
+      s.pos.x,
+      s.pos.y,
+      s.pos.z,
+      s.yaw,
+      paused || !active ? 0 : s.vel.x,
+      paused || !active ? 0 : s.vel.y,
+      paused || !active ? 0 : s.vel.z,
+    );
 
     if (debugOn.current && active) {
       const step = s.pos.distanceTo(prevPos.current);

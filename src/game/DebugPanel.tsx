@@ -1,4 +1,10 @@
 import { useEffect, useRef } from "react";
+import { getDebugChunkQueue, getDebugChunkWorkers } from "./ChunkTerrain";
+import {
+  CLIPMAP_LODS,
+  getChunkLodSnapshot,
+  subscribeChunkLod,
+} from "./chunkLod";
 import {
   type DebugFrame,
   getDebugFrame,
@@ -16,9 +22,18 @@ function row(label: string, value: string, warn = false): string {
   return `<div class="hud-debug__row"${cls}><span>${label}</span><b>${value}</b></div>`;
 }
 
+function lodSwatches(): string {
+  const chips = CLIPMAP_LODS.map(
+    (r, i) =>
+      `<span style="display:inline-block;width:8px;height:8px;border-radius:1px;background:${r.color};margin-right:2px" title="L${i}"></span>`,
+  ).join("");
+  return `<div class="hud-debug__row"><span>lod</span><b>${chips}</b></div>`;
+}
+
 function paint(el: HTMLElement, f: DebugFrame): void {
   const bodyChat = f.peakBodyDelta > 0.04;
   const quatChat = f.quatErr > 0.02;
+  const lod = getChunkLodSnapshot();
 
   el.innerHTML = [
     `<div class="hud-debug__title">frame debug <small>?debug</small></div>`,
@@ -30,6 +45,12 @@ function paint(el: HTMLElement, f: DebugFrame): void {
     row("quat err", `${fmt(f.quatErr * (180 / Math.PI), 2)}°`, quatChat),
     row("peak body Δ", `${fmt(f.peakBodyDelta * 1000, 2)} mm /0.5s`, bodyChat),
     row("peak dt", `${fmt(f.peakDtMs, 1)} ms /0.5s`, f.peakDtMs > 20),
+    `<div class="hud-debug__sep"></div>`,
+    row("chunks", `${lod.chunks.length}`),
+    row("workers", `${getDebugChunkWorkers()}  q ${getDebugChunkQueue()}`),
+    row("lod scale", `×${fmt(lod.speedScale, 2)}`),
+    row("look-ahead", `${fmt(lod.lookAheadArc, 1)} m`),
+    lodSwatches(),
   ].join("");
 }
 
@@ -48,7 +69,8 @@ export function DebugPanel() {
     const mark = () => {
       dirty = true;
     };
-    const unsub = subscribeDebugFrame(mark);
+    const unsubFrame = subscribeDebugFrame(mark);
+    const unsubLod = subscribeChunkLod(mark);
 
     const loop = () => {
       raf = requestAnimationFrame(loop);
@@ -60,7 +82,8 @@ export function DebugPanel() {
     paint(el, getDebugFrame());
 
     return () => {
-      unsub();
+      unsubFrame();
+      unsubLod();
       cancelAnimationFrame(raf);
     };
   }, [enabled]);

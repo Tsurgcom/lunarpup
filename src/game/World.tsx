@@ -2,6 +2,8 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { DirectionalLight } from "three";
 import * as THREE from "three";
+import { ChunkLodDriver } from "./ChunkLodDriver";
+import { ChunkTerrain } from "./ChunkTerrain";
 import { GhostRun } from "./GhostRun";
 import { getLocalPose } from "./localPose";
 import { MOON_RADIUS } from "./moon";
@@ -166,6 +168,10 @@ export function World({
         paused={paused}
         onSnapshot={onSnapshot}
       />
+      {/* After Player so pose + velocity are current for the LOD plan. */}
+      <ChunkLodDriver />
+      <ChunkTerrain />
+      {/* Slightly inset backdrop — streamed chunks sit on top without z-fight. */}
       <StaticMoon />
       <GhostRun paused={paused} />
       <RemotePlayers />

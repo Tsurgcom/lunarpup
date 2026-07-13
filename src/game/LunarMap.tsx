@@ -14,6 +14,12 @@ import {
   useSyncExternalStore,
 } from "react";
 import * as THREE from "three";
+import {
+  getChunkLodSnapshot,
+  getIcoFaces,
+  subscribeChunkLod,
+} from "./chunkLod";
+import { isDebugEnabled } from "./debugFrame";
 import { getLocalPose } from "./localPose";
 import {
   CHART_RADIUS,
@@ -453,9 +459,95 @@ function LunarMapScene({
         <meshLambertMaterial vertexColors />
       </mesh>
 
+      {isDebugEnabled() ? <ChunkLodOverlay /> : null}
+
       <SelfMarker />
       <PeerMarkers selfId={selfId} canTeleport={focused} dragRef={dragRef} />
     </>
+  );
+}
+
+/**
+ * ?debug: colour each loaded ico-face chunk on the chart by LOD ring
+ * (green → lime → yellow → orange → red → purple).
+ */
+function ChunkLodOverlay() {
+  const faces = useMemo(() => getIcoFaces(), []);
+  const mesh = useRef<THREE.Mesh>(null);
+  const invalidate = useThree((s) => s.invalidate);
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    const n = faces.length;
+    const positions = new Float32Array(n * 9);
+    const colors = new Float32Array(n * 9);
+    const lift = CHART_RADIUS * 1.012;
+    for (let i = 0; i < n; i++) {
+      const f = faces[i]!;
+      const o = i * 9;
+      positions[o] = f.a.x * lift;
+      positions[o + 1] = f.a.y * lift;
+      positions[o + 2] = f.a.z * lift;
+      positions[o + 3] = f.b.x * lift;
+      positions[o + 4] = f.b.y * lift;
+      positions[o + 5] = f.b.z * lift;
+      positions[o + 6] = f.c.x * lift;
+      positions[o + 7] = f.c.y * lift;
+      positions[o + 8] = f.c.z * lift;
+    }
+    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    return g;
+  }, [faces]);
+
+  const colorByFace = useRef(new Map<number, string>());
+  const scratch = useRef(new THREE.Color());
+  const lastKey = useRef("");
+
+  useEffect(() => () => geo.dispose(), [geo]);
+
+  // Demand-loop map: wake when the main canvas updates the LOD plan.
+  useEffect(() => subscribeChunkLod(() => invalidate()), [invalidate]);
+
+  useFrame(() => {
+    const m = mesh.current;
+    if (!m) return;
+    const snap = getChunkLodSnapshot();
+    // Cheap dirty check — rebuild colours only when the plan changes.
+    const key = `${snap.chunks.length}|${snap.speedScale.toFixed(2)}|${snap.lookAheadArc.toFixed(1)}|${snap.viewerX.toFixed(3)}|${snap.viewerY.toFixed(3)}|${snap.viewerZ.toFixed(3)}`;
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+
+    const byFace = colorByFace.current;
+    byFace.clear();
+    for (const c of snap.chunks) byFace.set(c.faceIndex, c.color);
+
+    const attr = geo.getAttribute("color") as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    const col = scratch.current;
+    for (let i = 0; i < faces.length; i++) {
+      const hex = byFace.get(i);
+      if (hex) col.set(hex);
+      else col.setRGB(0.08, 0.1, 0.14);
+      const o = i * 9;
+      for (let v = 0; v < 3; v++) {
+        arr[o + v * 3] = col.r;
+        arr[o + v * 3 + 1] = col.g;
+        arr[o + v * 3 + 2] = col.b;
+      }
+    }
+    attr.needsUpdate = true;
+  });
+
+  return (
+    <mesh ref={mesh} geometry={geo} raycast={() => null}>
+      <meshBasicMaterial
+        vertexColors
+        transparent
+        opacity={0.72}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
