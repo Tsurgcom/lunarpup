@@ -9,8 +9,14 @@ export const MOON_CIRCUMFERENCE = 1920;
 /** Sphere radius such that 2πR = MOON_CIRCUMFERENCE. */
 export const MOON_RADIUS = MOON_CIRCUMFERENCE / (2 * Math.PI);
 
-/** Spawn altitude above the decorative moon radius (free space). */
-export const SPAWN_ALTITUDE = 24;
+/** Peak skate speed (m/s) — HUD ratio, LOD look-ahead, velocity cap. */
+export const MAX_SPEED = 40;
+
+/**
+ * Spawn altitude above the decorative moon radius (short drop-in onto the
+ * ride shell — clearance is applied by movement/rideShell).
+ */
+export const SPAWN_ALTITUDE = 4;
 
 /** Unit direction of the skate spawn (near +Z, slightly north). */
 export const SPAWN_DIR = new THREE.Vector3(0, 0.12, 1).normalize();
@@ -20,14 +26,14 @@ export const CHART_RADIUS = 1;
 
 const _chartDir = new THREE.Vector3();
 
-/** Free-space spawn position — fixed altitude along SPAWN_DIR. */
+/** Free-space-style spawn position — short drop-in above the ride shell. */
 export function spawnPosition(out = new THREE.Vector3()): THREE.Vector3 {
   return out.copy(SPAWN_DIR).multiplyScalar(MOON_RADIUS + SPAWN_ALTITUDE);
 }
 
 /**
- * Place the pup at a free-space altitude along a direction
- * (map teleport / warp).
+ * Place the pup along a direction at an altitude above MOON_RADIUS
+ * (map teleport / warp). Prefer ride-shell clearance for surface landings.
  */
 export function orbitPoint(
   dir: THREE.Vector3,

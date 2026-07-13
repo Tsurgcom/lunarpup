@@ -16,6 +16,7 @@ import {
   LEAN_ANGLE,
   PITCH_ANGLE,
   type PlayerState,
+  shellSpawnAltitude,
   stepPlayer,
 } from "./movement";
 import { SkateDog } from "./SkateDog";
@@ -100,6 +101,7 @@ export function Player({
     pitchUp: false,
     pitchDown: false,
     boosting: false,
+    jump: false,
   });
 
   useEffect(() => {
@@ -130,11 +132,15 @@ export function Player({
         if (warpDir.current.lengthSq() < 1e-8) {
           warpDir.current.copy(SPAWN_DIR);
         }
-        orbitPoint(warpDir.current, undefined, s.pos);
+        orbitPoint(warpDir.current, shellSpawnAltitude(), s.pos);
         s.up.copy(warpDir.current);
+        s.contactNormal.copy(warpDir.current);
         s.vel.set(0, 0, 0);
         s.lean = 0;
         s.pitch = 0;
+        s.grounded = false;
+        s.airTime = 0;
+        s.coyote = 0;
         prevPos.current.copy(s.pos);
         physAcc.current = 0;
       }
@@ -148,6 +154,7 @@ export function Player({
       input.pitchUp = keys.pitchUp;
       input.pitchDown = keys.pitchDown;
       input.boosting = keys.boost;
+      input.jump = keys.jump;
 
       physAcc.current += dt;
       let steps = 0;
@@ -224,7 +231,7 @@ export function Player({
           euler.current.y,
           euler.current.x,
           euler.current.z,
-          0,
+          s.airTime,
           speed,
           dt,
         );

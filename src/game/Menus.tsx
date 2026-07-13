@@ -1,4 +1,15 @@
+import { useSyncExternalStore } from "react";
+import { GlassSelect } from "./GlassSelect";
 import type { MultiplayerStatus } from "./multiplayer";
+import {
+  formatPerfTierName,
+  getPerfOverride,
+  getPerfOverrideLabel,
+  type PerfOverride,
+  type PerfTierId,
+  setPerfOverride,
+  subscribePerf,
+} from "./performanceTiers";
 
 export type MenuScreen = "main" | "options" | "credits" | "controls";
 
@@ -24,6 +35,57 @@ type PauseMenuProps = {
   status: MultiplayerStatus;
   statusDetail: string;
 };
+
+const PERF_OVERRIDE_OPTIONS: readonly {
+  value: string;
+  override: PerfOverride;
+}[] = [
+  { value: "auto", override: "auto" },
+  { value: "0", override: 0 },
+  { value: "1", override: 1 },
+  { value: "2", override: 2 },
+  { value: "3", override: 3 },
+];
+
+function overrideToValue(o: PerfOverride): string {
+  return o === "auto" ? "auto" : String(o);
+}
+
+function valueToOverride(v: string): PerfOverride {
+  if (v === "auto") return "auto";
+  return Number(v) as PerfTierId;
+}
+
+function labelForOverrideValue(v: string): string {
+  const o = valueToOverride(v);
+  if (o === "auto") return getPerfOverrideLabel();
+  return formatPerfTierName(o);
+}
+
+function PerformanceTierField() {
+  const override = useSyncExternalStore(
+    subscribePerf,
+    getPerfOverride,
+    getPerfOverride,
+  );
+  // Re-render when the adaptive tier changes so Auto (X) stays live.
+  useSyncExternalStore(
+    subscribePerf,
+    getPerfOverrideLabel,
+    getPerfOverrideLabel,
+  );
+
+  return (
+    <GlassSelect
+      id="menu-perf"
+      label="Performance"
+      value={overrideToValue(override)}
+      options={PERF_OVERRIDE_OPTIONS.map((o) => ({ value: o.value }))}
+      labelFor={labelForOverrideValue}
+      onChange={(v) => setPerfOverride(valueToOverride(v))}
+    />
+  );
+}
 
 function OptionsFields({
   draftRoom,
@@ -57,6 +119,12 @@ function OptionsFields({
       </div>
       <p className="menu__hint">
         Share the same room name to skate with friends.
+      </p>
+
+      <PerformanceTierField />
+      <p className="menu__hint">
+        Auto starts low and climbs with your machine. Pick a tier to lock
+        quality.
       </p>
     </div>
   );

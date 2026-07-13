@@ -160,7 +160,7 @@ function startLine(x: number, y: number, z: number): void {
 /**
  * Feed one render-frame sample while the local pup is skating.
  * Ends the line on prolonged near-standstill; starts when speed rises.
- * `airTime` is continuous airborne time (s); pass 0 in free-space mode.
+ * `airTime` is continuous airborne time (s).
  */
 export function tickGhostLine(
   x: number,

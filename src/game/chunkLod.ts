@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { MOON_RADIUS } from "./moon";
-import { MAX_SPEED } from "./movement";
+import { MAX_SPEED, MOON_RADIUS } from "./moon";
+import { getPerfSettings, scaleLodSubdiv } from "./performanceTiers";
 
 /** Icosahedron subdivision for streamable triangular chunks (20·4^n faces). */
 export const ICO_CHUNK_DETAIL = 2;
@@ -338,10 +338,14 @@ export function faceSubdiv(
 ): number {
   const arc = geodesicDistance(viewerDir, face.centroid);
   const scale = Math.max(1, speedScale);
+  let subdiv = ICO_FACE_SUBDIV;
   for (const ring of CLIPMAP_LODS) {
-    if (arc <= ring.maxArc * scale) return ring.subdiv;
+    if (arc <= ring.maxArc * scale) {
+      subdiv = ring.subdiv;
+      break;
+    }
   }
-  return ICO_FACE_SUBDIV;
+  return scaleLodSubdiv(subdiv, getPerfSettings().lodSubdivScale);
 }
 
 /** LOD ring index (0 = closest) for a face at the given viewer / speed. */

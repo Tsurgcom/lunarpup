@@ -28,7 +28,7 @@ export function createGameRuntime(): GameRuntime {
             airDrag: 0.008,
             maxSpeed: 1.25,
             rotationSpeed: 0.058,
-            gravity: 0.0032,
+            gravity: 0.025,
             jumpImpulse: 0.16,
             tiltSmoothing: 0.24,
             driftSlideMultiplier: 0.06,

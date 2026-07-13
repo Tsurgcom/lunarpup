@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { DirectionalLight } from "three";
 import * as THREE from "three";
 import { ChunkLodDriver } from "./ChunkLodDriver";
@@ -7,7 +7,9 @@ import { ChunkTerrain } from "./ChunkTerrain";
 import { GhostRun } from "./GhostRun";
 import { getLocalPose } from "./localPose";
 import { MOON_RADIUS } from "./moon";
+import { PerfTierDriver } from "./PerfTierDriver";
 import { Player } from "./Player";
+import { getPerfSettings, subscribePerf } from "./performanceTiers";
 import { RemotePlayers } from "./RemotePlayers";
 import { Starfield } from "./Starfield";
 import { StaticMoon } from "./StaticMoon";
@@ -45,6 +47,23 @@ const _side = new THREE.Vector3();
 function StudioKey() {
   const light = useRef<DirectionalLight>(null);
   const framed = useRef(false);
+  const perf = useSyncExternalStore(
+    subscribePerf,
+    getPerfSettings,
+    getPerfSettings,
+  );
+
+  useEffect(() => {
+    const L = light.current;
+    if (!L) return;
+    L.castShadow = perf.shadows;
+    const size = perf.shadowMapSize;
+    if (L.shadow.mapSize.x !== size || L.shadow.mapSize.y !== size) {
+      L.shadow.mapSize.set(size, size);
+      L.shadow.map?.dispose();
+      L.shadow.map = null;
+    }
+  }, [perf.shadows, perf.shadowMapSize]);
 
   useFrame(() => {
     const L = light.current;
@@ -83,8 +102,8 @@ function StudioKey() {
       ref={light}
       intensity={1.75}
       color="#ddddff"
-      castShadow
-      shadow-mapSize={[1024, 1024]}
+      castShadow={perf.shadows}
+      shadow-mapSize={[perf.shadowMapSize, perf.shadowMapSize]}
       shadow-bias={-0.00008}
       shadow-normalBias={0.025}
       shadow-radius={1.5}
@@ -150,6 +169,7 @@ export function World({
 
   return (
     <>
+      <PerfTierDriver active={active && !paused} />
       <color attach="background" args={[SPACE_COLOR]} />
       <fogExp2 attach="fog" args={[SPACE_COLOR, fogDensity]} />
 

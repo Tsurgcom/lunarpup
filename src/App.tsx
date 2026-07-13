@@ -1,12 +1,23 @@
 import { KeyboardControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { resetGhostSession } from "./game/ghostLine";
 import { Hud } from "./game/Hud";
 import { setHudSpeed } from "./game/hudSpeed";
 import { type MenuScreen, PauseMenu, StartMenu } from "./game/Menus";
 import { MOON_RADIUS, SPAWN_ALTITUDE, SPAWN_DIR } from "./game/moon";
 import { useMultiplayer } from "./game/multiplayer";
+import {
+  getPerfSettings,
+  resetPerformanceTier,
+  subscribePerf,
+} from "./game/performanceTiers";
 import { defaultRoomId } from "./game/types";
 import { World } from "./game/World";
 
@@ -45,10 +56,20 @@ export function App() {
   const [draftRoom, setDraftRoom] = useState(initial);
   const [phase, setPhase] = useState<Phase>("menu");
   const [menuScreen, setMenuScreen] = useState<MenuScreen>("main");
+  const perf = useSyncExternalStore(
+    subscribePerf,
+    getPerfSettings,
+    getPerfSettings,
+  );
 
   const online = phase !== "menu";
   const { peerCount, selfId, status, statusDetail, sendState, style } =
     useMultiplayer(roomId, online);
+
+  // Boot at the cheapest tier before the Canvas mounts.
+  useEffect(() => {
+    resetPerformanceTier();
+  }, []);
 
   const applyRoom = useCallback(() => {
     const next = draftRoom.trim() || "moon-bowl";
@@ -133,11 +154,11 @@ export function App() {
 
       <KeyboardControls map={keyMap}>
         <Canvas
-          shadows="percentage"
-          dpr={[1, 2]}
+          shadows={perf.shadows ? "percentage" : false}
+          dpr={[1, perf.dpr]}
           camera={CANVAS_CAMERA}
           gl={{
-            antialias: true,
+            antialias: false,
             toneMappingExposure: 1.05,
             powerPreference: "high-performance",
           }}

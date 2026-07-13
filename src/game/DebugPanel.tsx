@@ -1,16 +1,14 @@
 import { useEffect, useRef } from "react";
 import { getDebugChunkQueue, getDebugChunkWorkers } from "./ChunkTerrain";
+import { CLIPMAP_LODS, getChunkLodSnapshot } from "./chunkLod";
+import { type DebugFrame, getDebugFrame, isDebugEnabled } from "./debugFrame";
 import {
-  CLIPMAP_LODS,
-  getChunkLodSnapshot,
-  subscribeChunkLod,
-} from "./chunkLod";
-import {
-  type DebugFrame,
-  getDebugFrame,
-  isDebugEnabled,
-  subscribeDebugFrame,
-} from "./debugFrame";
+  getPerfFpsSmooth,
+  getPerfMaxTier,
+  getPerfOverrideLabel,
+  getPerfSettings,
+  isPerfAuto,
+} from "./performanceTiers";
 
 function fmt(n: number, digits = 2): string {
   if (!Number.isFinite(n)) return "—";
@@ -34,10 +32,21 @@ function paint(el: HTMLElement, f: DebugFrame): void {
   const bodyChat = f.peakBodyDelta > 0.04;
   const quatChat = f.quatErr > 0.02;
   const lod = getChunkLodSnapshot();
+  const perf = getPerfSettings();
 
+  const tierWarn = perf.tier === 0;
   el.innerHTML = [
     `<div class="hud-debug__title">frame debug <small>?debug</small></div>`,
     row("fps", `${fmt(f.fpsSmooth, 0)}  (${fmt(f.dtMs, 1)} ms)`),
+    row(
+      "tier",
+      `${getPerfOverrideLabel()}${isPerfAuto() ? `  ${perf.tier}/${getPerfMaxTier()}` : ""}  ·  ${fmt(getPerfFpsSmooth(), 0)} fps`,
+      tierWarn,
+    ),
+    row(
+      "quality",
+      `dpr≤${fmt(perf.dpr, 2)}  shadows ${perf.shadows ? perf.shadowMapSize : "off"}  tess×${fmt(perf.lodSubdivScale, 2)}`,
+    ),
     row("speed", `${fmt(f.speed, 2)} m/s`),
     row("lean / pitch", `${fmt(f.lean, 2)} / ${fmt(f.pitch, 2)}`),
     `<div class="hud-debug__sep"></div>`,
@@ -65,27 +74,14 @@ export function DebugPanel() {
     if (!el) return;
 
     let raf = 0;
-    let dirty = true;
-    const mark = () => {
-      dirty = true;
-    };
-    const unsubFrame = subscribeDebugFrame(mark);
-    const unsubLod = subscribeChunkLod(mark);
-
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      if (!dirty) return;
-      dirty = false;
       paint(el, getDebugFrame());
     };
     raf = requestAnimationFrame(loop);
     paint(el, getDebugFrame());
 
-    return () => {
-      unsubFrame();
-      unsubLod();
-      cancelAnimationFrame(raf);
-    };
+    return () => cancelAnimationFrame(raf);
   }, [enabled]);
 
   if (!enabled) return null;

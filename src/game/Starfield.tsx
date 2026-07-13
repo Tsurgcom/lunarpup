@@ -1,26 +1,32 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
+import { getPerfSettings, subscribePerf } from "./performanceTiers";
 
-const STAR_COUNT = 900;
 const STAR_DISTANCE = 4800;
 
 /**
  * Soft, sparse starfield — pastel points, no dense photoreal milky way.
+ * Star count follows the active performance tier.
  */
 export function Starfield() {
   const group = useRef<THREE.Group>(null);
   const { camera } = useThree();
+  const starCount = useSyncExternalStore(
+    subscribePerf,
+    () => getPerfSettings().starCount,
+    () => getPerfSettings().starCount,
+  );
 
   const { positions, colors } = useMemo(() => {
-    const positions = new Float32Array(STAR_COUNT * 3);
-    const colors = new Float32Array(STAR_COUNT * 3);
+    const positions = new Float32Array(starCount * 3);
+    const colors = new Float32Array(starCount * 3);
     const color = new THREE.Color();
     const spherical = new THREE.Spherical();
     const vec = new THREE.Vector3();
     const tints = ["#ffffff", "#ffe9a8", "#c8e0ff", "#ffd6e8", "#b8f0e0"];
 
-    for (let i = 0; i < STAR_COUNT; i++) {
+    for (let i = 0; i < starCount; i++) {
       spherical.set(
         1,
         Math.acos(1 - Math.random() * 2),
@@ -38,7 +44,7 @@ export function Starfield() {
       colors[i * 3 + 2] = color.b * bright;
     }
     return { positions, colors };
-  }, []);
+  }, [starCount]);
 
   // Stars only track the camera — keep priority ≤ 0 so R3F auto-renders.
   useFrame(() => {
@@ -50,7 +56,7 @@ export function Starfield() {
 
   return (
     <group ref={group}>
-      <points frustumCulled={false}>
+      <points frustumCulled={false} key={starCount}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
           <bufferAttribute attach="attributes-color" args={[colors, 3]} />

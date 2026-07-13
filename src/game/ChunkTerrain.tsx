@@ -18,6 +18,7 @@ import {
 } from "./chunkLod";
 import { isDebugEnabled } from "./debugFrame";
 import { createMoonMaterial } from "./moonMaterial";
+import { getPerfSettings } from "./performanceTiers";
 
 type FaceMesh = {
   mesh: THREE.Mesh;
@@ -32,7 +33,6 @@ type PendingAttach = {
 };
 
 const EMPTY_GEO = new THREE.BufferGeometry();
-const MAX_ATTACH_PER_FRAME = 3;
 
 let debugQueue = 0;
 let debugWorkers = 0;
@@ -167,8 +167,9 @@ export function ChunkTerrain() {
 
     cancelStaleFaceBuilds(live);
 
+    const maxAttach = getPerfSettings().maxChunkAttachPerFrame;
     let attached = 0;
-    while (attached < MAX_ATTACH_PER_FRAME && attachQueue.current.length > 0) {
+    while (attached < maxAttach && attachQueue.current.length > 0) {
       const next = attachQueue.current.shift()!;
       if (!live.has(next.key)) continue;
       if (!geoCache.current.has(next.key)) continue;

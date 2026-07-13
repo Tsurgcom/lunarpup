@@ -104,7 +104,7 @@ describe("pickStyle", () => {
 });
 
 describe("spawnSnapshot", () => {
-  test("matches free-space spawn position", () => {
+  test("matches drop-in spawn position", () => {
     const snap = spawnSnapshot();
     const expected = spawnPosition();
     const pos = new THREE.Vector3(snap.x, snap.y, snap.z);
