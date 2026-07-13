@@ -1,30 +1,29 @@
-# Lunar Pup
+# Lunar Pup (v3)
 
-A simple moon skate game: ride a geometric pup across crater bowls built with
-**React Three Fiber**, **Drei**, and **Trystero** (`@trystero-p2p/nostr` for
-serverless P2P multiplayer).
+Browser moon-skate game. The **active game is the repo root**.
 
-## Run
+Earlier attempts are frozen as copy sources:
+
+| Folder | What it is |
+| --- | --- |
+| [`v1/`](v1/) | Pre-rewrite R3F game (chunked PCG terrain, Newtonian hover physics). Snapshot of `origin/cursor/newtonian-physics-hoverboard` @ `9cfa7c1`. |
+| [`v2/`](v2/) | Sphere clipmap moon, Trystero multiplayer, board-frame camera. Snapshot of `main` @ `4933616`. |
+
+## Run v3
 
 ```bash
 bun install
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Share the same `?room=`
-query (or join from the HUD) to skate with friends — no game server required.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Controls
+## Run an archive
 
-| Key | Action |
-| --- | --- |
-| W / ↑ | Push |
-| A D / ← → | Turn |
-| S / ↓ | Brake |
-| R / F | Pitch (nose down / up) |
-| Space | Ollie |
-| Shift | Jetpack (recharges on deck) |
-| Esc | Pause |
+```bash
+cd v1   # or v2
+bun install
+bun run dev
+```
 
-Point the board, then push. Drop into the spawn-park bowls and ride the walls.
-Pause to watch your best ghost line. Hover the map and click to warp.
+Use each archive’s own `README.md` / `AGENTS.md` for controls and architecture.

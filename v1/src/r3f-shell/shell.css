@@ -1,0 +1,82 @@
+html,
+body,
+#r3f-root,
+.r3f-shell {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+.r3f-shell {
+    position: relative;
+    overflow: hidden;
+    background: #020208;
+}
+
+.r3f-canvas-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.r3f-hud-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.r3f-hud-layer #tuning-panel,
+.r3f-hud-layer #chat-panel,
+.r3f-hud-layer #update-notice {
+    pointer-events: auto;
+}
+
+.r3f-shell-label {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    color: #c9d5ff;
+    font: 600 0.75rem/1.2 system-ui, sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+.r3f-fallback {
+    display: grid;
+    place-content: center;
+    gap: 0.8rem;
+    width: 100%;
+    height: 100%;
+    padding: 2rem;
+    box-sizing: border-box;
+    color: #e9edff;
+    background: radial-gradient(circle at 50% 25%, #20254c, #070712 62%);
+    font: 500 1rem/1.5 system-ui, sans-serif;
+    text-align: center;
+}
+
+.r3f-fallback h2,
+.r3f-fallback p {
+    margin: 0;
+}
+
+.r3f-fallback-detail {
+    max-width: 38rem;
+    color: #bfc8ef;
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.r3f-fallback button {
+    justify-self: center;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #a0c4ff;
+    border-radius: 0.45rem;
+    color: #070712;
+    background: #c9d5ff;
+    font: inherit;
+    cursor: pointer;
+}

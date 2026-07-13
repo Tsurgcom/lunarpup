@@ -1,0 +1,3 @@
+commit: 4933616
+ref: main
+message: Replace PBR lighting with a flat clipmap moon, hover physics, and ghost lines.

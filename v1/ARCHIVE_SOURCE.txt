@@ -1,0 +1,3 @@
+commit: 9cfa7c1
+ref: origin/cursor/newtonian-physics-hoverboard
+message: feat(physics): add arcade air control and wider hover influence
