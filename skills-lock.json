@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "physics-tuning": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/disciplines/physics-tuning/SKILL.md",
+      "computedHash": "ea6313644e4da8f977cb2e36d9623f7feaa45d47f3557c6d021d82c53f489187"
+    },
     "react-three-fiber": {
       "source": "vercel-labs/json-render",
       "sourceType": "github",
