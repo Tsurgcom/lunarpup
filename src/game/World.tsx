@@ -65,9 +65,14 @@ function StudioKey() {
     if (!L) return;
     L.castShadow = perf.shadows;
     const size = perf.shadowMapSize;
-    if (L.shadow.mapSize.x !== size || L.shadow.mapSize.y !== size) {
-      L.shadow.mapSize.set(size, size);
-      L.shadow.map?.dispose();
+    L.shadow.mapSize.set(size, size);
+    // Compare the GPU target, not mapSize — R3F applies shadow-mapSize
+    // before this effect, so mapSize already matches and we'd skip dispose,
+    // leaving a stale 512 RT sampled as 1024 (broken shadows on High/Ultra).
+    const map = L.shadow.map;
+    if (map && (map.width !== size || map.height !== size)) {
+      map.depthTexture?.dispose();
+      map.dispose();
       L.shadow.map = null;
     }
   }, [perf.shadows, perf.shadowMapSize]);
