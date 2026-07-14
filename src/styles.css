@@ -73,6 +73,23 @@ input {
   font-size: 0.68rem;
 }
 
+.hud__boost {
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent, #f0c14a);
+  text-transform: uppercase;
+}
+
+.hud__speed--boost {
+  border-color: color-mix(
+    in srgb,
+    var(--accent, #f0c14a) 45%,
+    var(--glass-edge)
+  );
+}
+
 .hud__map-hotzone {
   position: absolute;
   top: 0.25rem;
@@ -646,6 +663,120 @@ input {
   user-select: none;
 }
 
+.hud-tweaking {
+  position: absolute;
+  left: 0.85rem;
+  bottom: 0.85rem;
+  width: min(18.5rem, calc(100vw - 1.7rem));
+  max-height: min(72vh, 34rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem 0.65rem;
+  font-family: "DM Mono", monospace;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--ink);
+  background: rgba(8, 14, 28, 0.82);
+  backdrop-filter: blur(var(--blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
+  border: 1px solid var(--glass-edge);
+  border-radius: 10px;
+  box-shadow: var(--glass-inset);
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.hud-tweaking__title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.hud-tweaking__title small {
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.35rem;
+}
+
+.hud-tweaking__sliders {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding-right: 0.2rem;
+  min-height: 0;
+}
+
+.hud-tweaking__row {
+  display: grid;
+  grid-template-columns: 6.4rem 1fr 3rem;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.hud-tweaking__row label {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-tweaking__row output {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-align: right;
+}
+
+.hud-tweaking__row input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.hud-tweaking__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.hud-tweaking__actions button {
+  flex: 1;
+  border: 1px solid var(--glass-edge);
+  border-radius: 6px;
+  background: var(--glass);
+  color: var(--ink);
+  padding: 0.35rem 0.45rem;
+  cursor: pointer;
+  font-size: 0.68rem;
+}
+
+.hud-tweaking__actions button:hover {
+  background: var(--glass-strong);
+}
+
+.hud-tweaking__out {
+  width: 100%;
+  min-height: 3.2rem;
+  max-height: 5.5rem;
+  box-sizing: border-box;
+  resize: vertical;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.6rem;
+  line-height: 1.35;
+  padding: 0.35rem 0.4rem;
+}
+
 .hud-debug__title {
   font-size: 0.72rem;
   font-weight: 600;
@@ -694,8 +825,31 @@ input {
   overflow: hidden;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 80ms linear;
+  transition: opacity 90ms linear;
   z-index: 0;
+}
+
+#speed-lines[data-air="1"] .speed-line {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(170, 210, 255, 0.75),
+    rgba(255, 255, 255, 0)
+  );
+}
+
+#speed-lines[data-land="1"] .speed-line {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 236, 210, 0.9),
+    rgba(255, 255, 255, 0)
+  );
+  height: 2.5px;
+}
+
+#speed-lines[data-boost="1"] .speed-line {
+  filter: blur(0.45px) brightness(1.15);
 }
 
 .speed-line {
@@ -713,6 +867,32 @@ input {
   );
   transform-origin: 0 50%;
   filter: blur(0.3px);
+}
+
+/** Soft radial flash on touchdown — reads the catch without stealing focus. */
+#landing-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 0;
+  background:
+    radial-gradient(
+      ellipse 55% 48% at 50% 58%,
+      rgba(255, 245, 230, 0.38) 0%,
+      rgba(255, 220, 180, 0.12) 38%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 100% 100% at 50% 50%,
+      transparent 42%,
+      rgba(8, 6, 18, 0.28) 100%
+    );
+  transition: opacity 70ms ease-out;
+}
+
+#landing-flash[data-active="1"] {
+  transition: opacity 40ms ease-out;
 }
 
 .hud__map-hotzone,

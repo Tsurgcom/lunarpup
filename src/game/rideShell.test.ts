@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
 import { MOON_RADIUS } from "./moon";
+import { physics, resetPhysics } from "./physicsTuning";
 import {
   antiTunnel,
   applyRideShellField,
@@ -17,6 +18,7 @@ import {
   sampleShellNormal,
   signedAltitude,
   tryJump,
+  updateContactState,
 } from "./rideShell";
 
 describe("rideShell", () => {
@@ -109,5 +111,19 @@ describe("rideShell", () => {
     const n = new THREE.Vector3(0, 0, 1);
     expect(tryJump(vel, n, false, 0, true).jumped).toBe(false);
     expect(tryJump(vel, n, false, 0.1, true).jumped).toBe(true);
+  });
+
+  test("landing catch rejects outward loft past the gate", () => {
+    resetPhysics();
+    const shell = createShellSample();
+    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + BOARD_CLEARANCE - 0.02);
+    sampleRideShell(pos, shell);
+    const rising = new THREE.Vector3(0, 0, physics.landingCatchSpeed + 0.2);
+    const miss = updateContactState(false, 0.2, 0, shell, rising, 1 / 60);
+    expect(miss.grounded).toBe(false);
+
+    const settling = new THREE.Vector3(0, 0, -0.1);
+    const hit = updateContactState(false, 0.2, 0, shell, settling, 1 / 60);
+    expect(hit.grounded).toBe(true);
   });
 });

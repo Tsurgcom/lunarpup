@@ -1,47 +1,51 @@
 import * as THREE from "three";
 import { sampleTerrainHeight } from "./chunkLod";
 import { MOON_RADIUS } from "./moon";
+import { DEFAULT_PHYSICS, physics } from "./physicsTuning";
 
 /**
  * Board origin height above the terrain shell when planted (m).
  * SkateDog wheels sit ~0.05 below the group origin — keep this small so the
  * deck isn't a hoverboard, with a little slack for clipmap chord error.
+ * Live value: {@link physics}.boardClearance (`?tweaking`).
  */
-export const BOARD_CLEARANCE = 0.14;
+export const BOARD_CLEARANCE = DEFAULT_PHYSICS.boardClearance;
 
-/** Soft pre-load band above the shell (m). */
-export const SOFT_BAND = 0.7;
+/** Soft pre-load band above the shell (m). Live: {@link physics}.softBand. */
+export const SOFT_BAND = DEFAULT_PHYSICS.softBand;
 
-/** Stylized lunar gravity magnitude (m/s²). */
-export const G_LUNAR = 3.2;
+/** Stylized lunar gravity magnitude (m/s²). Live: {@link physics}.gLunar. */
+export const G_LUNAR = DEFAULT_PHYSICS.gLunar;
 
 /**
  * Compression spring stiffness (N/m).
  * Firm enough to hold bowl walls at skate speed (centripetal), without buzz.
+ * Live: {@link physics}.compressStiffness.
  */
-export const COMPRESS_STIFFNESS = 3600;
+export const COMPRESS_STIFFNESS = DEFAULT_PHYSICS.compressStiffness;
 
 /**
  * Soft-band spring stiffness (N/m).
  * Must stay below weight/SOFT_BAND so gravity can pull the board into plant
  * (otherwise it hovers forever in the preload cushion).
+ * Live: {@link physics}.softStiffness.
  */
-export const SOFT_STIFFNESS = 48;
+export const SOFT_STIFFNESS = DEFAULT_PHYSICS.softStiffness;
 
-/** Normal damper (N·s/m). */
-export const NORMAL_DAMPING = 280;
+/** Normal damper (N·s/m). Live: {@link physics}.normalDamping. */
+export const NORMAL_DAMPING = DEFAULT_PHYSICS.normalDamping;
 
-/** Hard floor: project out if penetration exceeds this (m). */
-export const MAX_PENETRATION = 0.4;
+/** Hard floor: project out if penetration exceeds this (m). Live: {@link physics}.maxPenetration. */
+export const MAX_PENETRATION = DEFAULT_PHYSICS.maxPenetration;
 
 /** Leave plant when outward and above this altitude (m). */
 export const LEAVE_EPSILON = 0.05;
 
-/** Jump impulse along contact normal (m/s). */
-export const JUMP_SPEED = 7.5;
+/** Jump impulse along contact normal (m/s). Live: {@link physics}.jumpSpeed. */
+export const JUMP_SPEED = DEFAULT_PHYSICS.jumpSpeed;
 
-/** Coyote window after leaving plant (s). */
-export const COYOTE_TIME = 0.14;
+/** Coyote window after leaving plant (s). Live: {@link physics}.coyoteTime. */
+export const COYOTE_TIME = DEFAULT_PHYSICS.coyoteTime;
 
 /**
  * Finite-difference angle (radians) for shell normals.
@@ -75,7 +79,7 @@ export function terrainRadius(dir: THREE.Vector3): number {
 
 /** Ride-shell radius (terrain + board clearance) along a unit direction. */
 export function rideRadius(dir: THREE.Vector3): number {
-  return terrainRadius(dir) + BOARD_CLEARANCE;
+  return terrainRadius(dir) + physics.boardClearance;
 }
 
 /**
@@ -153,7 +157,7 @@ export function signedAltitude(pos: THREE.Vector3): number {
 }
 
 export function contactRegime(altitude: number): ContactRegime {
-  if (altitude > SOFT_BAND) return "airborne";
+  if (altitude > physics.softBand) return "airborne";
   if (altitude > 0) return "soft";
   return "planted";
 }
@@ -163,6 +167,9 @@ export function contactRegime(altitude: number): ContactRegime {
  * Support never acts in the tangent plane (skate feel).
  *
  * Returns the contact regime after evaluating altitude.
+ *
+ * @param grounded — when false, soft-band cushion is scaled by airHoverAssist
+ *   (v1 air hover assist). When true, slopeSlide adds extra downhill pull.
  */
 export function applyRideShellField(
   pos: THREE.Vector3,
@@ -170,6 +177,7 @@ export function applyRideShellField(
   mass: number,
   dt: number,
   shell: RideShellSample,
+  grounded = false,
 ): ContactRegime {
   sampleRideShell(pos, shell);
   const h = shell.altitude;
@@ -180,24 +188,37 @@ export function applyRideShellField(
 
   // Gravity toward moon center — never along the surface normal. On steep
   // bowl walls, −normal gravity (plus thrust) was launching the board to space.
-  _force.addScaledVector(shell.dir, -G_LUNAR * mass);
-
+  let g = physics.gLunar;
   const vN = vel.dot(n);
+  // Snappier descent once past apex so every air commits to a clean plant.
+  if (!grounded && vN < 0 && physics.descentGravityBoost > 0) {
+    const fall = THREE.MathUtils.clamp(-vN / 8, 0, 1);
+    g *= 1 + physics.descentGravityBoost * fall;
+  }
+  _force.addScaledVector(shell.dir, -g * mass);
+
+  // Arcade slope slide: extra tangent gravity when planted (v1 driftSlide).
+  if (grounded && physics.slopeSlide > 0) {
+    const gN = _force.dot(n);
+    _tmp.copy(_force).addScaledVector(n, -gN);
+    _force.addScaledVector(_tmp, physics.slopeSlide);
+  }
 
   if (regime === "soft") {
     // Preload only while approaching / settling — never boost an outgoing lip.
-    if (vN < 0.2) {
-      const softH = SOFT_BAND - h;
-      _force.addScaledVector(n, SOFT_STIFFNESS * softH);
+    const assist = grounded ? 1 : physics.airHoverAssist;
+    if (assist > 0 && vN < 0.2) {
+      const softH = physics.softBand - h;
+      _force.addScaledVector(n, physics.softStiffness * softH * assist);
       if (vN < 0) {
-        _force.addScaledVector(n, -NORMAL_DAMPING * 0.4 * vN);
+        _force.addScaledVector(n, -physics.normalDamping * 0.4 * vN * assist);
       }
     }
   } else if (regime === "planted") {
-    _force.addScaledVector(n, -COMPRESS_STIFFNESS * h);
+    _force.addScaledVector(n, -physics.compressStiffness * h);
     // Unilateral damper — only resist penetration, not jumps/lips.
     if (vN < 0) {
-      _force.addScaledVector(n, -NORMAL_DAMPING * vN);
+      _force.addScaledVector(n, -physics.normalDamping * vN);
     }
   }
 
@@ -215,7 +236,7 @@ export function antiTunnel(
   shell: RideShellSample,
 ): void {
   sampleRideShell(pos, shell);
-  if (shell.altitude >= -MAX_PENETRATION) return;
+  if (shell.altitude >= -physics.maxPenetration) return;
 
   pos.copy(shell.dir).multiplyScalar(shell.radius);
   const vN = vel.dot(shell.normal);
@@ -248,7 +269,7 @@ export function stickToShell(
     return false;
   }
 
-  if (shell.altitude < SOFT_BAND * 0.85) {
+  if (shell.altitude < physics.softBand * 0.85) {
     pos.copy(shell.dir).multiplyScalar(shell.radius);
     sampleRideShell(pos, shell);
     const vN2 = vel.dot(shell.normal);
@@ -275,6 +296,9 @@ export function plantOnShell(
 /**
  * Update grounded / coyote / airTime from the post-step shell sample.
  * Jump is resolved separately by the caller.
+ *
+ * Re-plant uses landingCatchSpeed (v1 hoverLandingSpeed / canReengageHover):
+ * refuse to catch while lofting out faster than the gate.
  */
 export function updateContactState(
   grounded: boolean,
@@ -287,6 +311,7 @@ export function updateContactState(
   const h = shell.altitude;
   const vN = vel.dot(shell.normal);
   const regime = contactRegime(h);
+  const catchSpeed = physics.landingCatchSpeed;
 
   let nextGrounded = grounded;
   let nextAir = airTime;
@@ -295,28 +320,30 @@ export function updateContactState(
   // Plant only while compressing / settling — never while lofting out.
   // `h <= 0` alone used to re-ground mid-jump and hand you back to stickToShell.
   if (
-    vN <= 0.55 &&
+    vN <= catchSpeed &&
     (regime === "planted" ||
-      (regime === "soft" && vN <= 0.15 && h < SOFT_BAND * 0.5))
+      (regime === "soft" &&
+        vN <= catchSpeed * 0.27 &&
+        h < physics.softBand * 0.5))
   ) {
     nextGrounded = true;
     nextAir = 0;
-    nextCoyote = COYOTE_TIME;
+    nextCoyote = physics.coyoteTime;
   }
 
   if (nextGrounded) {
-    if (vN > 0.55) {
+    if (vN > catchSpeed) {
       // Rising clear — leave even if still near the shell this substep.
       nextGrounded = false;
       nextAir = 0;
-      nextCoyote = COYOTE_TIME;
-    } else if (h > SOFT_BAND) {
+      nextCoyote = physics.coyoteTime;
+    } else if (h > physics.softBand) {
       nextGrounded = false;
       nextAir = 0;
-      nextCoyote = COYOTE_TIME;
+      nextCoyote = physics.coyoteTime;
     } else {
       nextAir = 0;
-      nextCoyote = COYOTE_TIME;
+      nextCoyote = physics.coyoteTime;
     }
   } else {
     nextAir += dt;
@@ -341,8 +368,8 @@ export function tryJump(
     return { jumped: false, grounded, coyote };
   }
   const vN = vel.dot(normal);
-  if (vN < JUMP_SPEED) {
-    vel.addScaledVector(normal, JUMP_SPEED - Math.max(0, vN));
+  if (vN < physics.jumpSpeed) {
+    vel.addScaledVector(normal, physics.jumpSpeed - Math.max(0, vN));
   }
   return { jumped: true, grounded: false, coyote: 0 };
 }
@@ -351,7 +378,7 @@ export function tryJump(
 export function createShellSample(): RideShellSample {
   return {
     dir: new THREE.Vector3(0, 0, 1),
-    radius: MOON_RADIUS + BOARD_CLEARANCE,
+    radius: MOON_RADIUS + physics.boardClearance,
     normal: new THREE.Vector3(0, 0, 1),
     altitude: 0,
   };

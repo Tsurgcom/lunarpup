@@ -12,13 +12,11 @@ import {
   boardAxes,
   type ControlInput,
   createPlayer,
-  getSpeedRatio,
-  LEAN_ANGLE,
-  PITCH_ANGLE,
   type PlayerState,
   stepPlayer,
 } from "./movement";
-import { plantOnShell, SOFT_BAND } from "./rideShell";
+import { physics } from "./physicsTuning";
+import { plantOnShell } from "./rideShell";
 import { SkateDog } from "./SkateDog";
 import { setSpeedFx } from "./speedLinesUtil";
 import { consumeTeleport } from "./teleport";
@@ -31,6 +29,8 @@ type Controls =
   | "right"
   | "pitchUp"
   | "pitchDown"
+  | "rollLeft"
+  | "rollRight"
   | "jump"
   | "boost";
 
@@ -73,6 +73,7 @@ export function Player({
   const look = useRef(new THREE.Matrix4());
   const leanQ = useRef(new THREE.Quaternion());
   const pitchQ = useRef(new THREE.Quaternion());
+  const rollQ = useRef(new THREE.Quaternion());
   const euler = useRef(new THREE.Euler());
   const hudAcc = useRef(0);
   const syncAcc = useRef(0);
@@ -100,6 +101,8 @@ export function Player({
     right: false,
     pitchUp: false,
     pitchDown: false,
+    rollLeft: false,
+    rollRight: false,
     boosting: false,
     jump: false,
   });
@@ -133,15 +136,19 @@ export function Player({
           warpDir.current.copy(SPAWN_DIR);
         }
         plantOnShell(warpDir.current, s.pos);
-        s.pos.addScaledVector(warpDir.current, SOFT_BAND * 0.35 + 0.8);
+        s.pos.addScaledVector(warpDir.current, physics.softBand * 0.35 + 0.8);
         s.up.copy(warpDir.current);
         s.contactNormal.copy(warpDir.current);
         s.vel.set(0, 0, 0);
         s.lean = 0;
         s.pitch = 0;
+        s.roll = 0;
         s.grounded = false;
         s.airTime = 0;
         s.coyote = 0;
+        s.jumpBuffer = 0;
+        s.jumpHeld = false;
+        s.landingPunch = 0;
         prevPos.current.copy(s.pos);
         physAcc.current = 0;
       }
@@ -154,6 +161,8 @@ export function Player({
       input.right = keys.right;
       input.pitchUp = keys.pitchUp;
       input.pitchDown = keys.pitchDown;
+      input.rollLeft = keys.rollLeft;
+      input.rollRight = keys.rollRight;
       input.boosting = keys.boost;
       input.jump = keys.jump;
 
@@ -180,10 +189,21 @@ export function Player({
     look.current.makeBasis(right.current, s.up, forward.current);
     targetQuat.current.setFromRotationMatrix(look.current);
     if (active && !paused) {
-      leanQ.current.setFromAxisAngle(forward.current, -s.lean * LEAN_ANGLE);
+      leanQ.current.setFromAxisAngle(
+        forward.current,
+        -s.lean * physics.leanAngle,
+      );
       targetQuat.current.premultiply(leanQ.current);
-      pitchQ.current.setFromAxisAngle(right.current, -s.pitch * PITCH_ANGLE);
+      pitchQ.current.setFromAxisAngle(
+        right.current,
+        -s.pitch * physics.pitchAngle,
+      );
       targetQuat.current.premultiply(pitchQ.current);
+      rollQ.current.setFromAxisAngle(
+        forward.current,
+        -s.roll * physics.pitchAngle,
+      );
+      targetQuat.current.premultiply(rollQ.current);
       if (quat.current.angleTo(targetQuat.current) < QUAT_SNAP) {
         quat.current.copy(targetQuat.current);
       } else {
@@ -239,14 +259,22 @@ export function Player({
       }
     }
 
+    // Speed / air / landing FX — every frame for smooth pulse.
+    const cruise = physics.maxSpeed > 0 ? physics.maxSpeed : 1;
+    const airHang = s.grounded
+      ? 0
+      : THREE.MathUtils.clamp(s.airTime / 0.7, 0, 1);
+    setSpeedFx(
+      active && !paused ? THREE.MathUtils.clamp(speed / cruise, 0, 1) : 0,
+      active && !paused ? airHang : 0,
+      active && !paused ? s.landingPunch : 0,
+      active && !paused && s.boosting,
+    );
+
     hudAcc.current += dt;
     if (hudAcc.current > 0.1) {
       hudAcc.current = 0;
-      setHudSpeed(speed);
-      setSpeedFx(
-        active && !paused ? getSpeedRatio(speed) : 0,
-        active && !paused && s.boosting,
-      );
+      setHudSpeed(speed, active && !paused && s.boosting);
     }
 
     if (!active) return;

@@ -1,53 +1,27 @@
 import * as THREE from "three";
 import { MAX_SPEED, SPAWN_DIR } from "./moon";
+import { DEFAULT_PHYSICS, physics } from "./physicsTuning";
 import {
   antiTunnel,
   applyRideShellField,
-  BOARD_CLEARANCE,
-  COYOTE_TIME,
   contactRegime,
   createShellSample,
   plantOnShell,
   type RideShellSample,
-  SOFT_BAND,
   stickToShell,
   tryJump,
   updateContactState,
 } from "./rideShell";
 
-export const LEAN_ANGLE = 0.44;
-export const PITCH_ANGLE = 0.4;
+/** Visual lean amplitude (rad). Live: {@link physics}.leanAngle. */
+export const LEAN_ANGLE = DEFAULT_PHYSICS.leanAngle;
+/** Visual pitch amplitude (rad). Live: {@link physics}.pitchAngle. */
+export const PITCH_ANGLE = DEFAULT_PHYSICS.pitchAngle;
+/** Visual roll amplitude (rad). Shares pitch angle tuning. */
+export const ROLL_ANGLE = DEFAULT_PHYSICS.pitchAngle;
 
-/** Integrator mass (kg) — only scales force → accel. */
-export const MASS = 18;
-
-/** Continuous W thrust (N). */
-const THRUST = 220;
-/** Reverse thrust fraction of THRUST. */
-const REVERSE_MULT = 0.85;
-/** Shift multiplies thrust. */
-const BOOST_MULT = 1.65;
-/** Quadratic drag coefficient. */
-const DRAG = 0.04;
-/** Linear coast damping when planted (N·s/m scale via velocity). */
-const COAST_FRICTION = 8;
-/** Lighter coast damping in air. */
-const AIR_COAST = 2.5;
-/** Yaw rate at full lean near standstill (rad/s). */
-const STEER_RATE = 2.8;
-/** Steer softens: authority ≈ 1/(1+v/v½). */
-const STEER_SPEED_HALF = 14;
-/** Airborne pitch rate at full R/F (rad/s). */
-const PITCH_RATE = 2.2;
-/** How quickly board up tracks surface normal when planted. */
-const UP_TRACK = 9;
-/** Soft-contact up blend rate. */
-const UP_TRACK_SOFT = 4;
-
-const LEAN_ENGAGE = 5.5;
-const LEAN_RECOVER = 3.2;
-const PITCH_ENGAGE = 5.5;
-const PITCH_RECOVER = 3.2;
+/** Integrator mass (kg). Live: {@link physics}.mass. */
+export const MASS = DEFAULT_PHYSICS.mass;
 
 const SUBSTEPS = 6;
 
@@ -73,6 +47,8 @@ export type ControlInput = {
   right: boolean;
   pitchUp: boolean;
   pitchDown: boolean;
+  rollLeft: boolean;
+  rollRight: boolean;
   boosting: boolean;
   jump: boolean;
 };
@@ -83,6 +59,7 @@ export type PlayerState = {
   yaw: number;
   lean: number;
   pitch: number;
+  roll: number;
   /** Board up axis — tracks surface normal when planted. */
   up: THREE.Vector3;
   boosting: boolean;
@@ -91,8 +68,17 @@ export type PlayerState = {
   airTime: number;
   /** Remaining coyote window (s). */
   coyote: number;
+  /** Remaining early-jump buffer (s) — v1 JUMP_BUFFER_MS. */
+  jumpBuffer: number;
+  /** Previous-frame Space held (rising-edge queue). */
+  jumpHeld: boolean;
   /** Last contact normal (outward). */
   contactNormal: THREE.Vector3;
+  /**
+   * Brief touchdown impulse (0..~1.2) — camera shift-out + landing FX.
+   * Set on re-plant after meaningful air; decays each step.
+   */
+  landingPunch: number;
 };
 
 /**
@@ -155,7 +141,7 @@ export function createPlayer(): PlayerState {
   const up = SPAWN_DIR.clone();
   // Short drop-in above the local ride shell (respects crater floors).
   const pos = plantOnShell(SPAWN_DIR);
-  pos.addScaledVector(SPAWN_DIR, SOFT_BAND * 0.35 + 1.6);
+  pos.addScaledVector(SPAWN_DIR, physics.softBand * 0.35 + 1.6);
   const yaw = 0;
   boardAxes(yaw, up, _forward, _right);
   return {
@@ -164,30 +150,48 @@ export function createPlayer(): PlayerState {
     yaw,
     lean: 0,
     pitch: 0,
+    roll: 0,
     up,
     boosting: false,
     grounded: false,
     airTime: 0,
     coyote: 0,
+    jumpBuffer: 0,
+    jumpHeld: false,
     contactNormal: up.clone(),
+    landingPunch: 0,
   };
 }
 
 /**
  * Ride-shell integrator: lunar radial field + contact plant, thrust / drag /
- * lean yaw, and free attitude pitch while airborne.
+ * lean yaw, and free attitude pitch / roll while airborne.
+ *
+ * Arcade feel (v1): jump buffer, drift breakaway, slope slide, dual boost,
+ * air steer grip / turn snappiness, air hover assist, landing catch.
  */
 export function stepPlayer(
   state: PlayerState,
   input: ControlInput,
   dt: number,
 ): void {
+  // Rising-edge Space queues a short buffer (v1 JUMP_BUFFER_MS).
+  if (input.jump && !state.jumpHeld) {
+    state.jumpBuffer = physics.jumpBuffer;
+  }
+  state.jumpHeld = input.jump;
+
   const step = dt / SUBSTEPS;
   let jumpConsumed = false;
   for (let i = 0; i < SUBSTEPS; i++) {
-    const jumpThis: boolean = input.jump && !jumpConsumed;
-    const didJump = substep(state, input, step, jumpThis);
-    if (didJump) jumpConsumed = true;
+    const wantJump = state.jumpBuffer > 0 && !jumpConsumed;
+    const didJump = substep(state, input, step, wantJump);
+    if (didJump) {
+      jumpConsumed = true;
+      state.jumpBuffer = 0;
+    } else if (state.jumpBuffer > 0) {
+      state.jumpBuffer = Math.max(0, state.jumpBuffer - step);
+    }
   }
   state.boosting = input.boosting;
 }
@@ -201,23 +205,31 @@ function substep(
   boardAxes(state.yaw, state.up, _forward, _right);
 
   const leanTarget = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-  const leanRate = leanTarget === 0 ? LEAN_RECOVER : LEAN_ENGAGE;
+  const leanRate = leanTarget === 0 ? physics.leanRecover : physics.leanEngage;
   state.lean += (leanTarget - state.lean) * (1 - Math.exp(-leanRate * dt));
   if (Math.abs(state.lean) < 1e-4) state.lean = 0;
 
   const pitchTarget = (input.pitchUp ? 1 : 0) - (input.pitchDown ? 1 : 0);
-  const pitchRate = pitchTarget === 0 ? PITCH_RECOVER : PITCH_ENGAGE;
+  const pitchRate =
+    pitchTarget === 0 ? physics.pitchRecover : physics.pitchEngage;
   state.pitch += (pitchTarget - state.pitch) * (1 - Math.exp(-pitchRate * dt));
   if (Math.abs(state.pitch) < 1e-4) state.pitch = 0;
 
+  const rollTarget = (input.rollLeft ? 1 : 0) - (input.rollRight ? 1 : 0);
+  const rollRate =
+    rollTarget === 0 ? physics.pitchRecover : physics.pitchEngage;
+  state.roll += (rollTarget - state.roll) * (1 - Math.exp(-rollRate * dt));
+  if (Math.abs(state.roll) < 1e-4) state.roll = 0;
+
   const speed = state.vel.length();
-  const steer = STEER_RATE / (1 + speed / STEER_SPEED_HALF);
-  state.yaw += state.lean * steer * dt;
+  const steer = physics.steerRate / (1 + speed / physics.steerSpeedHalf);
+  const turnMult = state.grounded ? 1 : physics.airTurnMult;
+  state.yaw += state.lean * steer * turnMult * dt;
   boardAxes(state.yaw, state.up, _forward, _right);
 
   // R/F pitches the board about the lateral axis only while airborne.
   if (!state.grounded && Math.abs(state.pitch) > 1e-4) {
-    const dPitch = -state.pitch * PITCH_RATE * dt;
+    const dPitch = -state.pitch * physics.pitchRate * dt;
     _prevFwd.copy(_forward);
     state.up.applyAxisAngle(_right, dPitch).normalize();
     _prevFwd.applyAxisAngle(_right, dPitch).normalize();
@@ -225,52 +237,86 @@ function substep(
     boardAxes(state.yaw, state.up, _forward, _right);
   }
 
+  // Q/E rolls the board about the forward axis only while airborne.
+  if (!state.grounded && Math.abs(state.roll) > 1e-4) {
+    const dRoll = state.roll * physics.pitchRate * dt;
+    state.up.applyAxisAngle(_forward, dRoll).normalize();
+    retargetYaw(state, state.up, _forward);
+    boardAxes(state.yaw, state.up, _forward, _right);
+  }
+
   _force.set(0, 0, 0);
 
   let axis = 0;
   if (input.forward) axis += 1;
-  if (input.back) axis -= REVERSE_MULT;
+  if (input.back) axis -= physics.reverseMult;
   if (axis !== 0) {
-    // Airborne thrust is weak — full W with a wall-frozen attitude was a
-    // skyrocket under lunar gravity after leaving a steep lip.
-    const airFade = state.grounded ? 1 : 0.12;
-    const thrust = THRUST * (input.boosting ? BOOST_MULT : 1) * airFade;
+    // Airborne thrust — v1 airThrustMultiplier (baseline 0.82).
+    const airFade = state.grounded ? 1 : physics.airThrustFade;
+    const boostAccel = input.boosting ? physics.boostAccelMult : 1;
+    const thrust = physics.thrust * boostAccel * airFade;
     _force.addScaledVector(_forward, axis * thrust);
   }
 
-  const coast = state.grounded ? COAST_FRICTION : AIR_COAST;
+  const coast = state.grounded ? physics.coastFriction : physics.airCoast;
   if (speed > 1e-4) {
-    _force.addScaledVector(state.vel, -DRAG * speed);
+    _force.addScaledVector(state.vel, -physics.drag * speed);
     _force.addScaledVector(state.vel, -coast);
   }
 
-  // Lateral grip only when planted (skate rails).
+  // Lateral grip when planted — breaks into drift past threshold (v1).
   if (state.grounded) {
     const vLat = state.vel.dot(_right);
+    const absLat = Math.abs(vLat);
+    if (absLat > 1e-4) {
+      let grip = physics.lateralGrip;
+      if (absLat > physics.driftThreshold) {
+        grip *= physics.driftGripMult;
+      }
+      _force.addScaledVector(_right, -vLat * physics.mass * grip);
+    }
+  } else if (physics.airSteerGrip > 0) {
+    // Pull lateral velocity toward board heading (v1 airSteerGrip).
+    const vLat = state.vel.dot(_right);
     if (Math.abs(vLat) > 1e-4) {
-      _force.addScaledVector(_right, -vLat * MASS * 6);
+      _force.addScaledVector(
+        _right,
+        -vLat * physics.mass * physics.airSteerGrip,
+      );
     }
   }
 
-  state.vel.addScaledVector(_force, dt / MASS);
+  state.vel.addScaledVector(_force, dt / physics.mass);
 
-  // Ride-shell gravity + contact support.
+  // Ride-shell gravity + contact support (+ slope slide / air hover assist).
   const shell = shellScratch();
-  applyRideShellField(state.pos, state.vel, MASS, dt, shell);
+  applyRideShellField(
+    state.pos,
+    state.vel,
+    physics.mass,
+    dt,
+    shell,
+    state.grounded,
+  );
   state.contactNormal.copy(shell.normal);
 
-  // Speed cap to keep substep travel under clearance.
+  // Dual boost: top-speed cap rises while boosting (v1 boostMultiplier).
+  const speedCap = physics.maxSpeed * (input.boosting ? physics.boostMult : 1);
   const spd = state.vel.length();
-  if (spd > MAX_SPEED) {
-    state.vel.multiplyScalar(MAX_SPEED / spd);
+  if (spd > speedCap) {
+    state.vel.multiplyScalar(speedCap / spd);
   }
 
   state.pos.addScaledVector(state.vel, dt);
   antiTunnel(state.pos, state.vel, shell);
+
+  const wasAirborne = !state.grounded;
+  const airBefore = state.airTime;
+
   if (stickToShell(state.pos, state.vel, state.grounded, shell)) {
     state.grounded = true;
     state.airTime = 0;
-    state.coyote = COYOTE_TIME;
+    state.coyote = physics.coyoteTime;
   }
   state.contactNormal.copy(shell.normal);
 
@@ -285,6 +331,14 @@ function substep(
   state.grounded = contact.grounded;
   state.airTime = contact.airTime;
   state.coyote = contact.coyote;
+
+  // Touchdown punch after a real air — camera shift-out + landing FX.
+  if (wasAirborne && state.grounded && airBefore > 0.08) {
+    state.landingPunch = Math.min(1.2, 0.32 + airBefore * 0.55);
+  }
+  if (state.landingPunch > 0) {
+    state.landingPunch = Math.max(0, state.landingPunch - dt * 3.4);
+  }
 
   let jumped = false;
   const jump = tryJump(
@@ -304,10 +358,10 @@ function substep(
   // Attitude: track surface when near/on the shell.
   const regime = contactRegime(shell.altitude);
   if (state.grounded || regime === "planted") {
-    blendUpToward(state, shell.normal, UP_TRACK, dt);
+    blendUpToward(state, shell.normal, physics.upTrack, dt);
     boardAxes(state.yaw, state.up, _forward, _right);
   } else if (regime === "soft") {
-    blendUpToward(state, shell.normal, UP_TRACK_SOFT, dt);
+    blendUpToward(state, shell.normal, physics.upTrackSoft, dt);
     boardAxes(state.yaw, state.up, _forward, _right);
   }
 
@@ -316,9 +370,15 @@ function substep(
 
 /** Spawn / teleport altitude that sits just above the ride shell. */
 export function shellSpawnAltitude(): number {
-  return BOARD_CLEARANCE + SOFT_BAND * 0.25;
+  return physics.boardClearance + physics.softBand * 0.25;
 }
 
+/**
+ * Speed ratio for FOV / speed lines — uses boosted top speed as the 1.0 mark
+ * (v1 getSpeedRatio with maxSpeed * boostMultiplier).
+ */
 export function getSpeedRatio(speed: number): number {
-  return THREE.MathUtils.clamp(speed / MAX_SPEED, 0, 1);
+  const hudFast = physics.maxSpeed * physics.boostMult;
+  if (hudFast <= 0) return 0;
+  return THREE.MathUtils.clamp(Math.abs(speed) / hudFast, 0, 1);
 }

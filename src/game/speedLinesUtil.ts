@@ -1,6 +1,18 @@
 import * as THREE from "three";
 
-const LINE_COUNT = 46;
+const LINE_COUNT = 52;
+
+export type SpeedFx = {
+  /** 0..1 cruise speed ratio. */
+  speed: number;
+  /** 0..1 airborne hang (from airTime). */
+  air: number;
+  /** 0..~1.2 touchdown punch. */
+  land: number;
+  boosting: boolean;
+};
+
+const EMPTY_FX: SpeedFx = { speed: 0, air: 0, land: 0, boosting: false };
 
 export function createSpeedLines(layer: HTMLElement): HTMLDivElement[] {
   layer.replaceChildren();
@@ -22,23 +34,33 @@ export function createSpeedLines(layer: HTMLElement): HTMLDivElement[] {
   return lines;
 }
 
+/**
+ * Velocity + air + landing streaks. Intensity from speed, hang, and punch.
+ */
 export function updateSpeedLines(
   lines: HTMLDivElement[],
   layer: HTMLElement,
-  speedRatio: number,
-  isBoosting: boolean,
+  fx: SpeedFx,
 ) {
-  const intensity = THREE.MathUtils.clamp((speedRatio - 0.36) / 0.64, 0, 1);
-  layer.style.opacity = (
-    isBoosting ? Math.max(0.45, intensity) : intensity * 0.72
-  ).toFixed(3);
+  const speedI = THREE.MathUtils.clamp((fx.speed - 0.32) / 0.68, 0, 1);
+  const airI = fx.air * 0.55;
+  const landI = Math.min(1, fx.land) * 0.9;
+  const boostI = fx.boosting ? 0.18 : 0;
+  const intensity = THREE.MathUtils.clamp(speedI + airI + landI + boostI, 0, 1);
 
-  const pulse = performance.now() * (isBoosting ? 0.045 : 0.028);
+  layer.style.opacity = (intensity * 0.88).toFixed(3);
+  layer.dataset.air = fx.air > 0.08 ? "1" : "0";
+  layer.dataset.land = fx.land > 0.12 ? "1" : "0";
+  layer.dataset.boost = fx.boosting ? "1" : "0";
+
+  const pulse = performance.now() * (0.024 + intensity * 0.02 + fx.air * 0.008);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     const angle = Number(line.dataset.angle);
     const radius = Number(line.dataset.radius) + ((pulse + i * 6) % 28);
-    const length = Number(line.dataset.length) * (isBoosting ? 1.55 : 1.0);
+    const length =
+      Number(line.dataset.length) *
+      (1 + intensity * 0.55 + fx.air * 0.25 + landI * 0.35);
     const x = Math.cos(angle) * radius;
     const y = Math.sin(angle) * radius;
     line.style.width = `${length}vw`;
@@ -46,24 +68,21 @@ export function updateSpeedLines(
   }
 }
 
-/** Module store — Player writes; SpeedLines overlay reads via rAF. */
-let speedRatio = 0;
-let boosting = false;
-const listeners = new Set<() => void>();
+/** Module store — Player writes each frame; SpeedLines rAF paints. */
+const speedFx: SpeedFx = { ...EMPTY_FX };
 
-export function setSpeedFx(ratio: number, isBoosting: boolean): void {
-  speedRatio = ratio;
-  boosting = isBoosting;
-  for (const fn of listeners) fn();
+export function setSpeedFx(
+  speed: number,
+  air = 0,
+  land = 0,
+  boosting = false,
+): void {
+  speedFx.speed = speed;
+  speedFx.air = air;
+  speedFx.land = land;
+  speedFx.boosting = boosting;
 }
 
-export function getSpeedFx(): { ratio: number; boosting: boolean } {
-  return { ratio: speedRatio, boosting };
-}
-
-export function subscribeSpeedFx(fn: () => void): () => void {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
+export function getSpeedFx(): SpeedFx {
+  return speedFx;
 }

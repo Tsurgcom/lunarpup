@@ -32,7 +32,7 @@ const SPAWN_CAM: [number, number, number] = [
 /** Stable identity — a fresh object each App render can recreate R3F's camera. */
 const CANVAS_CAMERA = {
   position: SPAWN_CAM,
-  fov: 60,
+  fov: 55,
   near: 0.15,
   far: 8000,
 } as const;
@@ -44,6 +44,8 @@ const keyMap = [
   { name: "right", keys: ["ArrowRight", "KeyD"] },
   { name: "pitchUp", keys: ["KeyF"] },
   { name: "pitchDown", keys: ["KeyR"] },
+  { name: "rollLeft", keys: ["KeyQ"] },
+  { name: "rollRight", keys: ["KeyE"] },
   { name: "jump", keys: ["Space"] },
   { name: "boost", keys: ["ShiftLeft", "ShiftRight"] },
 ];
