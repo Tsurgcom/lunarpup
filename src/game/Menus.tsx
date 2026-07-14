@@ -135,12 +135,15 @@ function ControlsBody() {
     <div className="menu__credits">
       <p className="menu__controls">
         <kbd>W</kbd> forward · <kbd>S</kbd> reverse · <kbd>A</kbd>/<kbd>D</kbd>{" "}
-        turn · <kbd>F</kbd> nose up · <kbd>R</kbd> nose down · <kbd>Shift</kbd>{" "}
-        boost · <kbd>Esc</kbd> pause
+        turn · <kbd>F</kbd> nose up · <kbd>R</kbd> nose down · <kbd>Q</kbd>/
+        <kbd>E</kbd> roll · <kbd>Shift</kbd> boost · <kbd>Esc</kbd> pause
+      </p>
+      <p className="menu__controls">
+        Drag to orbit · scroll to zoom · FOV opens up at speed
       </p>
       <p>
-        Hold W to thrust. Shift for a boost. R/F pitches the board. Pause to
-        watch your best ghost line.
+        Hold W to thrust. Shift for a boost. R/F pitches and Q/E rolls the board
+        in the air. Pause to watch your best ghost line.
       </p>
     </div>
   );
