@@ -1,4 +1,4 @@
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ChunkBatchManager } from "./chunkBatch";
@@ -12,6 +12,7 @@ import {
   resetChunkBuildQueue,
   warmChunkWorkers,
 } from "./chunkBuild";
+import { faceIntersectsFrustum, updateCameraFrustum } from "./chunkFrustum";
 import { setChunkHeightSampler } from "./chunkGeometry";
 import { getChunkLodSnapshot, getIcoFaces, type IcoFace } from "./chunkLod";
 import { isDebugEnabled } from "./debugFrame";
@@ -27,8 +28,19 @@ type PendingAttach = {
   priority: number;
 };
 
-/** Keep departing faces for a few frames to absorb view-cull flicker. */
+/** Keep departing faces for a few frames to absorb stream-cull flicker. */
 const EVICT_GRACE_FRAMES = 10;
+
+/**
+ * Extra frames a face stays GPU-resident after leaving the camera frustum.
+ * Softens orbit flicker without keeping off-screen patches forever.
+ */
+const FRUSTUM_EXIT_GRACE_FRAMES = 12;
+
+/** useFrame with the default pre-render pass (≤0). Mounted after Player so
+ *  CameraRig's matrices are already updated this frame. Priority >0 would
+ *  take over the render-loop and must call gl.render() manually — don't. */
+const TERRAIN_FRAME_PRIORITY = 0;
 
 /** Cap GPU dispose work per frame (dispose can stall the driver). */
 const MAX_DISPOSE_PER_FRAME = 1;
@@ -69,21 +81,27 @@ function touchGeo(
  *
  * Rebuild policy: when subdiv changes (up or down), keep the previous slice
  * until the new LOD geometry is built — then swap atomically.
+ *
+ * GPU residency is filtered by the chase-camera frustum (not board-forward).
+ * The LOD stream plan stays pup/horizon-centric so orbiting never remeshes.
  */
 export function ChunkTerrain() {
   const group = useRef<THREE.Group>(null);
+  const camera = useThree((s) => s.camera);
   const batches = useRef<ChunkBatchManager | null>(null);
   const geoCache = useRef(new Map<string, THREE.BufferGeometry>());
   const liveKeys = useRef(new Set<string>());
-  const needed = useRef(new Set<number>());
+  const drawNeeded = useRef(new Set<number>());
   const requested = useRef(new Set<string>());
   const attachQueue = useRef<PendingAttach[]>([]);
   const attachQueued = useRef(new Set<string>());
-  const evictionGrace = useRef(new Map<number, number>());
+  const streamGrace = useRef(new Map<number, number>());
+  const frustumGrace = useRef(new Map<number, number>());
   const lastChunks = useRef<readonly { faceIndex: number; subdiv: number }[]>(
     [],
   );
   const viewer = useRef(new THREE.Vector3(0, 0, 1));
+  const frustum = useRef(new THREE.Frustum());
   const debugOn = useRef(isDebugEnabled());
   const lastTier = useRef(-1);
 
@@ -106,7 +124,8 @@ export function ChunkTerrain() {
       requested.current.clear();
       attachQueue.current.length = 0;
       attachQueued.current.clear();
-      evictionGrace.current.clear();
+      streamGrace.current.clear();
+      frustumGrace.current.clear();
       resetChunkBuildQueue();
       material.dispose();
     };
@@ -126,14 +145,16 @@ export function ChunkTerrain() {
       syncMoonMaterialTier(material, perf);
     }
 
+    // Keep wrap + attach + compact on separate budgets so one frame never
+    // pays for a remesh storm the way unbounded sync pump() used to.
     const budget = perf.maxChunkAttachPerFrame;
-    // Spread BufferGeometry wraps across frames — worker onmessage used to
-    // hitch when several builds finished in the same turn.
-    drainChunkBuildResults(budget);
+    const wrapBudget = Math.max(1, Math.min(2, budget));
+    drainChunkBuildResults(wrapBudget);
 
     const snap = getChunkLodSnapshot();
     const faces = getIcoFaces();
     viewer.current.set(snap.viewerX, snap.viewerY, snap.viewerZ);
+    updateCameraFrustum(camera, frustum.current);
 
     const planChanged = snap.chunks !== lastChunks.current;
     lastChunks.current = snap.chunks;
@@ -141,56 +162,87 @@ export function ChunkTerrain() {
     const live = liveKeys.current;
     live.clear();
 
-    const need = needed.current;
-    need.clear();
-    for (const c of snap.chunks) need.add(c.faceIndex);
+    // Draw set = streamed ∩ camera frustum (with exit hysteresis).
+    // Prefetch still covers the full stream plan so orbit reattach is free.
+    const draw = drawNeeded.current;
+    draw.clear();
+    const planIds = new Set<number>();
+    const frustumVisible = new Set<number>();
+    for (const c of snap.chunks) {
+      planIds.add(c.faceIndex);
+      const face = faces[c.faceIndex];
+      if (!face) continue;
+      if (faceIntersectsFrustum(face, frustum.current)) {
+        frustumVisible.add(c.faceIndex);
+        frustumGrace.current.delete(c.faceIndex);
+        draw.add(c.faceIndex);
+        continue;
+      }
+      const left =
+        frustumGrace.current.get(c.faceIndex) ?? FRUSTUM_EXIT_GRACE_FRAMES;
+      if (batch.getSubdiv(c.faceIndex) !== undefined && left > 0) {
+        frustumGrace.current.set(c.faceIndex, left - 1);
+        draw.add(c.faceIndex);
+      } else {
+        frustumGrace.current.delete(c.faceIndex);
+      }
+    }
 
-    // Evict faces that left the cull set — grace absorbs orbit flicker.
+    // Evict faces that left the stream plan or the frustum draw set.
     // Snapshot first: detach mutates the live-face map.
     const resident = [...batch.liveFaces()];
     for (const [id, subdiv] of resident) {
-      if (need.has(id)) {
-        evictionGrace.current.delete(id);
+      if (draw.has(id)) {
+        streamGrace.current.delete(id);
         continue;
       }
-      const left = evictionGrace.current.get(id) ?? EVICT_GRACE_FRAMES;
+      // Still streamed but off-camera — drop from GPU quickly (frustum grace
+      // already applied). Stream-only departures keep the longer grace so
+      // skating the ring edge doesn't pop.
+      const graceFrames = planIds.has(id) ? 0 : EVICT_GRACE_FRAMES;
+      const left = streamGrace.current.get(id) ?? graceFrames;
       if (left > 0) {
-        evictionGrace.current.set(id, left - 1);
+        streamGrace.current.set(id, left - 1);
         live.add(faceBuildKey(id, subdiv));
         continue;
       }
-      evictionGrace.current.delete(id);
+      streamGrace.current.delete(id);
       batch.detach(id);
     }
 
-    if (planChanged) {
-      for (const c of snap.chunks) {
-        const face = faces[c.faceIndex];
-        if (!face) continue;
-        const key = faceBuildKey(c.faceIndex, c.subdiv);
-        live.add(key);
+    // Prefetch geometry for the full stream plan; only attach frustum-visible.
+    for (const c of snap.chunks) {
+      const face = faces[c.faceIndex];
+      if (!face) continue;
+      const key = faceBuildKey(c.faceIndex, c.subdiv);
+      live.add(key);
 
-        if (batch.has(c.faceIndex, c.subdiv)) {
-          const cached = geoCache.current.get(key);
-          if (cached) touchGeo(geoCache.current, key, cached);
-          continue;
-        }
+      const inDraw = draw.has(c.faceIndex);
+      const existingSubdiv = batch.getSubdiv(c.faceIndex);
+      if (existingSubdiv !== undefined && existingSubdiv !== c.subdiv) {
+        live.add(faceBuildKey(c.faceIndex, existingSubdiv));
+      }
 
-        // Keep showing the previous LOD until the new slice is ready.
-        const existingSubdiv = batch.getSubdiv(c.faceIndex);
-        if (existingSubdiv !== undefined) {
-          live.add(faceBuildKey(c.faceIndex, existingSubdiv));
-        }
+      const priority =
+        (frustumVisible.has(c.faceIndex) ? 1_000_000 : 0) +
+        face.centroid.dot(viewer.current) * 1000 +
+        c.subdiv;
 
-        const priority = face.centroid.dot(viewer.current) * 1000 + c.subdiv;
-        const geometry = geoCache.current.get(key);
-        if (!geometry) {
-          if (!requested.current.has(key)) {
-            requested.current.add(key);
-            void requestFaceGeometry(face, c.subdiv, priority)
-              .then((geo) => {
-                if (!geoCache.current.has(key)) {
-                  touchGeo(geoCache.current, key, geo);
+      if (inDraw && batch.has(c.faceIndex, c.subdiv)) {
+        const cached = geoCache.current.get(key);
+        if (cached) touchGeo(geoCache.current, key, cached);
+        continue;
+      }
+
+      const geometry = geoCache.current.get(key);
+      if (!geometry) {
+        if (!requested.current.has(key)) {
+          requested.current.add(key);
+          void requestFaceGeometry(face, c.subdiv, priority)
+            .then((geo) => {
+              if (!geoCache.current.has(key)) {
+                touchGeo(geoCache.current, key, geo);
+                if (drawNeeded.current.has(face.index)) {
                   enqueueAttach(attachQueue.current, attachQueued.current, {
                     face,
                     subdiv: c.subdiv,
@@ -198,22 +250,24 @@ export function ChunkTerrain() {
                     geometry: geo,
                     priority,
                   });
-                } else {
-                  geo.dispose();
                 }
-              })
-              .catch((err: unknown) => {
-                requested.current.delete(key);
-                if (err instanceof DOMException && err.name === "AbortError") {
-                  return;
-                }
-                console.warn("chunk face build failed", err);
-              });
-          }
-          continue;
+              } else {
+                geo.dispose();
+              }
+            })
+            .catch((err: unknown) => {
+              requested.current.delete(key);
+              if (err instanceof DOMException && err.name === "AbortError") {
+                return;
+              }
+              console.warn("chunk face build failed", err);
+            });
         }
+        continue;
+      }
 
-        touchGeo(geoCache.current, key, geometry);
+      touchGeo(geoCache.current, key, geometry);
+      if (inDraw && (planChanged || !batch.has(c.faceIndex, c.subdiv))) {
         enqueueAttach(attachQueue.current, attachQueued.current, {
           face,
           subdiv: c.subdiv,
@@ -221,18 +275,6 @@ export function ChunkTerrain() {
           geometry,
           priority,
         });
-      }
-    } else {
-      // Plan stable — still mark live keys for cache / cancel bookkeeping.
-      for (const c of snap.chunks) {
-        const key = faceBuildKey(c.faceIndex, c.subdiv);
-        live.add(key);
-        const cached = geoCache.current.get(key);
-        if (cached) touchGeo(geoCache.current, key, cached);
-        const existingSubdiv = batch.getSubdiv(c.faceIndex);
-        if (existingSubdiv !== undefined && existingSubdiv !== c.subdiv) {
-          live.add(faceBuildKey(c.faceIndex, existingSubdiv));
-        }
       }
     }
 
@@ -243,10 +285,16 @@ export function ChunkTerrain() {
       const next = attachQueue.current.shift()!;
       attachQueued.current.delete(next.key);
       if (!live.has(next.key)) continue;
+      if (!drawNeeded.current.has(next.face.index)) continue;
       if (!geoCache.current.has(next.key)) continue;
       if (batch.has(next.face.index, next.subdiv)) continue;
       batch.attach(next.face.index, next.subdiv, next.geometry);
       attached++;
+    }
+
+    // One compact/frame max — never fold into the attach loop.
+    if (attached < budget) {
+      batch.compactDirty();
     }
 
     // LRU trim — keep cold patches around; only dispose when over budget.
@@ -268,7 +316,7 @@ export function ChunkTerrain() {
       debugQueue = getChunkQueueDepth();
       debugWorkers = getChunkWorkerCount();
     }
-  });
+  }, TERRAIN_FRAME_PRIORITY);
 
   return <group ref={group} />;
 }

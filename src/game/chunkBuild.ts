@@ -171,8 +171,12 @@ function onWorkerMessage(msg: ChunkWorkerInbound, slot: PoolWorker): void {
 }
 
 /**
- * Wrap at most `max` pending worker results into BufferGeometry on the
- * main thread. Call once per render frame from the terrain streamer.
+ * Finish at most `max` builds on the main thread per call:
+ * 1. Wrap transferred worker buffers into BufferGeometry
+ * 2. If the worker pool is unavailable, run budgeted sync builds
+ *
+ * Call once per render frame from the terrain streamer. Never build
+ * unboundedly inside `pump()` — that was hitching the skate loop.
  */
 export function drainChunkBuildResults(max = 1): number {
   let n = 0;
@@ -190,6 +194,34 @@ export function drainChunkBuildResults(max = 1): number {
       for (const r of next.resolvers) r.reject(err);
     }
     n++;
+  }
+
+  // Sync fallback (tests / Worker unavailable) — same per-frame budget as wraps.
+  if (n < max && ensurePool().length === 0 && pendingByKey.size > 0) {
+    while (n < max && pendingByKey.size > 0) {
+      let bestKey: FaceBuildKey | null = null;
+      let best: Pending | null = null;
+      for (const [key, p] of pendingByKey) {
+        if (!best || p.priority > best.priority) {
+          bestKey = key;
+          best = p;
+        }
+      }
+      if (!bestKey || !best) break;
+
+      pendingByKey.delete(bestKey);
+      const resolvers = waitingResolvers.get(bestKey) ?? [];
+      waitingResolvers.delete(bestKey);
+      scheduled.delete(bestKey);
+
+      try {
+        const geo = buildSync(best);
+        for (const r of resolvers) r.resolve(geo);
+      } catch (err) {
+        for (const r of resolvers) r.reject(err);
+      }
+      n++;
+    }
   }
   return n;
 }
@@ -221,7 +253,10 @@ function idleSlot(): PoolWorker | null {
 
 function pump(): void {
   const workers = ensurePool();
-  const maxInflight = Math.max(1, workers.length || 1);
+  // No workers → sync builds happen in drainChunkBuildResults with a budget.
+  if (workers.length === 0) return;
+
+  const maxInflight = Math.max(1, workers.length);
 
   while (inflight.size < maxInflight && pendingByKey.size > 0) {
     let bestKey: FaceBuildKey | null = null;
@@ -237,19 +272,6 @@ function pump(): void {
 
     const resolvers = waitingResolvers.get(bestKey) ?? [];
     waitingResolvers.delete(bestKey);
-
-    if (workers.length === 0) {
-      // Fallback: sync on main (tests / Worker unavailable).
-      try {
-        const geo = buildSync(best);
-        scheduled.delete(bestKey);
-        for (const r of resolvers) r.resolve(geo);
-      } catch (err) {
-        scheduled.delete(bestKey);
-        for (const r of resolvers) r.reject(err);
-      }
-      continue;
-    }
 
     const slot = idleSlot();
     if (!slot) {

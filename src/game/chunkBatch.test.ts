@@ -37,6 +37,9 @@ describe("chunkBatch", () => {
     expect(batch.faceCount()).toBe(1);
     expect(batch.has(1, 4)).toBe(false);
 
+    // Compaction is deferred — dirty rings compact one-at-a-time.
+    batch.compactDirty();
+
     batch.dispose();
     expect(root.children.length).toBe(0);
     geoA.dispose();

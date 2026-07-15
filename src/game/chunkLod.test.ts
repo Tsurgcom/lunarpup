@@ -4,6 +4,7 @@ import {
   cancelStaleFaceBuilds,
   drainChunkBuildResults,
   faceBuildKey,
+  getChunkQueueDepth,
   requestFaceGeometry,
   resetChunkBuildQueue,
 } from "./chunkBuild";
@@ -32,8 +33,8 @@ import { MOON_RADIUS, SPAWN_DIR } from "./moon";
 describe("chunkLod", () => {
   test("icosphere chunks cover the sphere", () => {
     const faces = getIcoFaces();
-    // detail 2 → 20·4² = 320
-    expect(faces.length).toBe(320);
+    // detail 1 → 20·4¹ = 80
+    expect(faces.length).toBe(80);
     for (const f of faces) {
       expect(f.centroid.length()).toBeCloseTo(1, 5);
       expect(f.neighbors.length).toBeGreaterThanOrEqual(3);
@@ -51,7 +52,8 @@ describe("chunkLod", () => {
 
   test("corner-aware cull keeps faces the centroid test would drop", () => {
     const faces = getIcoFaces();
-    const tight = 35;
+    // Detail-1 faces are large — use a mid-ring arc so corner-only hits exist.
+    const tight = 90;
     const cos = Math.cos(tight / MOON_RADIUS);
     let found = false;
     for (const f of faces) {
@@ -106,8 +108,9 @@ describe("chunkLod", () => {
   test("hysteresis keeps a face after it leaves the enter arc", () => {
     resetChunkLod();
     const faces = getIcoFaces();
-    const enter = 60;
-    const exit = 88;
+    // Wider band for detail-1 faces (~170 m edges).
+    const enter = 110;
+    const exit = 170;
     // Must be outside enter by corners (not just centroid) so a cold cull
     // drops it, while exit arc still covers the centroid.
     const boundary = faces.find((f) => {
@@ -219,7 +222,7 @@ describe("chunkBuild", () => {
     resetChunkBuildQueue();
     const face = getIcoFaces()[0]!;
     const key = faceBuildKey(face.index, 8);
-    // Flood the queue so some stay pending (sync path drains immediately,
+    // Flood the queue so some stay pending (sync path is budgeted via drain,
     // so cancel after scheduling many then only mark a different live set).
     const promises = getIcoFaces()
       .slice(0, 8)
@@ -237,6 +240,36 @@ describe("chunkBuild", () => {
           r.value.dispose();
         }
       }
+    } finally {
+      clearInterval(tick);
+    }
+    resetChunkBuildQueue();
+  });
+
+  test("chunk builds stay queued instead of completing synchronously", async () => {
+    resetChunkBuildQueue();
+    const faces = getIcoFaces().slice(0, 4);
+    const promises = faces.map((f) => requestFaceGeometry(f, 4, 1));
+    let settled = 0;
+    for (const p of promises) {
+      void p.then(
+        () => {
+          settled++;
+        },
+        () => {
+          settled++;
+        },
+      );
+    }
+    // Flush microtasks — unbounded sync pump() used to resolve everything here.
+    await Promise.resolve();
+    expect(settled).toBeLessThan(faces.length);
+    expect(getChunkQueueDepth()).toBeGreaterThan(0);
+
+    const tick = setInterval(() => drainChunkBuildResults(2), 0);
+    try {
+      const geos = await Promise.all(promises);
+      for (const g of geos) g.dispose();
     } finally {
       clearInterval(tick);
     }

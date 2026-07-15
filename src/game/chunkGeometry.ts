@@ -39,8 +39,8 @@ const indexTemplates = new Map<number, Uint16Array | Uint32Array>();
 type BuildHeightQuality = "near" | "mid" | "far";
 
 function heightQualityForSubdiv(subdiv: number): BuildHeightQuality {
-  if (subdiv <= 6) return "far";
-  if (subdiv <= 16) return "mid";
+  if (subdiv <= 8) return "far";
+  if (subdiv <= 24) return "mid";
   return "near";
 }
 

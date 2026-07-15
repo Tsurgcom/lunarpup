@@ -13,10 +13,11 @@ import { SPAWN_DIR } from "./moon";
 
 describe("lunarTerrain", () => {
   test("heightQualityForSubdiv maps clipmap rings", () => {
-    expect(heightQualityForSubdiv(4)).toBe("far");
-    expect(heightQualityForSubdiv(8)).toBe("mid");
-    expect(heightQualityForSubdiv(16)).toBe("mid");
-    expect(heightQualityForSubdiv(28)).toBe("near");
+    expect(heightQualityForSubdiv(6)).toBe("far");
+    expect(heightQualityForSubdiv(8)).toBe("far");
+    expect(heightQualityForSubdiv(12)).toBe("mid");
+    expect(heightQualityForSubdiv(24)).toBe("mid");
+    expect(heightQualityForSubdiv(48)).toBe("near");
   });
 
   test("far quality is cheaper but still digs the spawn bowl", () => {
