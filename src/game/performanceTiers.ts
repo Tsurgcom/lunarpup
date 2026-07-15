@@ -51,7 +51,7 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     starCount: 450,
     moonWidthSegs: 40,
     moonHeightSegs: 30,
-    maxChunkAttachPerFrame: 2,
+    maxChunkAttachPerFrame: 1,
   },
   {
     tier: 2,
@@ -59,11 +59,12 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1.5,
     shadows: true,
     shadowMapSize: 1024,
-    lodSubdivScale: 2,
+    // Full ring subdiv — shader micro-detail replaces raw tessellation.
+    lodSubdivScale: 1,
     starCount: 700,
     moonWidthSegs: 56,
     moonHeightSegs: 42,
-    maxChunkAttachPerFrame: 3,
+    maxChunkAttachPerFrame: 2,
   },
   {
     tier: 3,
@@ -71,11 +72,12 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 2,
     shadows: true,
     shadowMapSize: 1024,
-    lodSubdivScale: 4,
+    // Modest bump — GPU grit carries the rest (was ×1.35 / historically ×4).
+    lodSubdivScale: 1.2,
     starCount: 900,
     moonWidthSegs: 64,
     moonHeightSegs: 48,
-    maxChunkAttachPerFrame: 4,
+    maxChunkAttachPerFrame: 2,
   },
 ] as const;
 
