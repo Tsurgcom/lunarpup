@@ -39,6 +39,10 @@ export default defineConfig({
     target: "es2022",
     sourcemap: false,
     reportCompressedSize: false,
+    // The `three` chunk (~725 kB min) can't be split: R3F imports the whole
+    // THREE namespace and the game needs it at startup. It's isolated into
+    // its own cacheable chunk below, so just raise the warning threshold.
+    chunkSizeWarningLimit: 800,
     rolldownOptions: {
       output: {
         codeSplitting: {

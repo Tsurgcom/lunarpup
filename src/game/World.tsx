@@ -112,7 +112,7 @@ function StudioKey() {
   return (
     <directionalLight
       ref={light}
-      intensity={1.75}
+      intensity={1.85}
       color="#ddddff"
       castShadow={perf.shadows}
       shadow-mapSize={[perf.shadowMapSize, perf.shadowMapSize]}
@@ -177,7 +177,7 @@ export function World({
   paused,
   onSnapshot,
 }: WorldProps) {
-  const fogDensity = 0.00115;
+  const fogDensity = 0.00135;
 
   useLayoutEffect(() => {
     setTerrainGenerator(lunarSurface);
@@ -190,8 +190,8 @@ export function World({
       <color attach="background" args={[SPACE_COLOR]} />
       <fogExp2 attach="fog" args={[SPACE_COLOR, fogDensity]} />
 
-      <ambientLight intensity={1.35} color="#222233" />
-      <hemisphereLight args={["#8899cc", "#1a1520", 0.22]} />
+      <ambientLight intensity={1.15} color="#2a2a3a" />
+      <hemisphereLight args={["#9aabd8", "#16121c", 0.32]} />
       <StudioKey />
 
       <Starfield />

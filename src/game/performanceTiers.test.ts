@@ -30,18 +30,18 @@ describe("performanceTiers", () => {
   });
 
   test("scaleLodSubdiv floors to a usable minimum", () => {
-    expect(scaleLodSubdiv(40, 0.45)).toBe(18);
+    expect(scaleLodSubdiv(28, 0.45)).toBe(13);
     expect(scaleLodSubdiv(4, 0.45)).toBe(2);
-    expect(scaleLodSubdiv(40, 1)).toBe(40);
-    expect(scaleLodSubdiv(40, 4)).toBe(160);
+    expect(scaleLodSubdiv(28, 1)).toBe(28);
+    expect(scaleLodSubdiv(28, 1.2)).toBe(34);
   });
 
-  test("high doubles clipmap subdiv", () => {
-    expect(PERF_TIERS[2]!.lodSubdivScale).toBe(2);
+  test("high uses full ring subdiv", () => {
+    expect(PERF_TIERS[2]!.lodSubdivScale).toBe(1);
   });
 
-  test("ultra quadruples clipmap subdiv", () => {
-    expect(PERF_TIERS[3]!.lodSubdivScale).toBe(4);
+  test("ultra only modestly boosts clipmap subdiv", () => {
+    expect(PERF_TIERS[3]!.lodSubdivScale).toBe(1.2);
   });
 
   test("climbs after warm-up when fps stays high", () => {
