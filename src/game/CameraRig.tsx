@@ -10,7 +10,6 @@ type CameraRigProps = {
 
 const RENDER_PRIORITY = 0;
 
-/** Board-frame chase — calm seat with flight / touchdown modulation. */
 const LOOK_HEIGHT = 1.15;
 const HEIGHT_BIAS = 0.85;
 
@@ -19,37 +18,87 @@ const CAM_LERP = 0.055;
 const CAM_LERP_BOOST = 0.09;
 const CAM_LERP_AIR = 0.042;
 
-/** Seat distance / pitch ease (1/s). */
+/** Seat distance / pitch / look / bank ease (1/s). */
 const SEAT_DRAG = 3.2;
 const PITCH_DRAG = 2.8;
+const LOOK_DRAG = 5.5;
+/** Snappy bank so the horizon tips with the pup lean, then recovers. */
+const BANK_DRAG = 6.5;
 
 const ORBIT_SENS = 0.0045;
 const ZOOM_SENS = 0.0012;
 const MIN_PITCH = -0.15;
 const MAX_PITCH = 1.05;
-/** Ground seat pitch. */
 const DEFAULT_PITCH = 0.34;
 
-/** Air hang rises over this many seconds. */
 const AIR_RISE = 0.65;
 
 /**
  * How hard FOV changes dolly-compensate subject size (0 = none, 1 = exact).
  * Broadcast trickery: nearly the same pup size, background still breathes.
- * Air uses a bit more so high-speed hangs don't shrink the pup.
  */
 const FOV_FRAME_GROUND = 0.82;
 const FOV_FRAME_AIR = 0.96;
+const FOV_MIN = 42;
+const FOV_MAX = 112;
+
+const LOOK_AHEAD = 2.4;
+const LOOK_AHEAD_AIR = 1.35;
+const LOOK_VEL = 0.14;
+const LOOK_VEL_MAX = 1.8;
+
+/**
+ * Slight dutch bank from A/D lean (rad at full lean). Mirrors the pup tip;
+ * recovers when lean returns to zero. Kick is a brief overshoot on engage.
+ */
+const BANK_AMP = 0.1;
+const BANK_KICK = 0.055;
+const BANK_KICK_DECAY = 4.2;
+const LEAN_SWAY = 0.55;
+
+const BOOST_FOV = 5.5;
+const BOOST_PUNCH_DECAY = 4.5;
+const BOOST_FOV_KICK = 7;
+const BOOST_DIST_KICK = 0.55;
+
+/** Landing swell — hotter than physics punch, ~500ms ease in/out. */
+const LAND_INTENSITY = 1.35;
+const LAND_RISE = 0.5;
+const LAND_FALL = 0.5;
+const SHAKE_AMP = 0.16;
+const SHAKE_FREQ_A = 11;
+const SHAKE_FREQ_B = 17.5;
+const LAND_BOOM = 0.72;
+const LAND_PITCH = 0.1;
+
+/**
+ * Post-landing hero seat — grounded skate after touchdown dollies in so the
+ * pup reads ~4× larger (distance × 1/4).
+ */
+const HERO_SIZE = 4;
+const HERO_EASE = 0.5;
+const HERO_MIN_DIST = 1.15;
 
 const _forward = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _chase = new THREE.Vector3();
 const _target = new THREE.Vector3();
 const _look = new THREE.Vector3();
+const _lookWant = new THREE.Vector3();
+const _velT = new THREE.Vector3();
+const _bankedUp = new THREE.Vector3();
 
 function lerpAngle(a: number, b: number, t: number): number {
   const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
   return a + delta * t;
+}
+
+function expK(drag: number, dt: number): number {
+  return 1 - Math.exp(-drag * dt);
+}
+
+function halfTanDeg(deg: number): number {
+  return Math.tan(THREE.MathUtils.degToRad(deg) * 0.5);
 }
 
 /** Scale chase distance so angular subject size stays ~constant vs FOV. */
@@ -58,16 +107,22 @@ function fovFramingScale(
   refFovDeg: number,
   strength: number,
 ): number {
-  const halfTan = (deg: number) =>
-    Math.tan(THREE.MathUtils.degToRad(deg) * 0.5);
-  const ref = Math.max(halfTan(refFovDeg), 1e-4);
-  const cur = Math.max(halfTan(fovDeg), 1e-4);
+  const ref = Math.max(halfTanDeg(refFovDeg), 1e-4);
+  const cur = Math.max(halfTanDeg(fovDeg), 1e-4);
   return THREE.MathUtils.lerp(1, ref / cur, strength);
 }
 
+/** Rise then fall envelope in [0,1] for a timed camera swell. */
+function swellEnv(t: number, rise: number, fall: number): number {
+  return (
+    THREE.MathUtils.smoothstep(0, rise, t) *
+    (1 - THREE.MathUtils.smoothstep(rise, rise + fall, t))
+  );
+}
+
 /**
- * Calm third-person: soft chase, mild speed FOV with dolly framing
- * (pup stays nearly same size), mouse orbit/zoom, flight seat, touchdown shift-out.
+ * Third-person chase with FOV/dolly framing plus lean bank, look-ahead,
+ * turn sway, boost kick, and touchdown shake / boom.
  */
 export function CameraRig({ state }: CameraRigProps) {
   const { camera, gl } = useThree();
@@ -82,6 +137,20 @@ export function CameraRig({ state }: CameraRigProps) {
   const ready = useRef(false);
   const smoothed = useRef(new THREE.Vector3());
   const fov = useRef<number>(DEFAULT_PHYSICS.cameraBaseFov);
+  const lookOff = useRef(new THREE.Vector3());
+  const bank = useRef(0);
+  const bankKick = useRef(0);
+  const prevLean = useRef(0);
+  const shakeT = useRef(0);
+  const boostPunch = useRef(0);
+  const wasBoosting = useRef(false);
+  /** Rising edge of landingPunch starts the swell + arms hero. */
+  const prevPunch = useRef(0);
+  const landPeak = useRef(0);
+  const landAge = useRef(99);
+  /** Armed after touchdown until the next air. */
+  const heroArmed = useRef(false);
+  const hero = useRef(0);
 
   useEffect(() => {
     const el = gl.domElement;
@@ -153,8 +222,45 @@ export function CameraRig({ state }: CameraRigProps) {
     const frameScale = dt * 60;
     const speed = s.vel.length();
     const punch = s.landingPunch;
+    const speedRatio = getSpeedRatio(speed);
 
-    // Gentle auto-follow — only when skating, settles slowly behind the board.
+    if (punch > prevPunch.current + 0.04) {
+      landPeak.current = Math.max(landPeak.current, punch * LAND_INTENSITY);
+      landAge.current = 0;
+      heroArmed.current = true;
+    }
+    prevPunch.current = punch;
+    landAge.current += dt;
+
+    let land = 0;
+    if (landPeak.current > 1e-4) {
+      const landEnv = swellEnv(landAge.current, LAND_RISE, LAND_FALL);
+      if (landEnv < 1e-3 && landAge.current > LAND_RISE) {
+        landPeak.current = 0;
+      } else {
+        land = landPeak.current * landEnv;
+      }
+    }
+
+    if (!s.grounded) heroArmed.current = false;
+    const wantHero = heroArmed.current && speed > physics.followSpeed ? 1 : 0;
+    const heroStep = dt / HERO_EASE;
+    hero.current = THREE.MathUtils.clamp(
+      hero.current + (wantHero ? heroStep : -heroStep),
+      0,
+      1,
+    );
+    const heroT = THREE.MathUtils.smoothstep(0, 1, hero.current);
+
+    if (s.boosting && !wasBoosting.current) boostPunch.current = 1;
+    wasBoosting.current = s.boosting;
+    if (boostPunch.current > 0) {
+      boostPunch.current = Math.max(
+        0,
+        boostPunch.current - BOOST_PUNCH_DECAY * dt,
+      );
+    }
+
     if (!dragging.current && speed > physics.followSpeed) {
       const followK = 1 - (1 - physics.autoFollow) ** frameScale;
       yaw.current = lerpAngle(yaw.current, 0, followK);
@@ -169,7 +275,6 @@ export function CameraRig({ state }: CameraRigProps) {
       .addScaledVector(_right, sy)
       .normalize();
 
-    // —— Flight seat: raise / open FOV; distance dolly-compensates framing ——
     const airT = s.grounded
       ? 0
       : THREE.MathUtils.clamp(s.airTime / AIR_RISE, 0, 1);
@@ -183,9 +288,7 @@ export function CameraRig({ state }: CameraRigProps) {
       physics.cameraMaxDist,
     );
 
-    // FOV first so chase distance can dolly-compensate subject size.
-    // Radical speed open; air still dials speed FOV down so hang FOV owns the beat.
-    const speedRatio = getSpeedRatio(speed);
+    // Land FOV applied after smoothing so the 500ms swell timing stays exact.
     const speedFovT = speedRatio ** 1.05 * (1 - airT * 0.45);
     let targetFov = THREE.MathUtils.lerp(
       physics.cameraBaseFov,
@@ -194,8 +297,9 @@ export function CameraRig({ state }: CameraRigProps) {
     );
     targetFov += physics.camAirFov * airT;
     targetFov += descentT * 4;
-    targetFov += punch * physics.camLandFov;
-    targetFov = THREE.MathUtils.clamp(targetFov, 42, 110);
+    if (s.boosting) targetFov += BOOST_FOV * (0.55 + 0.45 * speedRatio);
+    targetFov += boostPunch.current * BOOST_FOV_KICK;
+    targetFov = THREE.MathUtils.clamp(targetFov, FOV_MIN, FOV_MAX);
 
     const fovK = 1 - (1 - physics.fovSmoothing) ** frameScale;
     if (!ready.current) {
@@ -204,8 +308,6 @@ export function CameraRig({ state }: CameraRigProps) {
       fov.current = THREE.MathUtils.lerp(fov.current, targetFov, fovK);
     }
 
-    // Keep air framing tight: FOV does the drama, dolly holds pup size.
-    // camAirDist is a small intentional offset (default ~0), not a pull-back.
     let wantDist = zoomDist.current + physics.camAirDist * airT;
     const frameStrength = THREE.MathUtils.lerp(
       FOV_FRAME_GROUND,
@@ -217,21 +319,20 @@ export function CameraRig({ state }: CameraRigProps) {
       physics.cameraBaseFov,
       frameStrength,
     );
-    // Touchdown shift-out after compensation so the catch still reads bigger.
-    wantDist += physics.camLandDist * punch;
+    wantDist += boostPunch.current * BOOST_DIST_KICK;
     wantDist = THREE.MathUtils.clamp(
       wantDist,
       physics.cameraMinDist,
       physics.cameraMaxDist,
     );
 
-    // Orbit pitch + air lift; tip down a touch on descent; pop on touchdown.
-    let wantPitch = pitch.current + physics.camAirPitch * airT + punch * 0.07;
+    // Land pitch/dist/boom ride the swell envelope directly (no seat lag).
+    let wantPitch = pitch.current + physics.camAirPitch * airT;
     wantPitch -= descentT * 0.12;
     wantPitch = THREE.MathUtils.clamp(wantPitch, MIN_PITCH, MAX_PITCH);
 
-    const seatK = 1 - Math.exp(-SEAT_DRAG * dt);
-    const pitchK = 1 - Math.exp(-PITCH_DRAG * dt);
+    const seatK = expK(SEAT_DRAG, dt);
+    const pitchK = expK(PITCH_DRAG, dt);
     if (!ready.current) {
       seatDist.current = wantDist;
       seatPitch.current = wantPitch;
@@ -240,39 +341,108 @@ export function CameraRig({ state }: CameraRigProps) {
       seatPitch.current += (wantPitch - seatPitch.current) * pitchK;
     }
 
-    const horiz = Math.cos(seatPitch.current) * seatDist.current;
-    const vert = Math.sin(seatPitch.current) * seatDist.current + HEIGHT_BIAS;
+    const landDist = physics.camLandDist * land * (1 - heroT);
+    const displayPitch = THREE.MathUtils.clamp(
+      seatPitch.current + land * LAND_PITCH,
+      MIN_PITCH,
+      MAX_PITCH,
+    );
+    const heroScale = THREE.MathUtils.lerp(1, 1 / HERO_SIZE, heroT);
+    const displayDist = Math.max(
+      HERO_MIN_DIST,
+      (seatDist.current + landDist) * heroScale,
+    );
+
+    const horiz = Math.cos(displayPitch) * displayDist;
+    const vert =
+      Math.sin(displayPitch) * displayDist + HEIGHT_BIAS + land * LAND_BOOM;
+    const sway =
+      -s.lean * LEAN_SWAY * (0.35 + 0.65 * speedRatio) * (1 - airT * 0.4);
 
     _target
       .copy(pos)
       .addScaledVector(_chase, horiz)
-      .addScaledVector(s.up, vert);
+      .addScaledVector(s.up, vert)
+      .addScaledVector(_right, sway);
 
     let baseLerp = CAM_LERP;
     if (s.boosting) baseLerp = CAM_LERP_BOOST;
     else if (!s.grounded) baseLerp = CAM_LERP_AIR;
-    // Landing punch: briefly stiffer so the shift-out reads.
-    if (punch > 0.15) baseLerp = Math.max(baseLerp, 0.1);
+    if (boostPunch.current > 0.2) baseLerp = Math.max(baseLerp, 0.12);
     const camK = 1 - (1 - baseLerp) ** frameScale;
+
+    _velT.copy(s.vel).addScaledVector(s.up, -s.vel.dot(s.up));
+    const tangSpeed = _velT.length();
+    if (tangSpeed > 1e-4) {
+      _velT.multiplyScalar(
+        Math.min(LOOK_VEL_MAX, tangSpeed * LOOK_VEL) / tangSpeed,
+      );
+    } else {
+      _velT.set(0, 0, 0);
+    }
+    const ahead =
+      THREE.MathUtils.lerp(LOOK_AHEAD, LOOK_AHEAD_AIR, airT) * speedRatio;
+    _lookWant
+      .copy(pos)
+      .addScaledVector(s.up, LOOK_HEIGHT)
+      .addScaledVector(_forward, ahead)
+      .add(_velT)
+      .sub(pos);
 
     if (!ready.current) {
       smoothed.current.copy(_target);
+      lookOff.current.copy(_lookWant);
       zoomDist.current = physics.cameraDistance;
       seatDist.current = wantDist;
       ready.current = true;
     } else {
       smoothed.current.lerp(_target, camK);
+      lookOff.current.lerp(_lookWant, expK(LOOK_DRAG, dt));
     }
+    _look.copy(pos).add(lookOff.current);
 
-    _look.copy(pos).addScaledVector(s.up, LOOK_HEIGHT);
+    // A/D lean bank — tips with the pup, brief kick on engage, recovers on release.
+    const dLean = s.lean - prevLean.current;
+    prevLean.current = s.lean;
+    if (dLean * s.lean > 0) {
+      bankKick.current += dLean * BANK_KICK * 6;
+      bankKick.current = THREE.MathUtils.clamp(
+        bankKick.current,
+        -BANK_KICK,
+        BANK_KICK,
+      );
+    }
+    bankKick.current *= Math.exp(-BANK_KICK_DECAY * dt);
+
+    const wantBank = (s.lean * BANK_AMP + bankKick.current) * (1 - airT * 0.4);
+    bank.current += (wantBank - bank.current) * expK(BANK_DRAG, dt);
+    _bankedUp.copy(s.up).addScaledVector(_right, bank.current).normalize();
 
     camera.position.copy(smoothed.current);
-    camera.up.copy(s.up);
+    if (land > 0.03) {
+      shakeT.current += dt;
+      const amp = land * SHAKE_AMP;
+      camera.position
+        .addScaledVector(_right, Math.sin(shakeT.current * SHAKE_FREQ_A) * amp)
+        .addScaledVector(
+          s.up,
+          Math.sin(shakeT.current * SHAKE_FREQ_B + 1.7) * amp * 0.45,
+        );
+    } else {
+      shakeT.current = 0;
+    }
+
+    camera.up.copy(_bankedUp);
     camera.lookAt(_look);
 
     if (camera instanceof THREE.PerspectiveCamera) {
-      if (Math.abs(camera.fov - fov.current) > 1e-3) {
-        camera.fov = fov.current;
+      const displayFov = THREE.MathUtils.clamp(
+        fov.current + land * physics.camLandFov,
+        FOV_MIN,
+        FOV_MAX,
+      );
+      if (Math.abs(camera.fov - displayFov) > 1e-3) {
+        camera.fov = displayFov;
         camera.updateProjectionMatrix();
       }
     }
