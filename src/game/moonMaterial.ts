@@ -1,18 +1,18 @@
 import * as THREE from "three";
 import type { PerfSettings } from "./performanceTiers";
 
-/** Cream highlands. */
-const HIGHLAND = { r: 0.93, g: 0.86, b: 0.74 };
-/** Lilac mare. */
-const MARE = { r: 0.58, g: 0.54, b: 0.68 };
-/** Bright ejecta crest. */
-const RIM_CREST = { r: 1.0, g: 0.96, b: 0.9 };
+/** Dusty ash highlands — warm-gray, not cream. */
+const HIGHLAND = { r: 0.74, g: 0.72, b: 0.68 };
+/** Cool charcoal mare. */
+const MARE = { r: 0.4, g: 0.41, b: 0.46 };
+/** Soft pale ejecta crest. */
+const RIM_CREST = { r: 0.9, g: 0.89, b: 0.86 };
 /** Darker inner wall under the lip. */
-const INNER_WALL = { r: 0.48, g: 0.44, b: 0.55 };
-/** Deep bowl floor — cool indigo so depth reads at a glance. */
-const ABYSS = { r: 0.22, g: 0.2, b: 0.34 };
-/** Mid-depth cavity — dusty violet. */
-const CAVITY = { r: 0.38, g: 0.34, b: 0.48 };
+const INNER_WALL = { r: 0.36, g: 0.35, b: 0.38 };
+/** Deep bowl floor — cool charcoal so depth reads at a glance. */
+const ABYSS = { r: 0.16, g: 0.16, b: 0.2 };
+/** Mid-depth cavity — dusty slate. */
+const CAVITY = { r: 0.3, g: 0.3, b: 0.34 };
 
 /** ≈ MOON_RADIUS * 0.028 — blotch scale in unit-sphere space. */
 const NOISE_FREQ = 8.6;
@@ -65,7 +65,7 @@ function moonNoise(x: number, y: number, z: number): number {
 }
 
 /**
- * Bake pastel mare/highland + depth / rim cues into a vertex color.
+ * Bake dusty mare/highland + depth / rim cues into a vertex color.
  * `elev` is radial height offset (negative = crater floor).
  */
 export function writeMoonVertexColor(
@@ -132,12 +132,12 @@ export function writeMoonVertexColor(
   colors[offset + 2] = b * cavity;
 }
 
-const DETAIL_BY_TIER = [0, 0.45, 0.85, 1] as const;
-const RIM_BY_TIER = [0.06, 0.1, 0.14, 0.18] as const;
-const BOWL_AO_BY_TIER = [0.12, 0.18, 0.24, 0.3] as const;
+const DETAIL_BY_TIER = [0, 0.5, 0.9, 1] as const;
+const RIM_BY_TIER = [0.08, 0.12, 0.16, 0.2] as const;
+const BOWL_AO_BY_TIER = [0.14, 0.2, 0.26, 0.32] as const;
 
 /**
- * Lit Standard material with baked vertex colors + GPU micro-detail.
+ * Matte Standard material with baked vertex colors + GPU regolith grit.
  * Uses onBeforeCompile so fog / shadows keep working.
  */
 export function createMoonMaterial(): THREE.MeshStandardMaterial {
@@ -146,8 +146,8 @@ export function createMoonMaterial(): THREE.MeshStandardMaterial {
     flatShading: false,
     fog: true,
     vertexColors: true,
-    metalness: 0.02,
-    roughness: 0.84,
+    metalness: 0,
+    roughness: 1,
   });
 
   const uniforms: MoonShaderUniforms = {
@@ -231,19 +231,19 @@ float moonValueNoise(vec3 p) {
       moonValueNoise(p.zxy * 1.7) * 0.35 - 0.175
     ));
     normal = normalize(mix(normal, micro, uDetail * 0.55));
-    // Highland sparkle — tiny roughness break-up via albedo nudge.
-    diffuseColor.rgb += grit * uDetail * 0.04;
+    // Regolith grit — tiny albedo break-up, not shiny sparkle.
+    diffuseColor.rgb += grit * uDetail * 0.03;
   }
 
-  // Limb rim so the sphere silhouette stays soft against space.
-  float rim = pow(1.0 - facing, 2.2) * uRim;
-  diffuseColor.rgb += vec3(0.55, 0.58, 0.72) * rim;
+  // Soft earthshine limb so the sphere silhouette stays readable in space.
+  float rim = pow(1.0 - facing, 2.4) * uRim;
+  diffuseColor.rgb += vec3(0.42, 0.5, 0.62) * rim;
 }
 `,
       );
   };
 
-  material.customProgramCacheKey = () => "moon-terrain-v1";
+  material.customProgramCacheKey = () => "moon-terrain-v2";
   return material;
 }
 
