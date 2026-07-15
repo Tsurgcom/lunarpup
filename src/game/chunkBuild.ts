@@ -1,5 +1,9 @@
 import * as THREE from "three";
-import { createFaceGeometryData, faceGeometryFromData } from "./chunkGeometry";
+import {
+  createFaceGeometryData,
+  faceGeometryFromData,
+  faceGeometryFromWorkerData,
+} from "./chunkGeometry";
 import type { IcoFace } from "./chunkLod";
 import type {
   ChunkBuildRequest,
@@ -33,11 +37,24 @@ type PoolWorker = {
   busy: boolean;
 };
 
+/** Worker results waiting for main-thread BufferGeometry wrap. */
+type ReadyBuild = {
+  key: FaceBuildKey;
+  subdiv: number;
+  positions: Float32Array;
+  colors: Float32Array;
+  normals: Float32Array;
+  resolvers: Resolver[];
+  priority: number;
+};
+
 /** Cap parallel workers — leave a core for the main/render thread. */
 function desiredPoolSize(): number {
   if (typeof navigator === "undefined") return 2;
   const cores = navigator.hardwareConcurrency || 4;
-  return Math.max(1, Math.min(4, cores - 1));
+  // Cap at 2 — more workers finish in bursts and hitch the main thread
+  // when wrapping BufferGeometry / uploading to the GPU.
+  return Math.max(1, Math.min(2, cores - 1));
 }
 
 let pool: PoolWorker[] = [];
@@ -47,10 +64,16 @@ let nextRequestId = 1;
 const pendingByKey = new Map<FaceBuildKey, Pending>();
 const inflight = new Map<
   number,
-  { key: FaceBuildKey; resolvers: Resolver[]; slot: PoolWorker }
+  {
+    key: FaceBuildKey;
+    resolvers: Resolver[];
+    slot: PoolWorker;
+    priority: number;
+  }
 >();
 const waitingResolvers = new Map<FaceBuildKey, Resolver[]>();
 const scheduled = new Set<FaceBuildKey>();
+const readyBuilds: ReadyBuild[] = [];
 
 function toCorner(v: THREE.Vector3): FaceCorner {
   return [v.x, v.y, v.z];
@@ -95,6 +118,11 @@ function ensurePool(): PoolWorker[] {
   return pool;
 }
 
+/** Spin up the worker pool early so the first skate frame isn't cold. */
+export function warmChunkWorkers(): number {
+  return ensurePool().length;
+}
+
 function failAll(err: unknown): void {
   for (const entry of inflight.values()) {
     entry.slot.busy = false;
@@ -105,6 +133,10 @@ function failAll(err: unknown): void {
     for (const r of resolvers) r.reject(err);
   }
   waitingResolvers.clear();
+  for (const ready of readyBuilds) {
+    for (const r of ready.resolvers) r.reject(err);
+  }
+  readyBuilds.length = 0;
   pendingByKey.clear();
   scheduled.clear();
 }
@@ -122,14 +154,49 @@ function onWorkerMessage(msg: ChunkWorkerInbound, slot: PoolWorker): void {
   scheduled.delete(entry.key);
   slot.busy = false;
 
-  const geo = faceGeometryFromData({
+  // Defer BufferGeometry construction — wrapping several large attribute
+  // buffers in one turn hitchs the render thread.
+  readyBuilds.push({
+    key: entry.key,
+    subdiv: msg.subdiv,
     positions: msg.positions,
     colors: msg.colors,
     normals: msg.normals,
-    indices: msg.indices,
+    resolvers: entry.resolvers,
+    priority: entry.priority,
   });
-  for (const r of entry.resolvers) r.resolve(geo);
+  // Near / dense first when draining across frames.
+  readyBuilds.sort((a, b) => b.priority - a.priority);
   pump();
+}
+
+/**
+ * Wrap at most `max` pending worker results into BufferGeometry on the
+ * main thread. Call once per render frame from the terrain streamer.
+ */
+export function drainChunkBuildResults(max = 1): number {
+  let n = 0;
+  while (n < max && readyBuilds.length > 0) {
+    const next = readyBuilds.shift()!;
+    try {
+      const geo = faceGeometryFromWorkerData(
+        next.positions,
+        next.colors,
+        next.normals,
+        next.subdiv,
+      );
+      for (const r of next.resolvers) r.resolve(geo);
+    } catch (err) {
+      for (const r of next.resolvers) r.reject(err);
+    }
+    n++;
+  }
+  return n;
+}
+
+/** Ready results not yet wrapped (for ?debug). */
+export function getChunkReadyDepth(): number {
+  return readyBuilds.length;
 }
 
 function buildSync(pending: Pending): THREE.BufferGeometry {
@@ -193,7 +260,12 @@ function pump(): void {
 
     const requestId = nextRequestId++;
     slot.busy = true;
-    inflight.set(requestId, { key: bestKey, resolvers, slot });
+    inflight.set(requestId, {
+      key: bestKey,
+      resolvers,
+      slot,
+      priority: best.priority,
+    });
     const msg: ChunkBuildRequest = {
       type: "build",
       requestId,
@@ -230,6 +302,16 @@ export function requestFaceGeometry(
     for (const entry of inflight.values()) {
       if (entry.key === key) {
         entry.resolvers.push(resolver);
+        if (priority > entry.priority) entry.priority = priority;
+        return;
+      }
+    }
+
+    // Already built on a worker, waiting for main-thread wrap.
+    for (const ready of readyBuilds) {
+      if (ready.key === key) {
+        ready.resolvers.push(resolver);
+        if (priority > ready.priority) ready.priority = priority;
         return;
       }
     }
@@ -260,6 +342,13 @@ function inflightHasKey(key: FaceBuildKey): boolean {
   return false;
 }
 
+function readyHasKey(key: FaceBuildKey): boolean {
+  for (const ready of readyBuilds) {
+    if (ready.key === key) return true;
+  }
+  return false;
+}
+
 /**
  * Drop queued builds that are no longer live.
  * In-flight work is not interrupted (Workers have no cancel); the result is
@@ -272,6 +361,7 @@ export function cancelStaleFaceBuilds(
   for (const [key, resolvers] of waitingResolvers) {
     if (liveKeys.has(key)) continue;
     if (inflightHasKey(key)) continue;
+    if (readyHasKey(key)) continue;
     waitingResolvers.delete(key);
     pendingByKey.delete(key);
     scheduled.delete(key);
@@ -279,11 +369,22 @@ export function cancelStaleFaceBuilds(
       r.reject(new DOMException("chunk build cancelled", "AbortError"));
     }
   }
+
+  // Drop ready wraps that are no longer wanted — avoids main-thread work.
+  for (let i = readyBuilds.length - 1; i >= 0; i--) {
+    const ready = readyBuilds[i]!;
+    if (liveKeys.has(ready.key)) continue;
+    readyBuilds.splice(i, 1);
+    scheduled.delete(ready.key);
+    for (const r of ready.resolvers) {
+      r.reject(new DOMException("chunk build cancelled", "AbortError"));
+    }
+  }
 }
 
-/** Pending + inflight builds (for ?debug). */
+/** Pending + inflight + ready wraps (for ?debug). */
 export function getChunkQueueDepth(): number {
-  return pendingByKey.size + inflight.size;
+  return pendingByKey.size + inflight.size + readyBuilds.length;
 }
 
 /** Active worker count (0 = sync fallback). */
@@ -301,4 +402,5 @@ export function resetChunkBuildQueue(): void {
   inflight.clear();
   waitingResolvers.clear();
   scheduled.clear();
+  readyBuilds.length = 0;
 }
