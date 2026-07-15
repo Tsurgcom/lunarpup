@@ -1,26 +1,19 @@
-import { useSyncExternalStore } from "react";
 import { MOON_RADIUS } from "./moon";
-import { getPerfSettings, subscribePerf } from "./performanceTiers";
 
-/** Decorative moon — plain sphere, inset under streamed chunks. */
+/**
+ * Decorative moon — plain sphere, inset under streamed chunks.
+ * Fixed segment count: remounting on every adaptive tier climb was a
+ * needless GPU upload hitch (worse than the segs it saved on Low).
+ */
 export function StaticMoon() {
-  const { moonWidthSegs, moonHeightSegs } = useSyncExternalStore(
-    subscribePerf,
-    getPerfSettings,
-    getPerfSettings,
-  );
-
   // Sit well below the deepest bowls so the backdrop never fills a crater.
   return (
     <mesh receiveShadow castShadow scale={0.9}>
-      <sphereGeometry
-        key={`${moonWidthSegs}x${moonHeightSegs}`}
-        args={[MOON_RADIUS, moonWidthSegs, moonHeightSegs]}
-      />
+      <sphereGeometry args={[MOON_RADIUS, 48, 36]} />
       <meshStandardMaterial
-        color="#2a2438"
-        metalness={0.02}
-        roughness={0.95}
+        color="#242428"
+        metalness={0}
+        roughness={0.98}
         fog
       />
     </mesh>

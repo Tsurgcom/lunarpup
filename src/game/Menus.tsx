@@ -5,6 +5,7 @@ import {
   formatPerfTierName,
   getPerfOverride,
   getPerfOverrideLabel,
+  getPerfSettings,
   type PerfOverride,
   type PerfTierId,
   setPerfOverride,
@@ -56,12 +57,6 @@ function valueToOverride(v: string): PerfOverride {
   return Number(v) as PerfTierId;
 }
 
-function labelForOverrideValue(v: string): string {
-  const o = valueToOverride(v);
-  if (o === "auto") return getPerfOverrideLabel();
-  return formatPerfTierName(o);
-}
-
 function PerformanceTierField() {
   const override = useSyncExternalStore(
     subscribePerf,
@@ -69,19 +64,27 @@ function PerformanceTierField() {
     getPerfOverride,
   );
   // Re-render when the adaptive tier changes so Auto (X) stays live.
-  useSyncExternalStore(
+  const settings = useSyncExternalStore(
     subscribePerf,
-    getPerfOverrideLabel,
-    getPerfOverrideLabel,
+    getPerfSettings,
+    getPerfSettings,
   );
+
+  const options = PERF_OVERRIDE_OPTIONS.map((o) => ({
+    value: o.value,
+    label:
+      o.override === "auto"
+        ? `Auto (${formatPerfTierName(settings.name)})`
+        : formatPerfTierName(o.override),
+  }));
 
   return (
     <GlassSelect
       id="menu-perf"
       label="Performance"
       value={overrideToValue(override)}
-      options={PERF_OVERRIDE_OPTIONS.map((o) => ({ value: o.value }))}
-      labelFor={labelForOverrideValue}
+      options={options}
+      labelFor={() => getPerfOverrideLabel()}
       onChange={(v) => setPerfOverride(valueToOverride(v))}
     />
   );
@@ -123,7 +126,7 @@ function OptionsFields({
 
       <PerformanceTierField />
       <p className="menu__hint">
-        Auto starts low and climbs with your machine. Pick a tier to lock
+        Auto starts at High and adjusts with your machine. Pick a tier to lock
         quality.
       </p>
     </div>

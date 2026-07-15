@@ -9,7 +9,7 @@ type PerfTierDriverProps = {
 
 /**
  * Samples frame dt and drives adaptive quality. Mount once inside the Canvas.
- * Resets to the lowest tier on mount so each session boots cheap.
+ * Resets to High on mount; the scaler then climbs or drops with fps stability.
  */
 export function PerfTierDriver({ active = true }: PerfTierDriverProps) {
   useEffect(() => {
