@@ -7,6 +7,9 @@ import { getLocalPose } from "./localPose";
  * Drives the velocity-based chunk LOD plan each frame.
  * Mount after {@link Player} so pose + velocity are fresh.
  * {@link ChunkTerrain} consumes the plan and rebuilds patches on workers.
+ *
+ * Streaming is pup/viewer-centric (arc + horizon) — intentionally ignores
+ * the chase camera so orbiting never thrash-loads chunks.
  */
 export function ChunkLodDriver() {
   useEffect(() => () => resetChunkLod(), []);

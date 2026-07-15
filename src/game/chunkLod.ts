@@ -15,10 +15,20 @@ export const CHUNK_ARC_RADIUS = 220;
 export const CULL_EXIT_SLACK = 28;
 
 /**
- * Faces whose nearest corner is behind this cosine of the viewer direction
- * are back-hemisphere culled (past the limb).
+ * Horizon / limb cull relative to the LOD viewer (pup look-ahead), not the
+ * chase camera. Faces whose nearest sample is past this cosine of the viewer
+ * radial are over the horizon and never streamed.
+ *
+ * 0 = geometric limb on a perfect sphere; a tiny positive value drops faces
+ * that are only grazing the silhouette (saves mesh work, little visual loss).
  */
-export const BACKFACE_COS = -0.12;
+export const HORIZON_COS = 0.04;
+
+/**
+ * Exit slack for horizon cull — already-loaded faces stay until clearly past
+ * the limb so skating along the rim doesn't thrash remeshes.
+ */
+export const HORIZON_EXIT_COS = -0.06;
 
 /**
  * Look-ahead time (s): stream detail toward where the pup will be.
@@ -38,6 +48,7 @@ export const SPEED_RING_EXPAND = 0.55;
 /**
  * Clipmap LOD rings (base arc length from viewer → edge subdiv + debug colour).
  * Level 0 = closest / densest (green); higher = coarser / farther.
+ * Four rings (not six) — fewer boundaries means less remesh thrash while skating.
  */
 export const CLIPMAP_LODS: readonly {
   maxArc: number;
@@ -45,11 +56,9 @@ export const CLIPMAP_LODS: readonly {
   /** Debug minimap colour for this ring. */
   color: string;
 }[] = [
-  { maxArc: 24, subdiv: 40, color: "#22c55e" }, // close — green
-  { maxArc: 48, subdiv: 28, color: "#84cc16" }, // near — lime
-  { maxArc: 80, subdiv: 18, color: "#eab308" }, // mid — yellow
-  { maxArc: 120, subdiv: 12, color: "#f97316" }, // mid-far — orange
-  { maxArc: 170, subdiv: 8, color: "#ef4444" }, // far — red
+  { maxArc: 28, subdiv: 28, color: "#22c55e" }, // close — green
+  { maxArc: 70, subdiv: 16, color: "#eab308" }, // mid — yellow
+  { maxArc: 130, subdiv: 8, color: "#f97316" }, // mid-far — orange
   { maxArc: CHUNK_ARC_RADIUS, subdiv: 4, color: "#a855f7" }, // horizon — purple
 ];
 
@@ -279,12 +288,14 @@ export function faceWithinArc(
 }
 
 /**
- * True when every sample of the face is past the limb — safe hard cull.
+ * True when every sample of the face is past the geometric limb — over the
+ * horizon from the LOD viewer. Uses {@link HORIZON_COS} for cold loads and
+ * {@link HORIZON_EXIT_COS} when the face was already streamed (hysteresis).
  */
-export function faceBackCulled(
+export function faceOverHorizon(
   viewerDir: THREE.Vector3,
   face: IcoFace,
-  cosKeep = BACKFACE_COS,
+  cosKeep: number,
 ): boolean {
   const maxDot = Math.max(
     face.centroid.dot(viewerDir),
@@ -295,9 +306,21 @@ export function faceBackCulled(
   return maxDot < cosKeep;
 }
 
+/** @deprecated Prefer {@link faceOverHorizon}. */
+export function faceBackCulled(
+  viewerDir: THREE.Vector3,
+  face: IcoFace,
+  cosKeep = HORIZON_COS,
+): boolean {
+  return faceOverHorizon(viewerDir, face, cosKeep);
+}
+
 /**
- * Load set with enter/exit hysteresis and back-face cull.
- * `prevIds` are faces kept last frame — they stay until they leave exitArc.
+ * Load set with enter/exit arc hysteresis and horizon (limb) cull.
+ * Streaming is viewer-centric — not chase-camera FOV — so orbiting the cam
+ * never thrash-remeshes the world behind the pup.
+ * `prevIds` are faces kept last frame — they stay until they leave exitArc
+ * / the horizon exit cosine.
  */
 export function cullFaces(
   viewerDir: THREE.Vector3,
@@ -308,13 +331,17 @@ export function cullFaces(
 ): IcoFace[] {
   const faces = getIcoFaces();
   out.length = 0;
+
   for (const face of faces) {
-    if (faceBackCulled(viewerDir, face)) continue;
+    const wasLoaded = prevIds.has(face.index);
+    const horizonCos = wasLoaded ? HORIZON_EXIT_COS : HORIZON_COS;
+    if (faceOverHorizon(viewerDir, face, horizonCos)) continue;
+
     if (faceWithinArc(viewerDir, face, enterArc)) {
       out.push(face);
       continue;
     }
-    if (prevIds.has(face.index) && faceWithinArc(viewerDir, face, exitArc)) {
+    if (wasLoaded && faceWithinArc(viewerDir, face, exitArc)) {
       out.push(face);
     }
   }
@@ -506,6 +533,8 @@ export function computeLodViewer(
 /**
  * Recompute the active chunk plan from pose + velocity.
  * Call once per frame after the player writes local pose.
+ * Streaming uses arc radius + horizon cull around the look-ahead viewer —
+ * not the chase-camera frustum (orbit must not remesh the world).
  */
 export function updateChunkLod(
   x: number,
@@ -527,10 +556,10 @@ export function updateChunkLod(
   _loadedIds.clear();
   for (const id of _nextLoaded) _loadedIds.add(id);
 
-  const needed = near.map((f) => f.index);
+  // Reuse stitch's id list — avoid allocating `near.map(...)` every frame.
   const subdivs = stitchFaceSubdivs(
     _viewer,
-    needed,
+    _nextLoaded,
     speedScale,
     _lodMap,
     _lodIds,
@@ -538,7 +567,7 @@ export function updateChunkLod(
 
   const faces = getIcoFaces();
   _entries.length = 0;
-  for (const id of needed) {
+  for (const id of _lodIds) {
     const face = faces[id];
     if (!face) continue;
     const level = faceLodLevel(_viewer, face, speedScale);
@@ -553,6 +582,13 @@ export function updateChunkLod(
   // Stable order for consumers / tests.
   _entries.sort((a, b) => a.faceIndex - b.faceIndex);
 
+  // Skip alloc + listener wake when the streamed set is unchanged.
+  // Continuous fields still update in place for debug / look-ahead readers.
+  if (planUnchanged(_entries, snap.chunks)) {
+    mutateSnapPose(snap, _viewer, speed, speedScale, lookAheadArc);
+    return snap;
+  }
+
   snap = {
     viewerX: _viewer.x,
     viewerY: _viewer.y,
@@ -564,6 +600,48 @@ export function updateChunkLod(
   };
   emit();
   return snap;
+}
+
+function planUnchanged(
+  next: readonly ChunkLodEntry[],
+  prev: readonly ChunkLodEntry[],
+): boolean {
+  if (next.length !== prev.length) return false;
+  for (let i = 0; i < next.length; i++) {
+    const a = next[i]!;
+    const b = prev[i]!;
+    if (
+      a.faceIndex !== b.faceIndex ||
+      a.subdiv !== b.subdiv ||
+      a.level !== b.level
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function mutateSnapPose(
+  target: ChunkLodSnapshot,
+  viewer: THREE.Vector3,
+  speed: number,
+  speedScale: number,
+  lookAheadArc: number,
+): void {
+  const s = target as {
+    viewerX: number;
+    viewerY: number;
+    viewerZ: number;
+    speed: number;
+    speedScale: number;
+    lookAheadArc: number;
+  };
+  s.viewerX = viewer.x;
+  s.viewerY = viewer.y;
+  s.viewerZ = viewer.z;
+  s.speed = speed;
+  s.speedScale = speedScale;
+  s.lookAheadArc = lookAheadArc;
 }
 
 /** Clear published plan (e.g. leaving play). */

@@ -1,6 +1,9 @@
 /**
  * Shared message types for the chunk geometry worker pool.
  * Kept dependency-free so both main and worker can import safely.
+ *
+ * Index buffers are reconstructed on the main thread from a shared subdiv
+ * template — not transferred (saves bandwidth + avoids detaching the cache).
  */
 
 export type FaceCorner = readonly [number, number, number];
@@ -23,7 +26,6 @@ export type ChunkBuildResponse = {
   positions: Float32Array;
   colors: Float32Array;
   normals: Float32Array;
-  indices: Uint32Array;
 };
 
 export type ChunkWorkerOutbound = ChunkBuildRequest;

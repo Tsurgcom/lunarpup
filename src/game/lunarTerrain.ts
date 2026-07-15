@@ -530,6 +530,7 @@ export function getCraterCatalog(): readonly Crater[] {
 export function cratersNear(
   dir: THREE.Vector3,
   out: Crater[] = _nearScratch,
+  opts?: { neighborhood?: number; minRadius?: number },
 ): Crater[] {
   out.length = 0;
   const { catalog, buckets, scale } = ensureCraterIndex();
@@ -537,14 +538,17 @@ export function cratersNear(
   const ix0 = Math.floor(_bucketDir.x);
   const iy0 = Math.floor(_bucketDir.y);
   const iz0 = Math.floor(_bucketDir.z);
+  const neighborhood = opts?.neighborhood ?? 2;
+  const minRadius = opts?.minRadius ?? 0;
 
-  for (let dz = -2; dz <= 2; dz++) {
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dx = -2; dx <= 2; dx++) {
+  for (let dz = -neighborhood; dz <= neighborhood; dz++) {
+    for (let dy = -neighborhood; dy <= neighborhood; dy++) {
+      for (let dx = -neighborhood; dx <= neighborhood; dx++) {
         const list = buckets.get(bucketKey(ix0 + dx, iy0 + dy, iz0 + dz));
         if (!list) continue;
         for (const id of list) {
           const crater = catalog[id]!;
+          if (crater.radius < minRadius) continue;
           const aspect = crater.aspect ?? 1;
           const reach =
             crater.radius * craterOuterT(crater) * Math.max(aspect, 1) * 1.05;
@@ -556,8 +560,39 @@ export function cratersNear(
   return out;
 }
 
+/**
+ * Visual height quality for clipmap builds.
+ * Physics / ride-shell always uses {@link sampleHeightDir} at `"near"`.
+ */
+export type HeightSampleQuality = "near" | "mid" | "far";
+
+/** Map edge subdiv → sampler quality (far rings = cheaper FBM / craters). */
+export function heightQualityForSubdiv(subdiv: number): HeightSampleQuality {
+  if (subdiv <= 6) return "far";
+  if (subdiv <= 16) return "mid";
+  return "near";
+}
+
 /** Soft mare undulation — low amplitude so bowls stay the hero. */
-function mareHeight(dir: THREE.Vector3): number {
+function mareHeight(
+  dir: THREE.Vector3,
+  quality: HeightSampleQuality = "near",
+): number {
+  if (quality === "far") {
+    let y = fbmDir(dir, 0.35, 2) * 1.8;
+    y +=
+      Math.max(0, Math.sin(dir.x * 4.2 + Math.sin(dir.y * 3.1) * 1.6)) ** 1.8 *
+      1.4;
+    return y;
+  }
+  if (quality === "mid") {
+    let y = fbmDir(dir, 0.35, 3) * 1.8;
+    y += fbmDir(dir, 1.1, 2) * 0.55;
+    y +=
+      Math.max(0, Math.sin(dir.x * 4.2 + Math.sin(dir.y * 3.1) * 1.6)) ** 1.8 *
+      1.4;
+    return y;
+  }
   let y = fbmDir(dir, 0.35, 4) * 1.8;
   y += fbmDir(dir, 1.1, 3) * 0.55;
   // Gentle highland ridges — never cliffy.
@@ -584,17 +619,35 @@ function fadeNearSpawn(dir: THREE.Vector3, y: number): number {
 }
 
 /** Radial height offset at a unit direction. */
-export function sampleHeightDir(dir: THREE.Vector3): number {
+export function sampleHeightDir(
+  dir: THREE.Vector3,
+  quality: HeightSampleQuality = "near",
+): number {
   _sampleDir.copy(dir).normalize();
 
-  let y = fadeNearSpawn(_sampleDir, mareHeight(_sampleDir));
-  y += gritHeight(_sampleDir);
+  let y = fadeNearSpawn(_sampleDir, mareHeight(_sampleDir, quality));
+  if (quality === "near") {
+    y += gritHeight(_sampleDir);
+  } else if (quality === "mid") {
+    y += gritHeight(_sampleDir) * 0.35;
+  }
 
   for (const crater of ANCHOR_CRATERS) {
     y += craterDelta(crater, _sampleDir);
   }
 
-  const near = cratersNear(_sampleDir);
+  const near =
+    quality === "far"
+      ? cratersNear(_sampleDir, _nearScratch, {
+          neighborhood: 1,
+          minRadius: 14,
+        })
+      : quality === "mid"
+        ? cratersNear(_sampleDir, _nearScratch, {
+            neighborhood: 2,
+            minRadius: 6,
+          })
+        : cratersNear(_sampleDir);
   for (const crater of near) {
     y += craterDelta(crater, _sampleDir);
   }

@@ -5,12 +5,27 @@ import {
   craterDelta,
   craterRadialT,
   getCraterCatalog,
+  heightQualityForSubdiv,
   sampleHeightDir,
   skateBowlShape,
 } from "./lunarTerrain";
 import { SPAWN_DIR } from "./moon";
 
 describe("lunarTerrain", () => {
+  test("heightQualityForSubdiv maps clipmap rings", () => {
+    expect(heightQualityForSubdiv(4)).toBe("far");
+    expect(heightQualityForSubdiv(8)).toBe("mid");
+    expect(heightQualityForSubdiv(16)).toBe("mid");
+    expect(heightQualityForSubdiv(28)).toBe("near");
+  });
+
+  test("far quality is cheaper but still digs the spawn bowl", () => {
+    const near = sampleHeightDir(SPAWN_DIR, "near");
+    const far = sampleHeightDir(SPAWN_DIR, "far");
+    expect(near).toBeLessThan(-6);
+    expect(far).toBeLessThan(-6);
+  });
+
   test("spawn plaza digs a deep bowl", () => {
     const h = sampleHeightDir(SPAWN_DIR);
     expect(h).toBeLessThan(-6);
