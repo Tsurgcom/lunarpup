@@ -6,7 +6,7 @@ import { getPerfSettings, subscribePerf } from "./performanceTiers";
 const STAR_DISTANCE = 4800;
 
 /**
- * Soft, sparse starfield — pastel points, no dense photoreal milky way.
+ * Soft, sparse starfield — cool lunar-night points, not a dense milky way.
  * Star count follows the active performance tier.
  */
 export function Starfield() {
@@ -24,7 +24,7 @@ export function Starfield() {
     const color = new THREE.Color();
     const spherical = new THREE.Spherical();
     const vec = new THREE.Vector3();
-    const tints = ["#ffffff", "#ffe9a8", "#c8e0ff", "#ffd6e8", "#b8f0e0"];
+    const tints = ["#ffffff", "#e8f0ff", "#c4d8ff", "#fff0d8", "#d0e8ff"];
 
     for (let i = 0; i < starCount; i++) {
       spherical.set(
@@ -62,11 +62,11 @@ export function Starfield() {
           <bufferAttribute attach="attributes-color" args={[colors, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={2.4}
+          size={2.2}
           sizeAttenuation={false}
           vertexColors
           transparent
-          opacity={0.9}
+          opacity={0.85}
           depthWrite={false}
           fog={false}
           blending={THREE.AdditiveBlending}

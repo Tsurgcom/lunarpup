@@ -58,17 +58,22 @@ export function App() {
   const [draftRoom, setDraftRoom] = useState(initial);
   const [phase, setPhase] = useState<Phase>("menu");
   const [menuScreen, setMenuScreen] = useState<MenuScreen>("main");
-  const perf = useSyncExternalStore(
+  const shadows = useSyncExternalStore(
     subscribePerf,
-    getPerfSettings,
-    getPerfSettings,
+    () => getPerfSettings().shadows,
+    () => getPerfSettings().shadows,
+  );
+  const dpr = useSyncExternalStore(
+    subscribePerf,
+    () => getPerfSettings().dpr,
+    () => getPerfSettings().dpr,
   );
 
   const online = phase !== "menu";
   const { peerCount, selfId, status, statusDetail, sendState, style } =
     useMultiplayer(roomId, online);
 
-  // Boot at the cheapest tier before the Canvas mounts.
+  // Boot at High before the Canvas mounts; scaler adjusts from there.
   useEffect(() => {
     resetPerformanceTier();
   }, []);
@@ -156,12 +161,13 @@ export function App() {
 
       <KeyboardControls map={keyMap}>
         <Canvas
-          shadows={perf.shadows ? "percentage" : false}
-          dpr={[1, perf.dpr]}
+          shadows={shadows ? "percentage" : false}
+          dpr={[1, dpr]}
           camera={CANVAS_CAMERA}
           gl={{
+            alpha: false,
             antialias: false,
-            toneMappingExposure: 1.05,
+            toneMappingExposure: 0.92,
             powerPreference: "high-performance",
           }}
         >
