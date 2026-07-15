@@ -152,7 +152,15 @@ export function App() {
         />
       ) : null}
 
-      {phase === "playing" ? <Hud selfId={selfId} /> : null}
+      {phase === "playing" ? (
+        <Hud
+          selfId={selfId}
+          onPause={() => {
+            setMenuScreen("main");
+            setPhase("paused");
+          }}
+        />
+      ) : null}
 
       <KeyboardControls map={keyMap}>
         <Canvas

@@ -34,6 +34,8 @@ import { requestTeleport } from "./teleport";
 
 type LunarMapProps = {
   selfId: string;
+  /** Mobile touch: collapsed map is a globe icon only. */
+  compactIcon?: boolean;
 };
 
 type FocusAnim = {
@@ -60,13 +62,19 @@ type DragState = {
 };
 
 const FOCUS_DUR = 0.28;
-const COLLAPSE_DELAY_MS = 320;
+/** Desktop hover: collapse shortly after the pointer leaves the map. */
+const HOVER_COLLAPSE_MS = 200;
 /** Collapsed map refresh rate — avoids a full second WebGL loop at 60Hz. */
 const IDLE_MAP_HZ = 10;
 const NEAR_LIFT = 0.4;
-const FAR_DIST = 2.9;
 const NEAR_FOV = 48;
-const FAR_FOV = 34;
+/** Far orbit FOV — wide enough to frame the full globe + debug chunk shell. */
+const FAR_FOV = 38;
+/** ?debug chunk overlay radius — above the chart so coarse faces aren't z-occluded. */
+const CHUNK_OVERLAY_LIFT = CHART_RADIUS * 1.038;
+/** Pull the far orbit back so the overlay limb fits inside FAR_FOV (5% pad). */
+const FAR_DIST =
+  (CHUNK_OVERLAY_LIFT * 1.05) / Math.tan((FAR_FOV * Math.PI) / 360);
 const ORBIT_SENS = 0.0055;
 
 const _origin = new THREE.Vector3(0, 0, 0);
@@ -78,11 +86,19 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
 
+/** Fine pointer + hover — use leave timeout; touch relies on outside/input close. */
+function isHoverUiMode(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  );
+}
+
 /**
  * Floating minimap — compact player-locked top-down when idle; expands on
  * hover to show the full globe. Focused: drag to orbit (trackball-style).
  */
-export function LunarMap({ selfId }: LunarMapProps) {
+export function LunarMap({ selfId, compactIcon = false }: LunarMapProps) {
   const [focused, setFocused] = useState(false);
   const focusRef = useRef(0);
   const animRef = useRef<FocusAnim>({
@@ -105,6 +121,9 @@ export function LunarMap({ selfId }: LunarMapProps) {
   });
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerInside = useRef(false);
+  /** True while the map interaction comes from a touch pointer. */
+  const touchPointer = useRef(false);
+  const hotzoneRef = useRef<HTMLDivElement>(null);
 
   const clearCollapseTimer = useCallback(() => {
     if (collapseTimer.current !== null) {
@@ -113,7 +132,7 @@ export function LunarMap({ selfId }: LunarMapProps) {
     }
   }, []);
 
-  const setFocusTarget = (to: number) => {
+  const setFocusTarget = useCallback((to: number) => {
     const anim = animRef.current;
     if (anim.to === to) return;
     anim.from = focusRef.current;
@@ -122,87 +141,139 @@ export function LunarMap({ selfId }: LunarMapProps) {
     anim.dur = FOCUS_DUR;
     setFocused(to > 0.5);
     if (to < 0.5) orbitRef.current.userMoved = false;
-  };
+  }, []);
 
-  const scheduleCollapse = () => {
+  const collapseMap = useCallback(() => {
+    pointerInside.current = false;
+    clearCollapseTimer();
+    setFocusTarget(0);
+  }, [clearCollapseTimer, setFocusTarget]);
+
+  const scheduleHoverCollapse = useCallback(() => {
     clearCollapseTimer();
     if (dragRef.current.active || pointerInside.current) return;
+    // Touch: no leave timeout — a tap "leaves" the instant the finger lifts.
+    // Stay open until an outside press or control/keyboard input closes it.
+    if (touchPointer.current || !isHoverUiMode()) return;
     collapseTimer.current = setTimeout(() => {
       collapseTimer.current = null;
       if (!pointerInside.current && !dragRef.current.active) {
         setFocusTarget(0);
       }
-    }, COLLAPSE_DELAY_MS);
-  };
+    }, HOVER_COLLAPSE_MS);
+  }, [clearCollapseTimer, setFocusTarget]);
 
-  const scheduleCollapseRef = useRef(scheduleCollapse);
-  scheduleCollapseRef.current = scheduleCollapse;
+  const scheduleCollapseRef = useRef(scheduleHoverCollapse);
+  scheduleCollapseRef.current = scheduleHoverCollapse;
 
-  const onHotEnter = () => {
+  const onHotEnter = (e: React.PointerEvent) => {
+    touchPointer.current = e.pointerType === "touch";
     pointerInside.current = true;
     clearCollapseTimer();
     setFocusTarget(1);
   };
 
-  const onHotLeave = () => {
+  const onHotLeave = (e: React.PointerEvent) => {
+    touchPointer.current = e.pointerType === "touch";
     pointerInside.current = false;
-    scheduleCollapse();
+    scheduleHoverCollapse();
   };
 
   useEffect(() => () => clearCollapseTimer(), [clearCollapseTimer]);
 
+  // Close on outside press/touch (incl. control pads) or any keyboard input.
+  useEffect(() => {
+    if (!focused) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const zone = hotzoneRef.current;
+      if (zone?.contains(e.target as Node)) return;
+      collapseMap();
+    };
+
+    const onKeyDown = () => {
+      collapseMap();
+    };
+
+    window.addEventListener("pointerdown", onPointerDown, { capture: true });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, {
+        capture: true,
+      });
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [focused, collapseMap]);
+
   return (
     <div
-      className="hud__map-hotzone"
+      ref={hotzoneRef}
+      className={`hud__map-hotzone${compactIcon ? " hud__map-hotzone--compact" : ""}`}
       onPointerEnter={onHotEnter}
       onPointerLeave={onHotLeave}
     >
       <div className={`hud__map-float${focused ? " is-focused" : ""}`}>
-        <div className="hud__map-canvas">
-          <Canvas
-            frameloop="demand"
-            dpr={focused ? [1, 1.5] : [1, 1]}
-            camera={{
-              position: [0, 0, 2.5],
-              fov: NEAR_FOV,
-              near: 0.05,
-              far: 20,
+        {compactIcon && !focused ? (
+          <button
+            type="button"
+            className="hud__map-globe"
+            aria-label="Open map"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onHotEnter(e);
             }}
-            gl={{
-              antialias: focused,
-              alpha: true,
-              powerPreference: "low-power",
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
           >
-            <color attach="background" args={["#152238"]} />
-            <MapFrameGate
-              focused={focused}
-              animRef={animRef}
-              dragRef={dragRef}
-            />
-            <FocusDriver animRef={animRef} focusRef={focusRef} />
-            <MapCamera
-              focusRef={focusRef}
-              orbitRef={orbitRef}
-              dragRef={dragRef}
-            />
-            <MapOrbit
-              focusRef={focusRef}
-              orbitRef={orbitRef}
-              dragRef={dragRef}
-              scheduleCollapseRef={scheduleCollapseRef}
-            />
-            <LunarMapScene
-              selfId={selfId}
-              focused={focused}
-              dragRef={dragRef}
-            />
-          </Canvas>
-        </div>
-        <p className="hud__map-hint" aria-hidden={!focused}>
-          Drag to orbit · click to warp
-        </p>
+            <span className="hud__map-globe-glyph" aria-hidden="true" />
+          </button>
+        ) : (
+          <>
+            <div className="hud__map-canvas">
+              <Canvas
+                frameloop="demand"
+                dpr={focused ? [1, 1.5] : [1, 1]}
+                camera={{
+                  position: [0, 0, 2.5],
+                  fov: NEAR_FOV,
+                  near: 0.05,
+                  far: 20,
+                }}
+                gl={{
+                  antialias: focused,
+                  alpha: true,
+                  powerPreference: "low-power",
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <color attach="background" args={["#0a0c14"]} />
+                <MapFrameGate
+                  focused={focused}
+                  animRef={animRef}
+                  dragRef={dragRef}
+                />
+                <FocusDriver animRef={animRef} focusRef={focusRef} />
+                <MapCamera
+                  focusRef={focusRef}
+                  orbitRef={orbitRef}
+                  dragRef={dragRef}
+                />
+                <MapOrbit
+                  focusRef={focusRef}
+                  orbitRef={orbitRef}
+                  dragRef={dragRef}
+                  scheduleCollapseRef={scheduleCollapseRef}
+                />
+                <LunarMapScene
+                  selfId={selfId}
+                  focused={focused}
+                  dragRef={dragRef}
+                />
+              </Canvas>
+            </div>
+            <p className="hud__map-hint" aria-hidden={!focused}>
+              Drag to orbit · click to warp
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -453,21 +524,25 @@ function LunarMapScene({
     requestTeleport(hitDir.current.x, hitDir.current.y, hitDir.current.z);
   };
 
+  const debugMap = isDebugEnabled();
+
   return (
     <>
-      <ambientLight intensity={0.55} />
+      <ambientLight intensity={0.48} color="#1a1c24" />
       <directionalLight
         position={[2.5, 4, 1.5]}
-        intensity={1.15}
-        color="#fff4e0"
+        intensity={0.95}
+        color="#c8d4ee"
       />
-      <hemisphereLight args={["#9bb7ff", "#2a241c", 0.35]} />
+      <hemisphereLight args={["#7a8eb0", "#181a20", 0.4]} />
 
-      <mesh geometry={chart} onPointerUp={onChartPointerUp}>
-        <meshLambertMaterial vertexColors />
-      </mesh>
-
-      {isDebugEnabled() ? <ChunkLodOverlay /> : null}
+      {debugMap ? (
+        <ChunkLodOverlay onPointerUp={onChartPointerUp} />
+      ) : (
+        <mesh geometry={chart} onPointerUp={onChartPointerUp}>
+          <meshLambertMaterial vertexColors />
+        </mesh>
+      )}
 
       <SelfMarker />
       <PeerMarkers selfId={selfId} canTeleport={focused} dragRef={dragRef} />
@@ -479,7 +554,11 @@ function LunarMapScene({
  * ?debug: colour each loaded ico-face chunk on the chart by LOD ring
  * (green → lime → yellow → orange → red → purple).
  */
-function ChunkLodOverlay() {
+function ChunkLodOverlay({
+  onPointerUp,
+}: {
+  onPointerUp: (e: ThreeEvent<PointerEvent>) => void;
+}) {
   const faces = useMemo(() => getIcoFaces(), []);
   const mesh = useRef<THREE.Mesh>(null);
   const invalidate = useThree((s) => s.invalidate);
@@ -488,7 +567,7 @@ function ChunkLodOverlay() {
     const n = faces.length;
     const positions = new Float32Array(n * 9);
     const colors = new Float32Array(n * 9);
-    const lift = CHART_RADIUS * 1.012;
+    const lift = CHUNK_OVERLAY_LIFT;
     for (let i = 0; i < n; i++) {
       const f = faces[i]!;
       const o = i * 9;
@@ -509,21 +588,27 @@ function ChunkLodOverlay() {
 
   const colorByFace = useRef(new Map<number, string>());
   const scratch = useRef(new THREE.Color());
-  const lastKey = useRef("");
+  /** Same array ref while `planUnchanged` mutates pose in place. */
+  const lastChunks = useRef<
+    readonly { faceIndex: number; color: string }[] | null
+  >(null);
 
   useEffect(() => () => geo.dispose(), [geo]);
 
-  // Demand-loop map: wake when the main canvas updates the LOD plan.
-  useEffect(() => subscribeChunkLod(() => invalidate()), [invalidate]);
+  // Demand-loop map: paint current plan on mount + wake on plan publishes.
+  useEffect(() => {
+    invalidate();
+    return subscribeChunkLod(() => invalidate());
+  }, [invalidate]);
 
   useFrame(() => {
     const m = mesh.current;
     if (!m) return;
     const snap = getChunkLodSnapshot();
-    // Cheap dirty check — rebuild colours only when the plan changes.
-    const key = `${snap.chunks.length}|${snap.speedScale.toFixed(2)}|${snap.lookAheadArc.toFixed(1)}|${snap.viewerX.toFixed(3)}|${snap.viewerY.toFixed(3)}|${snap.viewerZ.toFixed(3)}`;
-    if (key === lastKey.current) return;
-    lastKey.current = key;
+    // Identity check — pose-only frames keep the same `chunks` array.
+    // A length/pose string key missed face swaps and level changes.
+    if (snap.chunks === lastChunks.current) return;
+    lastChunks.current = snap.chunks;
 
     const byFace = colorByFace.current;
     byFace.clear();
@@ -547,12 +632,15 @@ function ChunkLodOverlay() {
   });
 
   return (
-    <mesh ref={mesh} geometry={geo} raycast={() => null}>
+    <mesh ref={mesh} geometry={geo} onPointerUp={onPointerUp} renderOrder={1}>
       <meshBasicMaterial
         vertexColors
         transparent
         opacity={0.72}
         depthWrite={false}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
         side={THREE.DoubleSide}
       />
     </mesh>

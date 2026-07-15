@@ -3,6 +3,7 @@ import { type RefObject, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { boardAxes, getSpeedRatio, type PlayerState } from "./movement";
 import { DEFAULT_PHYSICS, physics } from "./physicsTuning";
+import { getTouchCameraLift } from "./touchUiVisibility";
 
 type CameraRigProps = {
   state: RefObject<PlayerState | null>;
@@ -510,6 +511,7 @@ export function CameraRig({ state }: CameraRigProps) {
       }
 
       // Lift framing above the mobile glass control panel.
+      const lift = getTouchCameraLift();
       const el = gl.domElement;
       const w = el.clientWidth;
       const h = el.clientHeight;

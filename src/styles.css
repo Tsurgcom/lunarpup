@@ -25,7 +25,7 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #1a2a4a;
+  background: #010106;
   color: var(--ink);
 }
 
@@ -935,6 +935,494 @@ input {
 .hud__map-hotzone,
 .hud-debug {
   z-index: 1;
+}
+
+/* Touch HUD: velocity sits above the map; pause top-left */
+.hud--touch .hud__speed {
+  top: 0.85rem;
+  right: 0.85rem;
+  bottom: auto;
+  z-index: 3;
+}
+
+.hud--touch .hud__map-hotzone {
+  top: 4.1rem;
+  right: 0.25rem;
+}
+
+.hud__pause {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge);
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  box-shadow: var(--glass-inset);
+  color: var(--ink);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 160ms var(--ease-out),
+    background 160ms ease;
+}
+
+.hud__pause:active {
+  transform: scale(0.97);
+  background: var(--glass-strong);
+}
+
+.hud__pause-icon {
+  font-size: 0.7rem;
+  letter-spacing: -0.08em;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.hud__pause-label {
+  font-family: "DM Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud--mobile-touch .hud__pause-label {
+  font-size: 0.72rem;
+}
+
+.hud--mobile-touch .hud__speed small,
+.hud--mobile-touch .hud__speed-label {
+  font-size: 0.78rem;
+}
+
+.hud--mobile-touch .hud__map-hint {
+  font-size: 0.78rem;
+}
+
+/* Collapsed map → globe icon only */
+.hud__map-globe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink) 88%, var(--muted));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.hud__map-globe:active {
+  color: var(--ink);
+  transform: scale(0.96);
+}
+
+.hud__map-globe-glyph {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 46%,
+      currentColor 46%,
+      currentColor 54%,
+      transparent 54%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 30%,
+      currentColor 30%,
+      currentColor 32%,
+      transparent 32%,
+      transparent 66%,
+      currentColor 66%,
+      currentColor 68%,
+      transparent 68%
+    );
+  opacity: 0.92;
+}
+
+.hud--mobile-touch .hud__map-hotzone--compact .hud__map-float:not(.is-focused) {
+  width: auto;
+  padding: 0.3rem;
+}
+
+.hud--mobile-touch .hud__map-float.is-focused {
+  width: min(18.5rem, calc(100vw - 1.7rem));
+}
+
+/* —— Touch controls (glassy HUD chrome) —— */
+.touch-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Positioning lives on the dock so the roll pair can float outside the
+   panel's backdrop-filter subtree (its own blur can't sample the scene
+   from inside a backdrop root). */
+.touch-controls__dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.touch-controls__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-radius: 18px 18px 0 0;
+  border: 1px solid var(--glass-edge);
+  border-bottom: 0;
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  box-shadow: var(--glass-inset);
+  pointer-events: auto;
+}
+
+.touch-controls:not(.touch-controls--mobile) .touch-controls__dock {
+  left: auto;
+  right: 0.85rem;
+  bottom: 0.85rem;
+  width: min(22rem, calc(100vw - 1.7rem));
+}
+
+.touch-controls:not(.touch-controls--mobile) .touch-controls__panel {
+  border-radius: 18px;
+  border-bottom: 1px solid var(--glass-edge);
+  padding-bottom: 0.75rem;
+}
+
+.touch-controls__stick-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.touch-controls__stick {
+  position: relative;
+  flex: 0 0 auto;
+  width: 9rem;
+  height: 9rem;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-inset);
+  color: inherit;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  /* Above the pitch buttons, but clipped to the circle so touches in the
+     dead corners fall through to the pitch quadrants beneath. */
+  z-index: 1;
+  clip-path: circle(50%);
+  -webkit-clip-path: circle(50%);
+}
+
+/* Mobile: the stick fills the panel's content width (wrap stretches to the
+   row, stick keeps a 1:1 circle via aspect-ratio). */
+.touch-controls--mobile .touch-controls__stick {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.touch-controls__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: -1.3rem 0 0 -1.3rem;
+  border-radius: 50%;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-inset);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.touch-controls--mobile .touch-controls__knob {
+  width: 3rem;
+  height: 3rem;
+  margin: -1.5rem 0 0 -1.5rem;
+}
+
+.touch-controls__stick-label {
+  position: absolute;
+  left: 50%;
+  bottom: 0.55rem;
+  transform: translateX(-50%);
+  font-family: "DM Mono", monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.touch-controls--mobile .touch-controls__stick-label,
+.touch-controls--mobile .touch-controls__btn-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+}
+
+.touch-controls__stick-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  /* Flex kills the inline-button baseline gap so the wrap (and the pitch
+     quadrants sized off it) matches the stick's box exactly. */
+  display: flex;
+}
+
+/* Sizing lives on the wrap so the %-based pitch quadrants track the stick;
+   the stick fills whatever width the actions column leaves free. */
+.touch-controls--mobile .touch-controls__stick-wrap {
+  width: 100%;
+}
+
+/* Roll pair (Q/E) — floats over the scene just above the panel's glass.
+   ↺ hugs the left edge, ↻ the right, with the side inset halved from the
+   original 1.1rem to 0.55rem. Container ignores pointer events so the scene
+   stays interactive between the buttons. */
+.touch-controls__roll {
+  position: absolute;
+  bottom: calc(100% + 0.6rem);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0.55rem;
+  pointer-events: none;
+}
+
+.touch-controls__btn--roll {
+  pointer-events: auto;
+}
+
+.touch-controls__btn--roll {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.touch-controls__btn--roll .touch-controls__btn-label {
+  font-size: 1.25rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.touch-controls__actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Mobile: JUMP/BOOST stack in a left column, stick fills the rest. */
+.touch-controls--mobile .touch-controls__panel {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.touch-controls--mobile .touch-controls__actions {
+  order: -1;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 34%;
+}
+
+.touch-controls--mobile .touch-controls__stick-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.touch-controls__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.4rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge);
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  box-shadow: var(--glass-inset);
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition:
+    transform 160ms var(--ease-out),
+    background 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.touch-controls__btn:active,
+.touch-controls__btn:focus-visible {
+  background: var(--glass-strong);
+  border-color: color-mix(in srgb, var(--glass-edge) 70%, var(--ink));
+  transform: scale(0.97);
+  outline: none;
+}
+
+/* Corner quadrants under the stick: the stick (clipped to its circle) sits
+   above, so these only catch touches in the dead corner space outside the
+   circle. Glyphs tuck into those corners. */
+.touch-controls__btn--pitch {
+  position: absolute;
+  left: 0;
+  width: 50%;
+  height: 50%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.3rem 0 0 0.4rem;
+  z-index: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.touch-controls__btn--pitch-up {
+  top: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.touch-controls__btn--pitch-down {
+  bottom: 0;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0 0.15rem 0.4rem;
+}
+
+.touch-controls__btn--pitch:active,
+.touch-controls__btn--pitch:focus-visible {
+  background: transparent;
+  border: 0;
+  opacity: 0.65;
+  transform: scale(0.94);
+}
+
+.touch-controls__btn--pitch .touch-controls__btn-label {
+  font-size: 1.35rem;
+  letter-spacing: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.touch-controls--mobile .touch-controls__btn--pitch .touch-controls__btn-label {
+  font-size: 1.6rem;
+}
+
+.touch-controls__btn--jump,
+.touch-controls__btn--boost {
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 3.1rem;
+  border-radius: 12px;
+}
+
+.touch-controls--mobile .touch-controls__btn--jump,
+.touch-controls--mobile .touch-controls__btn--boost {
+  min-height: 3.4rem;
+}
+
+.touch-controls__btn--boost:active,
+.touch-controls__btn--boost:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-edge));
+}
+
+/* Boost toggle: snappier transitions than the 160ms base button. */
+.touch-controls__btn--boost {
+  position: relative;
+  transition:
+    transform 90ms var(--ease-out),
+    background 90ms ease,
+    border-color 90ms ease,
+    opacity 90ms ease;
+}
+
+/* Indicator dot in the top-right corner: dim off, lit accent when latched. */
+.touch-controls__btn--boost::after {
+  content: "";
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  transition:
+    background 90ms ease,
+    box-shadow 90ms ease;
+}
+
+.touch-controls__btn--boost.is-on {
+  background: color-mix(in srgb, var(--accent) 16%, var(--glass));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--glass-edge));
+}
+
+.touch-controls__btn--boost.is-on .touch-controls__btn-label {
+  color: var(--accent);
+}
+
+.touch-controls__btn--boost.is-on::after {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.touch-controls__btn-label {
+  font-family: "DM Mono", monospace;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 85%, var(--muted));
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
