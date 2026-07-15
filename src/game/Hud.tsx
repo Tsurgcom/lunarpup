@@ -26,8 +26,9 @@ export function Hud({ selfId }: HudProps) {
     <div className="hud">
       <SpeedLines />
       <div className={`hud__speed${boosting ? " hud__speed--boost" : ""}`}>
-        <span>{speed}</span>
-        <small>m/s</small>
+        <small className="hud__speed-label">VEL</small>
+        <span>{String(speed).padStart(4, "0")}</span>
+        <small>U/S</small>
         {boosting ? <em className="hud__boost">BOOST</em> : null}
       </div>
       <DebugPanel />
