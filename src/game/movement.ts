@@ -300,9 +300,13 @@ function substep(
   );
   state.contactNormal.copy(shell.normal);
 
-  // Dual boost: top-speed cap rises while boosting (v1 boostMultiplier).
-  const speedCap = physics.maxSpeed * (input.boosting ? physics.boostMult : 1);
+  // Dual boost: absolute ceiling is always the boosted top. Cruise
+  // (maxSpeed) only clamps when already at/below it — releasing boost
+  // must not snap overspeed down to 400 U/S; drag bleeds the excess.
+  const hardCap = physics.maxSpeed * physics.boostMult;
+  const cruiseCap = physics.maxSpeed;
   const spd = state.vel.length();
+  const speedCap = input.boosting || spd > cruiseCap ? hardCap : cruiseCap;
   if (spd > speedCap) {
     state.vel.multiplyScalar(speedCap / spd);
   }
