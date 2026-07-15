@@ -72,6 +72,18 @@ const LAND_BOOM = 0.72;
 const LAND_PITCH = 0.1;
 
 /**
+ * Continuous high-speed tremor. HUD uses ×10, so 50 m/s = 500 U/S —
+ * above cruise (400) and into boost overspeed. Quadratic ease: soft
+ * onset, punches near the boosted hard cap. Waveform is jagged value
+ * noise (not a sine) so it reads as vibration, not a pulse.
+ */
+const SPEED_SHAKE_START = 50;
+const SPEED_SHAKE_AMP = 0.22;
+/** Noise cells per second — higher = buzzier / less wavy. */
+const SPEED_SHAKE_RATE_A = 48;
+const SPEED_SHAKE_RATE_B = 67;
+
+/**
  * Post-landing hero seat — grounded skate after touchdown dollies in so the
  * pup reads ~4× larger (distance × 1/4).
  */
@@ -95,6 +107,29 @@ function lerpAngle(a: number, b: number, t: number): number {
 
 function expK(drag: number, dt: number): number {
   return 1 - Math.exp(-drag * dt);
+}
+
+/** Deterministic hash → [-1, 1]. */
+function hash11(n: number): number {
+  const x = Math.sin(n * 127.1) * 43758.5453;
+  return (x - Math.floor(x)) * 2 - 1;
+}
+
+/**
+ * Jagged 1D value noise — linear cell lerp (no smoothstep) so edges stay
+ * sharp. Two octaves keep it from looking like a single square wave.
+ */
+function jaggedNoise(t: number, seed: number): number {
+  const i = Math.floor(t);
+  const f = t - i;
+  const a = hash11(i + seed);
+  const b = hash11(i + 1 + seed);
+  const base = a + (b - a) * f;
+  const j = Math.floor(t * 2.37 + seed * 0.13);
+  const g = t * 2.37 - Math.floor(t * 2.37);
+  const c = hash11(j + seed * 3.1);
+  const d = hash11(j + 1 + seed * 3.1);
+  return base * 0.72 + (c + (d - c) * g) * 0.28;
 }
 
 function halfTanDeg(deg: number): number {
@@ -122,7 +157,7 @@ function swellEnv(t: number, rise: number, fall: number): number {
 
 /**
  * Third-person chase with FOV/dolly framing plus lean bank, look-ahead,
- * turn sway, boost kick, and touchdown shake / boom.
+ * turn sway, boost kick, high-speed tremor, and touchdown shake / boom.
  */
 export function CameraRig({ state }: CameraRigProps) {
   const { camera, gl } = useThree();
@@ -170,7 +205,7 @@ export function CameraRig({ state }: CameraRigProps) {
       const dx = e.clientX - lastPointer.current.x;
       const dy = e.clientY - lastPointer.current.y;
       lastPointer.current = { x: e.clientX, y: e.clientY };
-      yaw.current -= dx * ORBIT_SENS;
+      yaw.current += dx * ORBIT_SENS;
       pitch.current = THREE.MathUtils.clamp(
         pitch.current - dy * ORBIT_SENS,
         MIN_PITCH,
@@ -419,15 +454,43 @@ export function CameraRig({ state }: CameraRigProps) {
     _bankedUp.copy(s.up).addScaledVector(_right, bank.current).normalize();
 
     camera.position.copy(smoothed.current);
-    if (land > 0.03) {
+
+    // Speed tremor: remap [500 U/S → boosted top] through t² so it stays
+    // quiet just past threshold and ramps hard at peak overspeed.
+    const hardCap = physics.maxSpeed * physics.boostMult;
+    const speedSpan = Math.max(hardCap - SPEED_SHAKE_START, 1);
+    const speedT = THREE.MathUtils.clamp(
+      (speed - SPEED_SHAKE_START) / speedSpan,
+      0,
+      1,
+    );
+    const speedShake = speedT * speedT;
+    const landAmp = land > 0.03 ? land * SHAKE_AMP : 0;
+    const speedAmp = speedShake * SPEED_SHAKE_AMP;
+
+    if (landAmp > 1e-4 || speedAmp > 1e-4) {
       shakeT.current += dt;
-      const amp = land * SHAKE_AMP;
-      camera.position
-        .addScaledVector(_right, Math.sin(shakeT.current * SHAKE_FREQ_A) * amp)
-        .addScaledVector(
-          s.up,
-          Math.sin(shakeT.current * SHAKE_FREQ_B + 1.7) * amp * 0.45,
-        );
+      const t = shakeT.current;
+      // Landing stays sinusoidal (punch read); speed uses jagged noise.
+      if (landAmp > 1e-4) {
+        camera.position
+          .addScaledVector(_right, Math.sin(t * SHAKE_FREQ_A) * landAmp)
+          .addScaledVector(
+            s.up,
+            Math.sin(t * SHAKE_FREQ_B + 1.7) * landAmp * 0.45,
+          );
+      }
+      if (speedAmp > 1e-4) {
+        camera.position
+          .addScaledVector(
+            _right,
+            jaggedNoise(t * SPEED_SHAKE_RATE_A, 1.7) * speedAmp,
+          )
+          .addScaledVector(
+            s.up,
+            jaggedNoise(t * SPEED_SHAKE_RATE_B, 4.2) * speedAmp * 0.55,
+          );
+      }
     } else {
       shakeT.current = 0;
     }
@@ -444,6 +507,16 @@ export function CameraRig({ state }: CameraRigProps) {
       if (Math.abs(camera.fov - displayFov) > 1e-3) {
         camera.fov = displayFov;
         camera.updateProjectionMatrix();
+      }
+
+      // Lift framing above the mobile glass control panel.
+      const el = gl.domElement;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (lift > 0 && w > 0 && h > 0) {
+        camera.setViewOffset(w, h, 0, h * lift, w, h);
+      } else if (camera.view !== null) {
+        camera.clearViewOffset();
       }
     }
   }, RENDER_PRIORITY);
