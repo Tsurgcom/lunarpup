@@ -44,8 +44,8 @@ const keyMap = [
   { name: "right", keys: ["ArrowRight", "KeyD"] },
   { name: "pitchUp", keys: ["KeyF"] },
   { name: "pitchDown", keys: ["KeyR"] },
-  { name: "rollLeft", keys: ["KeyQ"] },
-  { name: "rollRight", keys: ["KeyE"] },
+  { name: "rollLeft", keys: ["KeyE"] },
+  { name: "rollRight", keys: ["KeyQ"] },
   { name: "jump", keys: ["Space"] },
   { name: "boost", keys: ["ShiftLeft", "ShiftRight"] },
 ];
