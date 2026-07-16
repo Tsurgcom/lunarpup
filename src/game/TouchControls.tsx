@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
+  clearTouchDpad,
   clearTouchInput,
   clearTouchStick,
   setTouchButton,
+  setTouchDpad,
   setTouchStick,
   type TouchButton,
 } from "./touchInput";
@@ -101,7 +103,6 @@ function BoostToggleButton() {
 }
 
 function VirtualStick() {
-  const baseRef = useRef<HTMLButtonElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
   const activeId = useRef<number | null>(null);
   const origin = useRef({ x: 0, y: 0 });
@@ -138,7 +139,6 @@ function VirtualStick() {
 
   return (
     <button
-      ref={baseRef}
       type="button"
       className="touch-controls__stick"
       aria-label="Move"
@@ -180,6 +180,146 @@ function VirtualStick() {
   );
 }
 
+/**
+ * Cross-shaped attitude pad — same thumb drag as the stick, maps N/S → pitch
+ * and E/W → yaw (turn). Used on tablet instead of stick-corner pitch buttons.
+ */
+function VirtualDpad() {
+  const knobRef = useRef<HTMLDivElement>(null);
+  const activeId = useRef<number | null>(null);
+  const origin = useRef({ x: 0, y: 0 });
+  const radiusRef = useRef(DEFAULT_STICK_RADIUS);
+
+  const setKnob = (dx: number, dy: number) => {
+    const knob = knobRef.current;
+    if (!knob) return;
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+
+  const updateFromPointer = (clientX: number, clientY: number) => {
+    const radius = radiusRef.current;
+    let dx = clientX - origin.current.x;
+    let dy = clientY - origin.current.y;
+    const len = Math.hypot(dx, dy);
+    if (len > radius) {
+      dx = (dx / len) * radius;
+      dy = (dy / len) * radius;
+    }
+    setKnob(dx, dy);
+    setTouchDpad(dx / radius, dy / radius, STICK_THRESHOLD);
+  };
+
+  const end = (el: HTMLButtonElement, pointerId: number) => {
+    if (activeId.current !== pointerId) return;
+    activeId.current = null;
+    clearTouchDpad();
+    setKnob(0, 0);
+    if (el.hasPointerCapture(pointerId)) {
+      el.releasePointerCapture(pointerId);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="touch-controls__dpad"
+      aria-label="Pitch and yaw"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (activeId.current !== null) return;
+        activeId.current = e.pointerId;
+        const rect = e.currentTarget.getBoundingClientRect();
+        radiusRef.current = Math.min(rect.width, rect.height) * 0.42;
+        origin.current = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        updateFromPointer(e.clientX, e.clientY);
+      }}
+      onPointerMove={(e) => {
+        if (activeId.current !== e.pointerId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        updateFromPointer(e.clientX, e.clientY);
+      }}
+      onPointerUp={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        end(e.currentTarget, e.pointerId);
+      }}
+      onPointerCancel={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        end(e.currentTarget, e.pointerId);
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <span
+        className="touch-controls__dpad-arm touch-controls__dpad-arm--n"
+        aria-hidden
+      >
+        ▲
+      </span>
+      <span
+        className="touch-controls__dpad-arm touch-controls__dpad-arm--s"
+        aria-hidden
+      >
+        ▼
+      </span>
+      <span
+        className="touch-controls__dpad-arm touch-controls__dpad-arm--w"
+        aria-hidden
+      >
+        ◀
+      </span>
+      <span
+        className="touch-controls__dpad-arm touch-controls__dpad-arm--e"
+        aria-hidden
+      >
+        ▶
+      </span>
+      <div
+        ref={knobRef}
+        className="touch-controls__knob touch-controls__knob--dpad"
+      />
+    </button>
+  );
+}
+
+function ActionButtons() {
+  return (
+    <div className="touch-controls__actions">
+      <TouchPadButton
+        label="JUMP"
+        button="jump"
+        className="touch-controls__btn--jump"
+      />
+      <BoostToggleButton />
+    </div>
+  );
+}
+
+function RollButtons() {
+  return (
+    <div className="touch-controls__roll">
+      <TouchPadButton
+        label="↺"
+        ariaLabel="Roll left"
+        button="rollLeft"
+        className="touch-controls__btn--roll"
+      />
+      <TouchPadButton
+        label="↻"
+        ariaLabel="Roll right"
+        button="rollRight"
+        className="touch-controls__btn--roll"
+      />
+    </div>
+  );
+}
+
 /** On-screen drive pad — glassy HUD chrome; visibility follows device + input. */
 export function TouchControls() {
   const show = useSyncExternalStore(
@@ -209,26 +349,35 @@ export function TouchControls() {
 
   if (!show) return null;
 
-  return (
-    <div
-      className={`touch-controls${mobile ? " touch-controls--mobile" : ""}`}
-      aria-hidden={false}
-    >
-      <div className="touch-controls__dock">
-        <div className="touch-controls__roll">
-          <TouchPadButton
-            label="↺"
-            ariaLabel="Roll left"
-            button="rollLeft"
-            className="touch-controls__btn--roll"
-          />
-          <TouchPadButton
-            label="↻"
-            ariaLabel="Roll right"
-            button="rollRight"
-            className="touch-controls__btn--roll"
-          />
+  // Tablet: two-handed bottom-corner grip — d-pad + actions left, move right.
+  if (!mobile) {
+    return (
+      <div
+        className="touch-controls touch-controls--tablet"
+        aria-hidden={false}
+      >
+        <div className="touch-controls__dock touch-controls__dock--left">
+          <div className="touch-controls__panel touch-controls__panel--attitude">
+            <ActionButtons />
+            <VirtualDpad />
+          </div>
         </div>
+        <div className="touch-controls__dock touch-controls__dock--right">
+          <RollButtons />
+          <div className="touch-controls__panel touch-controls__panel--drive">
+            <div className="touch-controls__stick-wrap">
+              <VirtualStick />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="touch-controls touch-controls--mobile" aria-hidden={false}>
+      <div className="touch-controls__dock">
+        <RollButtons />
         <div className="touch-controls__panel">
           <div className="touch-controls__stick-row">
             <div className="touch-controls__stick-wrap">
@@ -245,14 +394,7 @@ export function TouchControls() {
               />
             </div>
           </div>
-          <div className="touch-controls__actions">
-            <TouchPadButton
-              label="JUMP"
-              button="jump"
-              className="touch-controls__btn--jump"
-            />
-            <BoostToggleButton />
-          </div>
+          <ActionButtons />
         </div>
       </div>
     </div>

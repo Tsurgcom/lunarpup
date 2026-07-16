@@ -1105,17 +1105,56 @@ input {
   pointer-events: auto;
 }
 
-.touch-controls:not(.touch-controls--mobile) .touch-controls__dock {
-  left: auto;
-  right: 0.85rem;
-  bottom: 0.85rem;
-  width: min(22rem, calc(100vw - 1.7rem));
+/* Tablet: split docks into bottom corners for two-handed grip. */
+.touch-controls--tablet .touch-controls__dock--left {
+  left: max(0.85rem, env(safe-area-inset-left, 0px));
+  right: auto;
+  bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+  width: auto;
 }
 
-.touch-controls:not(.touch-controls--mobile) .touch-controls__panel {
+.touch-controls--tablet .touch-controls__dock--right {
+  left: auto;
+  right: max(0.85rem, env(safe-area-inset-right, 0px));
+  bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+  width: auto;
+}
+
+.touch-controls--tablet .touch-controls__panel {
   border-radius: 18px;
   border-bottom: 1px solid var(--glass-edge);
   padding-bottom: 0.75rem;
+}
+
+.touch-controls--tablet .touch-controls__panel--attitude {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem;
+}
+
+.touch-controls--tablet .touch-controls__panel--drive {
+  padding: 0.65rem 0.75rem;
+}
+
+.touch-controls--tablet .touch-controls__actions {
+  flex-direction: row;
+  width: 100%;
+  gap: 0.45rem;
+}
+
+.touch-controls--tablet .touch-controls__btn--jump,
+.touch-controls--tablet .touch-controls__btn--boost {
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 3rem;
+}
+
+.touch-controls--tablet .touch-controls__stick,
+.touch-controls--tablet .touch-controls__dpad {
+  width: 8.25rem;
+  height: 8.25rem;
 }
 
 .touch-controls__stick-row {
@@ -1212,6 +1251,99 @@ input {
    the stick fills whatever width the actions column leaves free. */
 .touch-controls--mobile .touch-controls__stick-wrap {
   width: 100%;
+}
+
+/* Cross-shaped attitude pad — same glass chrome as the stick, plus clip. */
+.touch-controls__dpad {
+  position: relative;
+  flex: 0 0 auto;
+  width: 9rem;
+  height: 9rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  /* Soft plus: thick arms, rounded tips via overflow+radius on a masked box. */
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
+  /* Edge drawn via inset ring — clip kills border. */
+  box-shadow:
+    var(--glass-inset),
+    inset 0 0 0 1px var(--glass-edge);
+  color: inherit;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  clip-path: polygon(
+    32% 0%,
+    68% 0%,
+    68% 32%,
+    100% 32%,
+    100% 68%,
+    68% 68%,
+    68% 100%,
+    32% 100%,
+    32% 68%,
+    0% 68%,
+    0% 32%,
+    32% 32%
+  );
+  -webkit-clip-path: polygon(
+    32% 0%,
+    68% 0%,
+    68% 32%,
+    100% 32%,
+    100% 68%,
+    68% 68%,
+    68% 100%,
+    32% 100%,
+    32% 68%,
+    0% 68%,
+    0% 32%,
+    32% 32%
+  );
+}
+
+.touch-controls__dpad-arm {
+  position: absolute;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--muted);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.touch-controls__dpad-arm--n {
+  top: 0.45rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.touch-controls__dpad-arm--s {
+  bottom: 0.45rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.touch-controls__dpad-arm--w {
+  left: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.touch-controls__dpad-arm--e {
+  right: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.touch-controls__knob--dpad {
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: -1.1rem 0 0 -1.1rem;
+  border-radius: 10px;
 }
 
 /* Roll pair (Q/E) — floats over the scene just above the panel's glass.

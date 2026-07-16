@@ -2,11 +2,22 @@ import type { ControlInput } from "./movement";
 
 /** Module-level touch drive flags — OR'd with keyboard in Player each frame. */
 
-const touch: ControlInput = {
+const stick = {
   forward: false,
   back: false,
   left: false,
   right: false,
+};
+
+/** D-pad attitude: pitch (N/S) + yaw/turn (E/W). Merged with stick for left/right. */
+const dpad = {
+  pitchUp: false,
+  pitchDown: false,
+  left: false,
+  right: false,
+};
+
+const buttons = {
   pitchUp: false,
   pitchDown: false,
   rollLeft: false,
@@ -26,41 +37,68 @@ export type TouchButton =
   | "rollRight";
 
 export function getTouchInput(): ControlInput {
-  return touch;
+  return {
+    forward: stick.forward,
+    back: stick.back,
+    left: stick.left || dpad.left,
+    right: stick.right || dpad.right,
+    pitchUp: dpad.pitchUp || buttons.pitchUp,
+    pitchDown: dpad.pitchDown || buttons.pitchDown,
+    rollLeft: buttons.rollLeft,
+    rollRight: buttons.rollRight,
+    boosting: buttons.boosting,
+    jump: buttons.jump,
+  };
 }
 
 export function setTouchAxis(axis: TouchAxis, pressed: boolean): void {
-  touch[axis] = pressed;
+  stick[axis] = pressed;
 }
 
 /** Set stick cardinals from a unit-ish vector (deadzone applied by caller). */
 export function setTouchStick(dx: number, dy: number, threshold = 0.35): void {
-  touch.forward = dy < -threshold;
-  touch.back = dy > threshold;
-  touch.left = dx < -threshold;
-  touch.right = dx > threshold;
+  stick.forward = dy < -threshold;
+  stick.back = dy > threshold;
+  stick.left = dx < -threshold;
+  stick.right = dx > threshold;
 }
 
 export function clearTouchStick(): void {
-  touch.forward = false;
-  touch.back = false;
-  touch.left = false;
-  touch.right = false;
+  stick.forward = false;
+  stick.back = false;
+  stick.left = false;
+  stick.right = false;
+}
+
+/**
+ * D-pad attitude from a unit-ish vector: N/S → pitch, E/W → yaw (turn).
+ * Deadzone applied by caller.
+ */
+export function setTouchDpad(dx: number, dy: number, threshold = 0.35): void {
+  dpad.pitchUp = dy < -threshold;
+  dpad.pitchDown = dy > threshold;
+  dpad.left = dx < -threshold;
+  dpad.right = dx > threshold;
+}
+
+export function clearTouchDpad(): void {
+  dpad.pitchUp = false;
+  dpad.pitchDown = false;
+  dpad.left = false;
+  dpad.right = false;
 }
 
 export function setTouchButton(button: TouchButton, pressed: boolean): void {
-  touch[button] = pressed;
+  buttons[button] = pressed;
 }
 
 export function clearTouchInput(): void {
-  touch.forward = false;
-  touch.back = false;
-  touch.left = false;
-  touch.right = false;
-  touch.pitchUp = false;
-  touch.pitchDown = false;
-  touch.rollLeft = false;
-  touch.rollRight = false;
-  touch.boosting = false;
-  touch.jump = false;
+  clearTouchStick();
+  clearTouchDpad();
+  buttons.pitchUp = false;
+  buttons.pitchDown = false;
+  buttons.rollLeft = false;
+  buttons.rollRight = false;
+  buttons.boosting = false;
+  buttons.jump = false;
 }
