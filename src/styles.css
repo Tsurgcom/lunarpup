@@ -57,8 +57,8 @@ input {
     rgba(20, 40, 70, 0.55),
     rgba(8, 16, 32, 0.72)
   );
-  backdrop-filter: blur(var(--blur)) saturate(1.35);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
   border: 1px solid
     color-mix(in srgb, var(--hud-glow) 45%, rgba(255, 255, 255, 0.15));
   clip-path: polygon(
@@ -142,8 +142,8 @@ input {
   gap: 0;
   padding: 0.35rem;
   background: var(--glass);
-  backdrop-filter: blur(var(--blur)) saturate(1.35);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
   border: 1px solid var(--glass-edge);
   border-radius: 12px;
   box-shadow: var(--glass-inset);
@@ -240,8 +240,8 @@ input {
   border: 0;
   border-top: 1px solid var(--glass-edge);
   background: var(--glass);
-  backdrop-filter: blur(var(--blur)) saturate(1.4);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.4);
+  backdrop-filter: blur(var(--blur)) saturate(1.4);
   border-radius: 0;
   box-shadow: var(--glass-inset);
   text-align: left;
@@ -441,8 +441,8 @@ input {
   color: var(--ink);
   border-radius: 10px;
   padding: 0.65rem 0.75rem;
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   cursor: pointer;
   text-align: left;
   box-shadow: var(--glass-inset);
@@ -511,8 +511,8 @@ input {
   border: 1px solid var(--glass-edge);
   border-radius: 12px;
   background: rgba(18, 26, 44, 0.82);
-  backdrop-filter: blur(var(--blur)) saturate(1.4);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.4);
+  backdrop-filter: blur(var(--blur)) saturate(1.4);
   box-shadow:
     var(--glass-inset),
     0 12px 32px rgba(0, 0, 0, 0.35);
@@ -691,8 +691,8 @@ input {
   line-height: 1.35;
   color: var(--ink);
   background: rgba(8, 14, 28, 0.72);
-  backdrop-filter: blur(var(--blur)) saturate(1.2);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
+  backdrop-filter: blur(var(--blur)) saturate(1.2);
   border: 1px solid var(--glass-edge);
   border-radius: 10px;
   box-shadow: var(--glass-inset);
@@ -715,8 +715,8 @@ input {
   line-height: 1.35;
   color: var(--ink);
   background: rgba(8, 14, 28, 0.82);
-  backdrop-filter: blur(var(--blur)) saturate(1.2);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
+  backdrop-filter: blur(var(--blur)) saturate(1.2);
   border: 1px solid var(--glass-edge);
   border-radius: 10px;
   box-shadow: var(--glass-inset);

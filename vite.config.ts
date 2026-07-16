@@ -2,11 +2,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { cssClassObfuscator } from "./vite/cssClassObfuscator";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Hybrid: Lightning CSS minifies; this remaps class names in the final
+    // CSS/JS assets. (postcss-obfuscator can't — it rewrites a copy under
+    // `out/` while Vite still bundles `src/`.)
+    cssClassObfuscator({
+      emitMap: process.env.CSS_CLASS_MAP === "1",
+    }),
+  ],
   resolve: {
     // v1/v2 archives ship their own node_modules; without dedupe Vite can
     // pair root `react` with archive `react-dom` → invalid hook call.
@@ -37,6 +46,9 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
+    // Keep Lightning CSS for speed. Pair with webkit-first `backdrop-filter`
+    // in styles.css so the unprefixed property is preserved (lightningcss#1229).
+    cssMinify: "lightningcss",
     sourcemap: false,
     reportCompressedSize: false,
     // The `three` chunk (~725 kB min) can't be split: R3F imports the whole
