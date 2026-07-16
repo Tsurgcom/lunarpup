@@ -31,11 +31,11 @@ type WorldProps = {
   onSnapshot: (snap: PlayerSnapshot) => void;
 };
 
-/** Soft illustrator space — deep near-black like v1, not teal wash. */
-const SPACE_COLOR = "#020208";
+/** Soft lunar night — near-black with a hint of cool blue. */
+const SPACE_COLOR = "#010106";
 
 /**
- * Earth in a fixed inertial direction — visual only.
+ * Earth in a fixed inertial direction — decorative backdrop only.
  */
 const EARTH_DIR = new THREE.Vector3(-0.55, 0.28, -0.78).normalize();
 const EARTH_DIST = MOON_RADIUS * 14;
@@ -48,7 +48,8 @@ const _lightPos = new THREE.Vector3();
 const _side = new THREE.Vector3();
 
 /**
- * Soft studio key that rides with the pup — contact shadows without a sun.
+ * Soft overhead key that rides with the pup — contact shadows without a sun.
+ * Kept mostly radial so yaw / camera orbit does not relight the ground.
  * Frustum extents are fixed; only position/target track the pup each frame.
  */
 function StudioKey() {
@@ -86,11 +87,13 @@ function StudioKey() {
     if (_radial.lengthSq() < 1e-6) _radial.set(0, 1, 0);
     else _radial.normalize();
 
+    // Tiny side bias for readable contact shadows — mostly radial so turning
+    // the camera does not flip which bowl wall is lit.
     _side.set(_radial.z, -_radial.x * 0.4, -_radial.x).normalize();
     _lightPos
       .copy(_target)
-      .addScaledVector(_radial, 48)
-      .addScaledVector(_side, 22);
+      .addScaledVector(_radial, 56)
+      .addScaledVector(_side, 8);
     L.position.copy(_lightPos);
     L.target.position.copy(_target);
     L.target.updateMatrixWorld();
@@ -112,8 +115,8 @@ function StudioKey() {
   return (
     <directionalLight
       ref={light}
-      intensity={1.85}
-      color="#ddddff"
+      intensity={1.25}
+      color="#c8d4ee"
       castShadow={perf.shadows}
       shadow-mapSize={[perf.shadowMapSize, perf.shadowMapSize]}
       shadow-bias={-0.00008}
@@ -130,7 +133,7 @@ function Earth() {
     <group position={[EARTH_POS.x, EARTH_POS.y, EARTH_POS.z]}>
       <mesh>
         <sphereGeometry args={[EARTH_RADIUS, 16, 16]} />
-        <meshBasicMaterial color="#4a9fd8" fog={false} />
+        <meshBasicMaterial color="#3d8fc4" fog={false} />
       </mesh>
       <mesh
         position={[
@@ -141,7 +144,7 @@ function Earth() {
         scale={[0.55, 0.4, 0.2]}
       >
         <sphereGeometry args={[EARTH_RADIUS, 10, 10]} />
-        <meshBasicMaterial color="#6bcb77" fog={false} />
+        <meshBasicMaterial color="#5aaf68" fog={false} />
       </mesh>
       <mesh
         position={[
@@ -152,14 +155,26 @@ function Earth() {
         scale={[0.4, 0.55, 0.18]}
       >
         <sphereGeometry args={[EARTH_RADIUS, 10, 10]} />
-        <meshBasicMaterial color="#5aad68" fog={false} />
+        <meshBasicMaterial color="#4a9a5a" fog={false} />
       </mesh>
-      <mesh scale={1.08}>
+      {/* Soft glow so Earth reads as the night-side light source. */}
+      <mesh scale={1.12}>
         <sphereGeometry args={[EARTH_RADIUS, 16, 16]} />
         <meshBasicMaterial
-          color="#9ad4ff"
+          color="#7ec8ff"
           transparent
-          opacity={0.28}
+          opacity={0.22}
+          side={THREE.BackSide}
+          depthWrite={false}
+          fog={false}
+        />
+      </mesh>
+      <mesh scale={1.35}>
+        <sphereGeometry args={[EARTH_RADIUS, 12, 12]} />
+        <meshBasicMaterial
+          color="#4a90c8"
+          transparent
+          opacity={0.08}
           side={THREE.BackSide}
           depthWrite={false}
           fog={false}
@@ -177,7 +192,7 @@ export function World({
   paused,
   onSnapshot,
 }: WorldProps) {
-  const fogDensity = 0.00135;
+  const fogDensity = 0.0011;
 
   useLayoutEffect(() => {
     setTerrainGenerator(lunarSurface);
@@ -190,8 +205,10 @@ export function World({
       <color attach="background" args={[SPACE_COLOR]} />
       <fogExp2 attach="fog" args={[SPACE_COLOR, fogDensity]} />
 
-      <ambientLight intensity={1.15} color="#2a2a3a" />
-      <hemisphereLight args={["#9aabd8", "#16121c", 0.32]} />
+      {/* Cool fill baked into ambient/hemi — no fixed-direction earthshine
+          light, which made turning relight crater walls. */}
+      <ambientLight intensity={0.88} color="#243044" />
+      <hemisphereLight args={["#6a82a8", "#14161c", 0.45]} />
       <StudioKey />
 
       <Starfield />
