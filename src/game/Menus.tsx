@@ -5,6 +5,7 @@ import {
   formatPerfTierName,
   getPerfOverride,
   getPerfOverrideLabel,
+  getPerfSettings,
   type PerfOverride,
   type PerfTierId,
   setPerfOverride,
@@ -56,12 +57,6 @@ function valueToOverride(v: string): PerfOverride {
   return Number(v) as PerfTierId;
 }
 
-function labelForOverrideValue(v: string): string {
-  const o = valueToOverride(v);
-  if (o === "auto") return getPerfOverrideLabel();
-  return formatPerfTierName(o);
-}
-
 function PerformanceTierField() {
   const override = useSyncExternalStore(
     subscribePerf,
@@ -69,19 +64,27 @@ function PerformanceTierField() {
     getPerfOverride,
   );
   // Re-render when the adaptive tier changes so Auto (X) stays live.
-  useSyncExternalStore(
+  const settings = useSyncExternalStore(
     subscribePerf,
-    getPerfOverrideLabel,
-    getPerfOverrideLabel,
+    getPerfSettings,
+    getPerfSettings,
   );
+
+  const options = PERF_OVERRIDE_OPTIONS.map((o) => ({
+    value: o.value,
+    label:
+      o.override === "auto"
+        ? `Auto (${formatPerfTierName(settings.name)})`
+        : formatPerfTierName(o.override),
+  }));
 
   return (
     <GlassSelect
       id="menu-perf"
       label="Performance"
       value={overrideToValue(override)}
-      options={PERF_OVERRIDE_OPTIONS.map((o) => ({ value: o.value }))}
-      labelFor={labelForOverrideValue}
+      options={options}
+      labelFor={() => getPerfOverrideLabel()}
       onChange={(v) => setPerfOverride(valueToOverride(v))}
     />
   );
@@ -123,7 +126,7 @@ function OptionsFields({
 
       <PerformanceTierField />
       <p className="menu__hint">
-        Auto starts low and climbs with your machine. Pick a tier to lock
+        Auto starts at High and adjusts with your machine. Pick a tier to lock
         quality.
       </p>
     </div>
@@ -137,6 +140,10 @@ function ControlsBody() {
         <kbd>W</kbd> forward · <kbd>S</kbd> reverse · <kbd>A</kbd>/<kbd>D</kbd>{" "}
         turn · <kbd>F</kbd> nose up · <kbd>R</kbd> nose down · <kbd>Q</kbd>/
         <kbd>E</kbd> roll · <kbd>Shift</kbd> boost · <kbd>Esc</kbd> pause
+      </p>
+      <p className="menu__controls">
+        Touch: left stick moves · jump / boost on the right · nose & roll
+        buttons for air attitude
       </p>
       <p className="menu__controls">
         Drag to orbit · scroll to zoom · FOV opens up at speed

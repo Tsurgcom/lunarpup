@@ -20,6 +20,7 @@ import { plantOnShell } from "./rideShell";
 import { SkateDog } from "./SkateDog";
 import { setSpeedFx } from "./speedLinesUtil";
 import { consumeTeleport } from "./teleport";
+import { getTouchInput } from "./touchInput";
 import type { PlayerSnapshot } from "./types";
 
 type Controls =
@@ -154,17 +155,18 @@ export function Player({
       }
 
       const keys = getKeys();
+      const touch = getTouchInput();
       const input = inputRef.current;
-      input.forward = keys.forward;
-      input.back = keys.back;
-      input.left = keys.left;
-      input.right = keys.right;
-      input.pitchUp = keys.pitchUp;
-      input.pitchDown = keys.pitchDown;
-      input.rollLeft = keys.rollLeft;
-      input.rollRight = keys.rollRight;
-      input.boosting = keys.boost;
-      input.jump = keys.jump;
+      input.forward = keys.forward || touch.forward;
+      input.back = keys.back || touch.back;
+      input.left = keys.left || touch.left;
+      input.right = keys.right || touch.right;
+      input.pitchUp = keys.pitchUp || touch.pitchUp;
+      input.pitchDown = keys.pitchDown || touch.pitchDown;
+      input.rollLeft = keys.rollLeft || touch.rollLeft;
+      input.rollRight = keys.rollRight || touch.rollRight;
+      input.boosting = keys.boost || touch.boosting;
+      input.jump = keys.jump || touch.jump;
 
       physAcc.current += dt;
       let steps = 0;
