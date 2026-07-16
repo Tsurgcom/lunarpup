@@ -1,11 +1,15 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
+import { PlayerNameTag } from "./PlayerNameTag";
 import { getPeer, getPeerIds, subscribeRoster } from "./peerStore";
 import { applySkateDogStyle, SkateDog } from "./SkateDog";
 
 type PupEntry = {
   group: THREE.Group | null;
+  nameAnchor: THREE.Group | null;
+  nameLabel: HTMLDivElement | null;
+  name: string;
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
   euler: THREE.Euler;
@@ -21,6 +25,9 @@ function ensureEntry(peerId: string, entries: Map<string, PupEntry>): PupEntry {
   const snap = getPeer(peerId);
   entry = {
     group: null,
+    nameAnchor: null,
+    nameLabel: null,
+    name: snap?.name ?? peerId.slice(0, 6),
     pos: new THREE.Vector3(),
     quat: new THREE.Quaternion(),
     euler: new THREE.Euler(),
@@ -70,6 +77,11 @@ export function RemotePlayers() {
         applySkateDogStyle(g, snap.fur, snap.accent, ghost);
       }
 
+      if (snap.name !== entry.name) {
+        entry.name = snap.name;
+        if (entry.nameLabel) entry.nameLabel.textContent = snap.name;
+      }
+
       entry.pos.set(snap.x, snap.y, snap.z);
       entry.euler.set(snap.pitch, snap.yaw, snap.roll, "YXZ");
       entry.quat.setFromEuler(entry.euler);
@@ -77,6 +89,7 @@ export function RemotePlayers() {
       if (!entry.initialized) {
         g.position.copy(entry.pos);
         g.quaternion.copy(entry.quat);
+        if (entry.nameAnchor) entry.nameAnchor.position.copy(entry.pos);
         entry.initialized = true;
         continue;
       }
@@ -85,11 +98,13 @@ export function RemotePlayers() {
       if (g.position.distanceToSquared(entry.pos) > 40 * 40) {
         g.position.copy(entry.pos);
         g.quaternion.copy(entry.quat);
+        if (entry.nameAnchor) entry.nameAnchor.position.copy(entry.pos);
         continue;
       }
 
       g.position.lerp(entry.pos, alpha);
       g.quaternion.slerp(entry.quat, alpha);
+      if (entry.nameAnchor) entry.nameAnchor.position.copy(g.position);
     }
   });
 
@@ -112,19 +127,35 @@ function RemotePupMount({
   // Mount-only style props — mid-session changes go through applySkateDogStyle.
   const initial = useRef<PupEntry | null>(null);
   if (!initial.current) initial.current = ensureEntry(peerId, entries);
-  const { fur, accent, ghost } = initial.current;
+  const { fur, accent, ghost, name } = initial.current;
 
   return (
-    <SkateDog
-      ref={(node) => {
-        const entry = ensureEntry(peerId, entries);
-        entry.group = node;
-        if (!node) entry.initialized = false;
-      }}
-      fur={fur}
-      accent={accent}
-      ghost={ghost}
-      frustumCulled
-    />
+    <>
+      <SkateDog
+        ref={(node) => {
+          const entry = ensureEntry(peerId, entries);
+          entry.group = node;
+          if (!node) entry.initialized = false;
+        }}
+        fur={fur}
+        accent={accent}
+        ghost={ghost}
+        frustumCulled
+      />
+      <group
+        ref={(node) => {
+          const entry = ensureEntry(peerId, entries);
+          entry.nameAnchor = node;
+        }}
+      >
+        <PlayerNameTag
+          name={name}
+          labelRef={(el) => {
+            const entry = ensureEntry(peerId, entries);
+            entry.nameLabel = el;
+          }}
+        />
+      </group>
+    </>
   );
 }
