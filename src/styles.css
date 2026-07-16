@@ -34,6 +34,23 @@ input {
   font: inherit;
 }
 
+.pup-name {
+  font-family: "Nunito", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.85),
+    0 0 10px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  user-select: none;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
 .hud {
   position: fixed;
   inset: 0;
@@ -414,6 +431,68 @@ input {
   line-height: 1.4;
 }
 
+.menu__hint--tight {
+  margin: 0.35rem 0 0.85rem;
+}
+
+.menu__lead {
+  margin: 1rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.menu__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.85rem 0 0.65rem;
+  color: var(--muted);
+  font-family: "DM Mono", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu__divider::before,
+.menu__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--glass-edge);
+}
+
+.menu__code {
+  font-family: "DM Mono", monospace;
+  font-size: 0.92rem;
+  color: var(--accent);
+  margin-right: 0.65rem;
+}
+
+.menu__link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menu__link:active {
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .menu__link:hover {
+    color: var(--ink);
+  }
+}
+
 .menu__select {
   position: relative;
   margin-top: 0.15rem;
@@ -620,6 +699,54 @@ input {
 
 .menu__meta strong[data-status="error"] {
   color: #ff8f8f;
+}
+
+.menu__roster {
+  list-style: none;
+  margin: 1.1rem 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.menu__roster-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-edge);
+}
+
+.menu__roster-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu__roster-ready {
+  flex-shrink: 0;
+  font-family: "DM Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.menu__roster-ready.is-ready {
+  color: var(--ok);
+}
+
+.menu__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
 }
 
 .menu__options + .menu__btn,
