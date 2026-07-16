@@ -39,7 +39,47 @@ export function pickStyle(seed: string): { fur: string; accent: string } {
   return { fur, accent };
 }
 
-export function defaultRoomId(): string {
+/** Skate world id from URL (`?world=` or legacy `?room=`). */
+export function defaultWorldId(): string {
   const params = new URLSearchParams(window.location.search);
-  return params.get("room") ?? "moon-bowl";
+  return params.get("world") ?? params.get("room") ?? "moon-bowl";
+}
+
+/** Party invite from URL (`?party=`), or null. */
+export function defaultPartyId(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const party = params.get("party");
+  return party && party.trim() ? party.trim() : null;
+}
+
+/** @deprecated Use defaultWorldId */
+export function defaultRoomId(): string {
+  return defaultWorldId();
+}
+
+const PARTY_CODE_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+/** Short readable party code, e.g. `pup-a1b2c3`. */
+export function generatePartyCode(): string {
+  let suffix = "";
+  const n = PARTY_CODE_CHARS.length;
+  for (let i = 0; i < 6; i++) {
+    const ch = PARTY_CODE_CHARS[Math.floor(Math.random() * n)];
+    suffix += ch ?? "x";
+  }
+  return `pup-${suffix}`;
+}
+
+export function writeWorldToUrl(world: string): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set("world", world);
+  url.searchParams.delete("room");
+  window.history.replaceState({}, "", url);
+}
+
+export function writePartyToUrl(party: string | null): void {
+  const url = new URL(window.location.href);
+  if (party) url.searchParams.set("party", party);
+  else url.searchParams.delete("party");
+  window.history.replaceState({}, "", url);
 }
