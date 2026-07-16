@@ -1,6 +1,6 @@
 /**
- * Adaptive performance tiers — start at the lowest setting and climb only
- * when the machine sustains the target frame budget.
+ * Adaptive performance tiers — start at High, then climb or drop based on
+ * sustained fps stability.
  */
 
 export type PerfTierId = 0 | 1 | 2 | 3;
@@ -35,11 +35,13 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1,
     shadows: false,
     shadowMapSize: 512,
-    lodSubdivScale: 0.45,
+    // Tessellation is shared across tiers — changing scale remeshes the whole
+    // stream and made Low feel worse than Ultra (climb = remesh storm).
+    lodSubdivScale: 1,
     starCount: 220,
     moonWidthSegs: 24,
     moonHeightSegs: 18,
-    maxChunkAttachPerFrame: 1,
+    maxChunkAttachPerFrame: 4,
   },
   {
     tier: 1,
@@ -47,11 +49,11 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1.25,
     shadows: true,
     shadowMapSize: 512,
-    lodSubdivScale: 0.65,
+    lodSubdivScale: 1,
     starCount: 450,
     moonWidthSegs: 40,
     moonHeightSegs: 30,
-    maxChunkAttachPerFrame: 1,
+    maxChunkAttachPerFrame: 4,
   },
   {
     tier: 2,
@@ -59,12 +61,11 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1.5,
     shadows: true,
     shadowMapSize: 1024,
-    // Full ring subdiv — shader micro-detail replaces raw tessellation.
     lodSubdivScale: 1,
     starCount: 700,
     moonWidthSegs: 56,
     moonHeightSegs: 42,
-    maxChunkAttachPerFrame: 2,
+    maxChunkAttachPerFrame: 4,
   },
   {
     tier: 3,
@@ -72,12 +73,11 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 2,
     shadows: true,
     shadowMapSize: 1024,
-    // Modest bump — GPU grit carries the rest (was ×1.35 / historically ×4).
-    lodSubdivScale: 1.2,
+    lodSubdivScale: 1,
     starCount: 900,
     moonWidthSegs: 64,
     moonHeightSegs: 48,
-    maxChunkAttachPerFrame: 2,
+    maxChunkAttachPerFrame: 4,
   },
 ] as const;
 
@@ -99,7 +99,7 @@ export const PERF_COOLDOWN_MS = 1800;
 
 const listeners = new Set<() => void>();
 
-let settings: PerfSettings = PERF_TIERS[0]!;
+let settings: PerfSettings = PERF_TIERS[2]!;
 let override: PerfOverride = "auto";
 let fpsEma = 60;
 let elapsedMs = 0;
@@ -166,7 +166,7 @@ export function isPerfAuto(): boolean {
 
 /**
  * Closed-trigger label for Options.
- * Auto shows the live adaptive mode in brackets: `Auto (Medium)`.
+ * Auto shows the live adaptive mode in brackets: `Auto (High)`.
  */
 export function getPerfOverrideLabel(): string {
   if (override === "auto") {
@@ -224,7 +224,8 @@ export function setPerfOverride(next: PerfOverride): void {
 
 /**
  * Reset adaptive state and re-probe hardware. Preserves the Options override:
- * auto boots at low; a locked tier reapplies itself.
+ * auto boots at High (clamped to the hardware max) then scales up/down from
+ * fps stability; a locked tier reapplies itself.
  */
 export function resetPerformanceTier(): void {
   if (!hardwareCapped) {
@@ -237,7 +238,8 @@ export function resetPerformanceTier(): void {
   downHoldMs = 0;
   cooldownMs = 0;
   if (override === "auto") {
-    settings = PERF_TIERS[0]!;
+    const boot = Math.min(2, maxTier) as PerfTierId;
+    settings = PERF_TIERS[boot]!;
   } else {
     settings = PERF_TIERS[override]!;
   }

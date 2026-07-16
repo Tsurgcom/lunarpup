@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  formatPerfTierName,
+  getPerfMaxTier,
   getPerfOverride,
   getPerfOverrideLabel,
   getPerfSettings,
@@ -20,13 +22,13 @@ function advance(ms: number, dt = 16.67): void {
 }
 
 describe("performanceTiers", () => {
-  test("boots at the lowest tier", () => {
+  test("auto boots at high when hardware allows", () => {
     setPerfOverride("auto");
     resetPerformanceTier();
-    expect(getPerfSettings().tier).toBe(0);
-    expect(getPerfSettings().name).toBe("low");
-    expect(getPerfSettings()).toEqual(PERF_TIERS[0]!);
-    expect(getPerfOverrideLabel()).toBe("Auto (Low)");
+    const boot = Math.min(2, getPerfMaxTier());
+    expect(getPerfSettings().tier).toBe(boot);
+    expect(getPerfSettings()).toEqual(PERF_TIERS[boot]!);
+    expect(getPerfOverrideLabel()).toBe(`Auto (${formatPerfTierName(boot)})`);
   });
 
   test("scaleLodSubdiv floors to a usable minimum", () => {
@@ -36,12 +38,20 @@ describe("performanceTiers", () => {
     expect(scaleLodSubdiv(28, 1.2)).toBe(34);
   });
 
+  test("all tiers share tessellation scale so climbs do not remesh", () => {
+    expect(PERF_TIERS[0]!.lodSubdivScale).toBe(1);
+    expect(PERF_TIERS[1]!.lodSubdivScale).toBe(1);
+    expect(PERF_TIERS[2]!.lodSubdivScale).toBe(1);
+    expect(PERF_TIERS[3]!.lodSubdivScale).toBe(1);
+  });
+
   test("high uses full ring subdiv", () => {
     expect(PERF_TIERS[2]!.lodSubdivScale).toBe(1);
   });
 
-  test("ultra only modestly boosts clipmap subdiv", () => {
-    expect(PERF_TIERS[3]!.lodSubdivScale).toBe(1.2);
+  test("attach budget stays open so stream catch-up is not starved", () => {
+    expect(PERF_TIERS[0]!.maxChunkAttachPerFrame).toBeGreaterThanOrEqual(3);
+    expect(PERF_TIERS[3]!.maxChunkAttachPerFrame).toBeGreaterThanOrEqual(3);
   });
 
   test("climbs after warm-up when fps stays high", () => {
