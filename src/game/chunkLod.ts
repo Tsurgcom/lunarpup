@@ -2,11 +2,15 @@ import * as THREE from "three";
 import { MAX_SPEED, MOON_RADIUS } from "./moon";
 import { getPerfSettings, scaleLodSubdiv } from "./performanceTiers";
 
-/** Icosahedron subdivision for streamable triangular chunks (20·4^n faces). */
-export const ICO_CHUNK_DETAIL = 2;
+/**
+ * Icosahedron subdivision for streamable triangular chunks (20·4^n faces).
+ * Detail 1 → 80 larger faces (~2× edge vs detail 2) so each chunk covers more
+ * ground; mesh density comes from {@link CLIPMAP_LODS} edge subdiv.
+ */
+export const ICO_CHUNK_DETAIL = 1;
 
 /** Base load radius (arc length) before velocity expansion. */
-export const CHUNK_ARC_RADIUS = 220;
+export const CHUNK_ARC_RADIUS = 240;
 
 /**
  * Extra arc kept after a face leaves the enter radius — stops flicker at
@@ -56,14 +60,14 @@ export const CLIPMAP_LODS: readonly {
   /** Debug minimap colour for this ring. */
   color: string;
 }[] = [
-  { maxArc: 28, subdiv: 28, color: "#22c55e" }, // close — green
-  { maxArc: 70, subdiv: 16, color: "#eab308" }, // mid — yellow
-  { maxArc: 130, subdiv: 8, color: "#f97316" }, // mid-far — orange
-  { maxArc: CHUNK_ARC_RADIUS, subdiv: 4, color: "#a855f7" }, // horizon — purple
+  { maxArc: 45, subdiv: 48, color: "#22c55e" }, // close — green
+  { maxArc: 100, subdiv: 24, color: "#eab308" }, // mid — yellow
+  { maxArc: 165, subdiv: 12, color: "#f97316" }, // mid-far — orange
+  { maxArc: CHUNK_ARC_RADIUS, subdiv: 6, color: "#a855f7" }, // horizon — purple
 ];
 
 /** Fallback subdiv beyond the outer ring (should not appear while loaded). */
-export const ICO_FACE_SUBDIV = 4;
+export const ICO_FACE_SUBDIV = 6;
 
 // ---------------------------------------------------------------------------
 // Terrain generator API (stub until a heightfield lands)

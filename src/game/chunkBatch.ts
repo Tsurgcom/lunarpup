@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MOON_RADIUS } from "./moon";
 
 /**
  * Merges same-subdiv face patches into one mesh per ring so terrain draws
@@ -8,6 +9,23 @@ import * as THREE from "three";
 const COMPACT_DEAD_RATIO = 0.35;
 /** Starting face slots per ring (grows by doubling). */
 const INITIAL_FACE_SLOTS = 8;
+
+/** Loose whole-moon bounds — avoids O(verts) computeBoundingSphere on attach. */
+const BATCH_BOUNDS_RADIUS = MOON_RADIUS * 1.2;
+
+function setBatchBounds(geometry: THREE.BufferGeometry): void {
+  if (!geometry.boundingSphere) {
+    geometry.boundingSphere = new THREE.Sphere(
+      new THREE.Vector3(0, 0, 0),
+      BATCH_BOUNDS_RADIUS,
+    );
+  } else {
+    geometry.boundingSphere.center.set(0, 0, 0);
+    geometry.boundingSphere.radius = BATCH_BOUNDS_RADIUS;
+  }
+  // Skip expensive auto recompute when attributes update.
+  geometry.boundingSphere.radius = BATCH_BOUNDS_RADIUS;
+}
 
 type FaceSlice = {
   faceIndex: number;
@@ -139,7 +157,7 @@ export class ChunkBatchManager {
     ring.norAttr.needsUpdate = true;
     ring.idxAttr.needsUpdate = true;
     ring.geometry.setDrawRange(0, ring.indexCount);
-    ring.geometry.computeBoundingSphere();
+    setBatchBounds(ring.geometry);
   }
 
   /** Remove a face from whichever ring holds it. */
@@ -172,14 +190,29 @@ export class ChunkBatchManager {
     }
 
     const liveVerts = ring.vertCount - ring.deadVerts;
-    if (
-      ring.deadVerts > 0 &&
-      ring.deadVerts / Math.max(ring.vertCount, 1) >= COMPACT_DEAD_RATIO
-    ) {
-      this.compact(ring);
-    } else if (liveVerts > 0) {
-      ring.geometry.computeBoundingSphere();
+    if (liveVerts > 0) {
+      setBatchBounds(ring.geometry);
     }
+    // Compaction is deferred — see compactDirty(). Running it inline on
+    // detach hitchs the same frame as streaming attaches.
+  }
+
+  /**
+   * Compact at most one ring that has accumulated enough dead verts.
+   * Call once per frame after attaches so realloc stays off the hot path.
+   */
+  compactDirty(): boolean {
+    for (const ring of this.rings.values()) {
+      if (ring.slices.size === 0) continue;
+      if (
+        ring.deadVerts > 0 &&
+        ring.deadVerts / Math.max(ring.vertCount, 1) >= COMPACT_DEAD_RATIO
+      ) {
+        this.compact(ring);
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Drop every ring and mesh. */
@@ -379,7 +412,7 @@ export class ChunkBatchManager {
     ring.geometry.setAttribute("normal", ring.norAttr);
     ring.geometry.setIndex(ring.idxAttr);
     ring.geometry.setDrawRange(0, indexCount);
-    ring.geometry.computeBoundingSphere();
+    setBatchBounds(ring.geometry);
   }
 
   private destroyRing(subdiv: number): void {

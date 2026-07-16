@@ -9,7 +9,8 @@ import { getLocalPose } from "./localPose";
  * {@link ChunkTerrain} consumes the plan and rebuilds patches on workers.
  *
  * Streaming is pup/viewer-centric (arc + horizon) — intentionally ignores
- * the chase camera so orbiting never thrash-loads chunks.
+ * the chase camera so orbiting never thrash-loads chunks. GPU draw culling
+ * uses the real camera frustum in {@link ChunkTerrain}.
  */
 export function ChunkLodDriver() {
   useEffect(() => () => resetChunkLod(), []);
