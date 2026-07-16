@@ -142,6 +142,10 @@ function ControlsBody() {
         <kbd>E</kbd> roll · <kbd>Shift</kbd> boost · <kbd>Esc</kbd> pause
       </p>
       <p className="menu__controls">
+        Touch: left stick moves · jump / boost on the right · nose & roll
+        buttons for air attitude
+      </p>
+      <p className="menu__controls">
         Drag to orbit · scroll to zoom · FOV opens up at speed
       </p>
       <p>
