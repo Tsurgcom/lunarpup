@@ -1,5 +1,7 @@
 # Lunar Pup
 
+![Lunar Pup](lunapup.webp)
+
 Playable browser moon-skate starter for hackathons.
 
 Stack: **React**, **React Three Fiber**, **Drei**, **Three.js**, and optional
