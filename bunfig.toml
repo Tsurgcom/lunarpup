@@ -1,3 +1,2 @@
 [test]
-# Keep archive tests out of the default suite — run with `bun test v1` / `bun test v2`.
 root = "./src"
