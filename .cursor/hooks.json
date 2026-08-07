@@ -1,9 +1,11 @@
 {
   "version": 1,
   "hooks": {
-    "afterFileEdit": [
+    "stop": [
       {
-        "command": ".cursor/hooks/biome.sh"
+        "command": ".cursor/hooks/biome.sh",
+        "timeout": 180,
+        "loop_limit": 3
       }
     ]
   }
