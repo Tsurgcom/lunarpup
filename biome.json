@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!!v1", "!!v2", "!!.agents", "!!dist"]
+    "includes": ["**", "!!.agents", "!!dist"]
   },
   "formatter": {
     "enabled": true,

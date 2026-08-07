@@ -2,21 +2,25 @@ import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
 import {
   cancelStaleFaceBuilds,
+  drainChunkBuildResults,
   faceBuildKey,
+  getChunkQueueDepth,
   requestFaceGeometry,
   resetChunkBuildQueue,
 } from "./chunkBuild";
-import { createFaceGeometryData } from "./chunkGeometry";
+import { createFaceGeometryData, faceIndicesForSubdiv } from "./chunkGeometry";
 import {
   CLIPMAP_LODS,
   computeLodViewer,
   cullFaces,
   faceBackCulled,
   faceLodLevel,
+  faceOverHorizon,
   facesNear,
   faceWithinArc,
   geodesicDistance,
   getIcoFaces,
+  HORIZON_COS,
   lodColor,
   resetChunkLod,
   sampleTerrainHeight,
@@ -29,8 +33,8 @@ import { MOON_RADIUS, SPAWN_DIR } from "./moon";
 describe("chunkLod", () => {
   test("icosphere chunks cover the sphere", () => {
     const faces = getIcoFaces();
-    // detail 2 → 20·4² = 320
-    expect(faces.length).toBe(320);
+    // detail 1 → 20·4¹ = 80
+    expect(faces.length).toBe(80);
     for (const f of faces) {
       expect(f.centroid.length()).toBeCloseTo(1, 5);
       expect(f.neighbors.length).toBeGreaterThanOrEqual(3);
@@ -48,7 +52,8 @@ describe("chunkLod", () => {
 
   test("corner-aware cull keeps faces the centroid test would drop", () => {
     const faces = getIcoFaces();
-    const tight = 35;
+    // Detail-1 faces are large — use a mid-ring arc so corner-only hits exist.
+    const tight = 90;
     const cos = Math.cos(tight / MOON_RADIUS);
     let found = false;
     for (const f of faces) {
@@ -69,21 +74,43 @@ describe("chunkLod", () => {
     }
   });
 
-  test("back-face cull drops the far hemisphere", () => {
+  test("back-face / horizon cull drops the far hemisphere", () => {
     const faces = getIcoFaces();
     const far = faces.find((f) => f.centroid.dot(SPAWN_DIR) < -0.5);
     expect(far).toBeDefined();
     expect(faceBackCulled(SPAWN_DIR, far!)).toBe(true);
+    expect(faceOverHorizon(SPAWN_DIR, far!, HORIZON_COS)).toBe(true);
     const near = faces.find((f) => f.centroid.dot(SPAWN_DIR) > 0.9);
     expect(near).toBeDefined();
     expect(faceBackCulled(SPAWN_DIR, near!)).toBe(false);
+    expect(faceOverHorizon(SPAWN_DIR, near!, HORIZON_COS)).toBe(false);
+  });
+
+  test("clipmap uses four LOD rings", () => {
+    expect(CLIPMAP_LODS.length).toBe(4);
+    expect(CLIPMAP_LODS[0]!.subdiv).toBeGreaterThan(CLIPMAP_LODS[3]!.subdiv);
+  });
+
+  test("horizon cull drops over-the-limb faces from the load set", () => {
+    const enter = 200;
+    const exit = 228;
+    const kept = cullFaces(SPAWN_DIR, enter, exit, new Set());
+    expect(kept.length).toBeGreaterThan(0);
+    for (const f of kept) {
+      expect(faceOverHorizon(SPAWN_DIR, f, HORIZON_COS)).toBe(false);
+    }
+    // Far-side faces never appear even if the arc would be huge.
+    const far = getIcoFaces().find((f) => f.centroid.dot(SPAWN_DIR) < -0.5);
+    expect(far).toBeDefined();
+    expect(kept.some((f) => f.index === far!.index)).toBe(false);
   });
 
   test("hysteresis keeps a face after it leaves the enter arc", () => {
     resetChunkLod();
     const faces = getIcoFaces();
-    const enter = 60;
-    const exit = 88;
+    // Wider band for detail-1 faces (~170 m edges).
+    const enter = 110;
+    const exit = 170;
     // Must be outside enter by corners (not just centroid) so a cold cull
     // drops it, while exit arc still covers the centroid.
     const boundary = faces.find((f) => {
@@ -158,6 +185,14 @@ describe("chunkLod", () => {
     }
   });
 
+  test("unchanged plan reuses the chunks array reference", () => {
+    resetChunkLod();
+    const pos = SPAWN_DIR.clone().multiplyScalar(320);
+    const a = updateChunkLod(pos.x, pos.y, pos.z, 0, 0, 0);
+    const b = updateChunkLod(pos.x, pos.y, pos.z, 0, 0, 0);
+    expect(b.chunks).toBe(a.chunks);
+  });
+
   test("terrain generator API samples registered height", () => {
     setTerrainGenerator({
       name: "test",
@@ -173,7 +208,9 @@ describe("chunkBuild", () => {
   test("sync fallback builds transferable geometry", async () => {
     resetChunkBuildQueue();
     const face = getIcoFaces()[0]!;
-    const geo = await requestFaceGeometry(face, 4, 10);
+    const geoPromise = requestFaceGeometry(face, 4, 10);
+    // Worker results sit in a ready queue until drained onto the main thread.
+    const geo = await settleFaceGeometry(geoPromise);
     const pos = geo.getAttribute("position");
     expect(pos).toBeDefined();
     expect(pos!.count).toBe(((4 + 1) * (4 + 2)) / 2);
@@ -185,21 +222,56 @@ describe("chunkBuild", () => {
     resetChunkBuildQueue();
     const face = getIcoFaces()[0]!;
     const key = faceBuildKey(face.index, 8);
-    // Flood the queue so some stay pending (sync path drains immediately,
+    // Flood the queue so some stay pending (sync path is budgeted via drain,
     // so cancel after scheduling many then only mark a different live set).
     const promises = getIcoFaces()
       .slice(0, 8)
       .map((f, i) => requestFaceGeometry(f, 12 + (i % 3), 1));
     cancelStaleFaceBuilds(new Set([key])); // keep only one key
-    const results = await Promise.allSettled(promises);
-    // At least the sync fallback may have completed some before cancel —
-    // cancelled ones must be AbortError; completed ones are fine.
-    for (const r of results) {
-      if (r.status === "rejected") {
-        expect((r.reason as DOMException).name).toBe("AbortError");
-      } else {
-        r.value.dispose();
+    const tick = setInterval(() => drainChunkBuildResults(4), 0);
+    try {
+      const results = await Promise.allSettled(promises);
+      // At least the sync fallback may have completed some before cancel —
+      // cancelled ones must be AbortError; completed ones are fine.
+      for (const r of results) {
+        if (r.status === "rejected") {
+          expect((r.reason as DOMException).name).toBe("AbortError");
+        } else {
+          r.value.dispose();
+        }
       }
+    } finally {
+      clearInterval(tick);
+    }
+    resetChunkBuildQueue();
+  });
+
+  test("chunk builds stay queued instead of completing synchronously", async () => {
+    resetChunkBuildQueue();
+    const faces = getIcoFaces().slice(0, 4);
+    const promises = faces.map((f) => requestFaceGeometry(f, 4, 1));
+    let settled = 0;
+    for (const p of promises) {
+      void p.then(
+        () => {
+          settled++;
+        },
+        () => {
+          settled++;
+        },
+      );
+    }
+    // Flush microtasks — unbounded sync pump() used to resolve everything here.
+    await Promise.resolve();
+    expect(settled).toBeLessThan(faces.length);
+    expect(getChunkQueueDepth()).toBeGreaterThan(0);
+
+    const tick = setInterval(() => drainChunkBuildResults(2), 0);
+    try {
+      const geos = await Promise.all(promises);
+      for (const g of geos) g.dispose();
+    } finally {
+      clearInterval(tick);
     }
     resetChunkBuildQueue();
   });
@@ -209,5 +281,34 @@ describe("chunkBuild", () => {
     const data = createFaceGeometryData(face, 6);
     expect(data.positions.length / 3).toBe(((6 + 1) * (6 + 2)) / 2);
     expect(data.indices.length % 3).toBe(0);
+    expect(data.subdiv).toBe(6);
+  });
+
+  test("face index templates are shared per subdiv", () => {
+    expect(faceIndicesForSubdiv(8)).toBe(faceIndicesForSubdiv(8));
+    expect(faceIndicesForSubdiv(8)).not.toBe(faceIndicesForSubdiv(12));
   });
 });
+
+/** Pump deferred worker wraps until the build promise settles. */
+async function settleFaceGeometry(
+  promise: Promise<THREE.BufferGeometry>,
+): Promise<THREE.BufferGeometry> {
+  let settled: THREE.BufferGeometry | null = null;
+  let error: unknown;
+  void promise.then(
+    (geo) => {
+      settled = geo;
+    },
+    (err) => {
+      error = err;
+    },
+  );
+  for (let i = 0; i < 200; i++) {
+    drainChunkBuildResults(8);
+    if (settled) return settled;
+    if (error) throw error;
+    await new Promise<void>((r) => setTimeout(r, 0));
+  }
+  throw new Error("face geometry build timed out");
+}

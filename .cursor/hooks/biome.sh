@@ -20,7 +20,7 @@ if [[ "$file_path" != /* ]]; then
 fi
 
 case "$file_path" in
-  */v1/*|*/v2/*|*/.agents/*) exit 0 ;;
+  */.agents/*) exit 0 ;;
 esac
 
 case "$file_path" in

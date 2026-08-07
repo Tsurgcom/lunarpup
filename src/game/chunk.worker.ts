@@ -10,19 +10,15 @@ import { sampleHeightDir } from "./lunarTerrain";
 // Workers get their own module graph — register the heightfield here.
 setChunkHeightSampler(sampleHeightDir);
 
-function corner(v: readonly [number, number, number]): THREE.Vector3 {
-  return new THREE.Vector3(v[0], v[1], v[2]);
-}
+const _a = new THREE.Vector3();
+const _b = new THREE.Vector3();
+const _c = new THREE.Vector3();
 
 function buildFace(msg: ChunkBuildRequest): ChunkBuildResponse {
-  const data = createFaceGeometryData(
-    {
-      a: corner(msg.a),
-      b: corner(msg.b),
-      c: corner(msg.c),
-    },
-    msg.subdiv,
-  );
+  _a.set(msg.a[0], msg.a[1], msg.a[2]);
+  _b.set(msg.b[0], msg.b[1], msg.b[2]);
+  _c.set(msg.c[0], msg.c[1], msg.c[2]);
+  const data = createFaceGeometryData({ a: _a, b: _b, c: _c }, msg.subdiv);
   return {
     type: "built",
     requestId: msg.requestId,
@@ -31,7 +27,6 @@ function buildFace(msg: ChunkBuildRequest): ChunkBuildResponse {
     positions: data.positions,
     colors: data.colors,
     normals: data.normals,
-    indices: data.indices,
   };
 }
 
@@ -46,10 +41,10 @@ workerScope.onmessage = (event: MessageEvent<ChunkWorkerOutbound>) => {
   const msg = event.data;
   if (msg.type !== "build") return;
   const response = buildFace(msg);
+  // Indices stay on the main thread (shared template) — transfer verts only.
   workerScope.postMessage(response, [
     response.positions.buffer,
     response.colors.buffer,
     response.normals.buffer,
-    response.indices.buffer,
   ]);
 };

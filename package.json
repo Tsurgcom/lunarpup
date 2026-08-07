@@ -1,6 +1,7 @@
 {
   "name": "lunarpup",
   "private": true,
+  "description": "Playable browser moon-skate hackathon starter (React Three Fiber)",
   "type": "module",
   "scripts": {
     "dev": "vite",

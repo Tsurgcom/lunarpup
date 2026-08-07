@@ -5,6 +5,7 @@ node_modules
 out
 dist
 *.tgz
+css-class-map.json
 
 # code coverage
 coverage

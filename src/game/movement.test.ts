@@ -163,8 +163,23 @@ describe("ride-shell movement", () => {
       physics.maxSpeed * physics.boostMult + 0.05,
     );
 
-    p.vel.copy(forward).multiplyScalar(physics.maxSpeed * 1.25);
+    // Releasing boost must not snap to cruise — overspeed coasts down.
+    const overspeed = physics.maxSpeed * 1.25;
+    p.vel.copy(forward).multiplyScalar(overspeed);
     stepPlayer(p, idleInput({ forward: true }), 1 / 60);
+    expect(p.vel.length()).toBeGreaterThan(physics.maxSpeed);
+    expect(p.vel.length()).toBeLessThanOrEqual(overspeed + 0.05);
+  });
+
+  test("without boost, speed cannot build past cruise from below", () => {
+    const p = plant();
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    boardAxes(p.yaw, p.up, forward, right);
+    p.vel.copy(forward).multiplyScalar(physics.maxSpeed * 0.95);
+    for (let i = 0; i < 120; i++) {
+      stepPlayer(p, idleInput({ forward: true }), 1 / 60);
+    }
     expect(p.vel.length()).toBeLessThanOrEqual(physics.maxSpeed + 0.05);
   });
 
