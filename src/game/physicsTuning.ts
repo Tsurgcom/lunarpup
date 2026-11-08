@@ -19,7 +19,13 @@ export const DEFAULT_PHYSICS = {
   drag: 0.04,
   coastFriction: 8,
   airCoast: 2.5,
-  boardClearance: 0.14,
+  boardClearance: 0.18,
+  /**
+   * Extra ride-shell lift so analytic contact sits above clipmap chords in
+   * concave bowls (linear tris cut above the true floor). Sized for close
+   * subdiv 32; raise with coarser close rings.
+   */
+  meshChordSlack: 0.22,
   softBand: 0.7,
   /** Snappier arc so air commits to a clean plant. */
   gLunar: 3.85,
@@ -200,6 +206,13 @@ export const tuningSettings = [
     label: "Board clearance",
     min: 0.05,
     max: 0.5,
+    step: 0.01,
+  },
+  {
+    key: "meshChordSlack",
+    label: "Mesh chord slack",
+    min: 0,
+    max: 0.8,
     step: 0.01,
   },
   { key: "softBand", label: "Soft band", min: 0.15, max: 2, step: 0.05 },

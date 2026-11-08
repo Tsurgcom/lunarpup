@@ -528,13 +528,13 @@ function LunarMapScene({
 
   return (
     <>
-      <ambientLight intensity={0.48} color="#1a1c24" />
+      <ambientLight intensity={0.35} color="#1a1c24" />
       <directionalLight
         position={[2.5, 4, 1.5]}
-        intensity={0.95}
-        color="#c8d4ee"
+        intensity={1.35}
+        color="#e0e8f8"
       />
-      <hemisphereLight args={["#7a8eb0", "#181a20", 0.4]} />
+      <hemisphereLight args={["#8399bc", "#101218", 0.4]} />
 
       {debugMap ? (
         <ChunkLodOverlay onPointerUp={onChartPointerUp} />

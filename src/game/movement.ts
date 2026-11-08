@@ -374,7 +374,9 @@ function substep(
 
 /** Spawn / teleport altitude that sits just above the ride shell. */
 export function shellSpawnAltitude(): number {
-  return physics.boardClearance + physics.softBand * 0.25;
+  return (
+    physics.boardClearance + physics.meshChordSlack + physics.softBand * 0.25
+  );
 }
 
 /**

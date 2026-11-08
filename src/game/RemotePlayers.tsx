@@ -3,7 +3,7 @@ import { useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import { PlayerNameTag } from "./PlayerNameTag";
 import { getPeer, getPeerIds, subscribeRoster } from "./peerStore";
-import { applySkateDogStyle, SkateDog } from "./SkateDog";
+import { applySkateDogStyle, SkateDog, tickSkateDogMotion } from "./SkateDog";
 
 type PupEntry = {
   group: THREE.Group | null;
@@ -91,6 +91,13 @@ export function RemotePlayers() {
         g.quaternion.copy(entry.quat);
         if (entry.nameAnchor) entry.nameAnchor.position.copy(entry.pos);
         entry.initialized = true;
+        tickSkateDogMotion(g, {
+          speed: snap.speed,
+          lean: 0,
+          boosting: false,
+          grounded: true,
+          dt,
+        });
         continue;
       }
 
@@ -99,12 +106,26 @@ export function RemotePlayers() {
         g.position.copy(entry.pos);
         g.quaternion.copy(entry.quat);
         if (entry.nameAnchor) entry.nameAnchor.position.copy(entry.pos);
+        tickSkateDogMotion(g, {
+          speed: snap.speed,
+          lean: 0,
+          boosting: false,
+          grounded: true,
+          dt,
+        });
         continue;
       }
 
       g.position.lerp(entry.pos, alpha);
       g.quaternion.slerp(entry.quat, alpha);
       if (entry.nameAnchor) entry.nameAnchor.position.copy(g.position);
+      tickSkateDogMotion(g, {
+        speed: snap.speed,
+        lean: 0,
+        boosting: false,
+        grounded: true,
+        dt,
+      });
     }
   });
 

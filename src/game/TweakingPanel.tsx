@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { writeText } from "../platform/clipboard";
 import {
   formatPhysicsSnippet,
   isTweakingEnabled,
@@ -31,14 +32,9 @@ export function TweakingPanel() {
   async function copySettings() {
     const text = formatPhysicsSnippet(values);
     try {
-      await navigator.clipboard.writeText(text);
+      await writeText(text);
     } catch {
-      const output = document.createElement("textarea");
-      output.value = text;
-      document.body.append(output);
-      output.select();
-      document.execCommand("copy");
-      output.remove();
+      /* clipboard may be denied */
     }
   }
 

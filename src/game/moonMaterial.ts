@@ -2,17 +2,17 @@ import * as THREE from "three";
 import type { PerfSettings } from "./performanceTiers";
 
 /** Dusty ash highlands — warm-gray, not cream. */
-const HIGHLAND = { r: 0.74, g: 0.72, b: 0.68 };
+const HIGHLAND = { r: 0.78, g: 0.76, b: 0.72 };
 /** Cool charcoal mare. */
-const MARE = { r: 0.4, g: 0.41, b: 0.46 };
+const MARE = { r: 0.46, g: 0.47, b: 0.52 };
 /** Soft pale ejecta crest. */
-const RIM_CREST = { r: 0.9, g: 0.89, b: 0.86 };
+const RIM_CREST = { r: 0.92, g: 0.91, b: 0.88 };
 /** Darker inner wall under the lip. */
-const INNER_WALL = { r: 0.36, g: 0.35, b: 0.38 };
+const INNER_WALL = { r: 0.4, g: 0.39, b: 0.42 };
 /** Deep bowl floor — cool charcoal so depth reads at a glance. */
-const ABYSS = { r: 0.16, g: 0.16, b: 0.2 };
+const ABYSS = { r: 0.2, g: 0.2, b: 0.24 };
 /** Mid-depth cavity — dusty slate. */
-const CAVITY = { r: 0.3, g: 0.3, b: 0.34 };
+const CAVITY = { r: 0.34, g: 0.34, b: 0.38 };
 
 /** ≈ MOON_RADIUS * 0.028 — blotch scale in unit-sphere space. */
 const NOISE_FREQ = 8.6;
@@ -132,9 +132,9 @@ export function writeMoonVertexColor(
   colors[offset + 2] = b * cavity;
 }
 
-const DETAIL_BY_TIER = [0, 0.5, 0.9, 1] as const;
-const RIM_BY_TIER = [0.08, 0.12, 0.16, 0.2] as const;
-const BOWL_AO_BY_TIER = [0.14, 0.2, 0.26, 0.32] as const;
+const DETAIL_BY_TIER = [0, 0.55, 0.95, 1] as const;
+const RIM_BY_TIER = [0.1, 0.14, 0.18, 0.22] as const;
+const BOWL_AO_BY_TIER = [0.18, 0.24, 0.3, 0.36] as const;
 
 /**
  * Matte Standard material with baked vertex colors + GPU regolith grit.
@@ -224,26 +224,28 @@ float moonValueNoise(vec3 p) {
     float n0 = moonValueNoise(p);
     float n1 = moonValueNoise(p * 2.17 + 3.1);
     float grit = (n0 * 0.65 + n1 * 0.35) * 2.0 - 1.0;
-    // Cheap spherical micro-normal — denser look without more tris.
-    vec3 micro = normalize(radial + vec3(
-      grit * 0.35,
-      moonValueNoise(p.yzx * 1.3) * 0.35 - 0.175,
-      moonValueNoise(p.zxy * 1.7) * 0.35 - 0.175
-    ));
-    normal = normalize(mix(normal, micro, uDetail * 0.55));
+    // Perturb the mesh normal in its own tangent frame — never mix toward
+    // radial, which erased crater slope shading under the key light.
+    vec3 up = abs(normal.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 t = normalize(cross(up, normal));
+    vec3 b = cross(normal, t);
+    float dx = grit;
+    float dy = moonValueNoise(p.yzx * 1.3) * 2.0 - 1.0;
+    float bump = uDetail * 0.22;
+    normal = normalize(normal + t * dx * bump + b * dy * bump);
     // Regolith grit — tiny albedo break-up, not shiny sparkle.
-    diffuseColor.rgb += grit * uDetail * 0.03;
+    diffuseColor.rgb += grit * uDetail * 0.035;
   }
 
   // Soft earthshine limb so the sphere silhouette stays readable in space.
-  float rim = pow(1.0 - facing, 2.4) * uRim;
-  diffuseColor.rgb += vec3(0.42, 0.5, 0.62) * rim;
+  float rim = pow(1.0 - facing, 2.2) * uRim;
+  diffuseColor.rgb += vec3(0.38, 0.48, 0.62) * rim;
 }
 `,
       );
   };
 
-  material.customProgramCacheKey = () => "moon-terrain-v2";
+  material.customProgramCacheKey = () => "moon-terrain-v4";
   return material;
 }
 

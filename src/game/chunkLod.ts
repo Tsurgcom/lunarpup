@@ -4,10 +4,10 @@ import { getPerfSettings, scaleLodSubdiv } from "./performanceTiers";
 
 /**
  * Icosahedron subdivision for streamable triangular chunks (20·4^n faces).
- * Detail 1 → 80 larger faces (~2× edge vs detail 2) so each chunk covers more
- * ground; mesh density comes from {@link CLIPMAP_LODS} edge subdiv.
+ * Detail 2 → 320 faces (~85 m edges). Detail 1's 80 giant faces made the
+ * close ring look like a single triangle under the board.
  */
-export const ICO_CHUNK_DETAIL = 1;
+export const ICO_CHUNK_DETAIL = 2;
 
 /** Base load radius (arc length) before velocity expansion. */
 export const CHUNK_ARC_RADIUS = 240;
@@ -50,9 +50,12 @@ export const MAX_LOOKAHEAD_ARC = 90;
 export const SPEED_RING_EXPAND = 0.55;
 
 /**
- * Clipmap LOD rings (base arc length from viewer → edge subdiv + debug colour).
- * Level 0 = closest / densest (green); higher = coarser / farther.
- * Four rings (not six) — fewer boundaries means less remesh thrash while skating.
+ * Clipmap LOD rings (base arc length from density probes → edge subdiv +
+ * debug colour). Level 0 = closest / densest (green); higher = coarser.
+ *
+ * Close subdiv must keep bowl chord error under
+ * boardClearance + meshChordSlack — subdiv 20 sank ~0.55 m through spawn
+ * bowls while clearance was only 0.14 m.
  */
 export const CLIPMAP_LODS: readonly {
   maxArc: number;
@@ -60,14 +63,14 @@ export const CLIPMAP_LODS: readonly {
   /** Debug minimap colour for this ring. */
   color: string;
 }[] = [
-  { maxArc: 45, subdiv: 48, color: "#22c55e" }, // close — green
-  { maxArc: 100, subdiv: 24, color: "#eab308" }, // mid — yellow
-  { maxArc: 165, subdiv: 12, color: "#f97316" }, // mid-far — orange
-  { maxArc: CHUNK_ARC_RADIUS, subdiv: 6, color: "#a855f7" }, // horizon — purple
+  { maxArc: 42, subdiv: 32, color: "#22c55e" }, // close — green
+  { maxArc: 88, subdiv: 12, color: "#eab308" }, // mid — yellow
+  { maxArc: 150, subdiv: 5, color: "#f97316" }, // mid-far — orange
+  { maxArc: CHUNK_ARC_RADIUS, subdiv: 3, color: "#a855f7" }, // horizon — purple
 ];
 
 /** Fallback subdiv beyond the outer ring (should not appear while loaded). */
-export const ICO_FACE_SUBDIV = 6;
+export const ICO_FACE_SUBDIV = 3;
 
 // ---------------------------------------------------------------------------
 // Terrain generator API (stub until a heightfield lands)
@@ -358,34 +361,46 @@ export function lodColor(level: number): string {
   return ring?.color ?? "#64748b";
 }
 
+const _edgeMid = new THREE.Vector3();
+
 /**
- * Clipmap tessellation for a face, with rings expanded by `speedScale`
- * (≥1) so fast travel keeps denser mesh farther out.
+ * Arc length from a probe direction to the nearest sample on a face
+ * (centroid, corners, edge midpoints). Centroid-only distance is wrong for
+ * detail-1 faces: you can stand on a triangle whose centroid is ~100 m away.
  */
-export function faceSubdiv(
-  viewerDir: THREE.Vector3,
-  face: IcoFace,
-  speedScale = 1,
-): number {
-  const arc = geodesicDistance(viewerDir, face.centroid);
+export function faceArcDistance(dir: THREE.Vector3, face: IcoFace): number {
+  let min = geodesicDistance(dir, face.centroid);
+  min = Math.min(min, geodesicDistance(dir, face.a));
+  min = Math.min(min, geodesicDistance(dir, face.b));
+  min = Math.min(min, geodesicDistance(dir, face.c));
+  _edgeMid.addVectors(face.a, face.b).normalize();
+  min = Math.min(min, geodesicDistance(dir, _edgeMid));
+  _edgeMid.addVectors(face.b, face.c).normalize();
+  min = Math.min(min, geodesicDistance(dir, _edgeMid));
+  _edgeMid.addVectors(face.c, face.a).normalize();
+  min = Math.min(min, geodesicDistance(dir, _edgeMid));
+  return min;
+}
+
+function subdivForArc(arc: number, speedScale: number): number {
   const scale = Math.max(1, speedScale);
   let subdiv = ICO_FACE_SUBDIV;
-  for (const ring of CLIPMAP_LODS) {
+  let level = CLIPMAP_LODS.length - 1;
+  for (let i = 0; i < CLIPMAP_LODS.length; i++) {
+    const ring = CLIPMAP_LODS[i]!;
     if (arc <= ring.maxArc * scale) {
       subdiv = ring.subdiv;
+      level = i;
       break;
     }
   }
+  // Close ring stays full quality — tier scale only thins mid/far so climbing
+  // tiers remeshes the horizon, not the board.
+  if (level === 0) return subdiv;
   return scaleLodSubdiv(subdiv, getPerfSettings().lodSubdivScale);
 }
 
-/** LOD ring index (0 = closest) for a face at the given viewer / speed. */
-export function faceLodLevel(
-  viewerDir: THREE.Vector3,
-  face: IcoFace,
-  speedScale = 1,
-): number {
-  const arc = geodesicDistance(viewerDir, face.centroid);
+function levelForArc(arc: number, speedScale: number): number {
   const scale = Math.max(1, speedScale);
   for (let i = 0; i < CLIPMAP_LODS.length; i++) {
     if (arc <= CLIPMAP_LODS[i]!.maxArc * scale) return i;
@@ -394,8 +409,51 @@ export function faceLodLevel(
 }
 
 /**
+ * Clipmap tessellation for a face, with rings expanded by `speedScale`
+ * (≥1) so fast travel keeps denser mesh farther out.
+ *
+ * When `densityDir` is set, take the finer of probe vs density (look-ahead
+ * streams ahead; pup pose keeps underfoot detail — look-ahead alone starved
+ * the board of the close ring).
+ */
+export function faceSubdiv(
+  viewerDir: THREE.Vector3,
+  face: IcoFace,
+  speedScale = 1,
+  densityDir?: THREE.Vector3,
+): number {
+  let subdiv = subdivForArc(faceArcDistance(viewerDir, face), speedScale);
+  if (densityDir) {
+    subdiv = Math.max(
+      subdiv,
+      subdivForArc(faceArcDistance(densityDir, face), speedScale),
+    );
+  }
+  return subdiv;
+}
+
+/** LOD ring index (0 = closest) for a face at the given viewer / speed. */
+export function faceLodLevel(
+  viewerDir: THREE.Vector3,
+  face: IcoFace,
+  speedScale = 1,
+  densityDir?: THREE.Vector3,
+): number {
+  let level = levelForArc(faceArcDistance(viewerDir, face), speedScale);
+  if (densityDir) {
+    level = Math.min(
+      level,
+      levelForArc(faceArcDistance(densityDir, face), speedScale),
+    );
+  }
+  return level;
+}
+
+/**
  * Promote each loaded face to max(own, neighbors') subdiv so shared edges
  * share the finer tessellation (no T-junction cracks at LOD rings).
+ *
+ * `densityDir` (pup) is optional — see {@link faceSubdiv}.
  */
 export function stitchFaceSubdivs(
   viewerDir: THREE.Vector3,
@@ -403,6 +461,7 @@ export function stitchFaceSubdivs(
   speedScale = 1,
   out: Map<number, number> = new Map(),
   ids: number[] = [],
+  densityDir?: THREE.Vector3,
 ): Map<number, number> {
   out.clear();
   ids.length = 0;
@@ -411,7 +470,7 @@ export function stitchFaceSubdivs(
     const face = faces[id];
     if (!face) continue;
     ids.push(id);
-    out.set(id, faceSubdiv(viewerDir, face, speedScale));
+    out.set(id, faceSubdiv(viewerDir, face, speedScale, densityDir));
   }
   for (const id of ids) {
     const face = faces[id]!;
@@ -439,7 +498,7 @@ export type ChunkLodEntry = {
 };
 
 export type ChunkLodSnapshot = {
-  /** Unit direction used for LOD (look-ahead biased). */
+  /** Unit direction used for streaming / load set (look-ahead biased). */
   viewerX: number;
   viewerY: number;
   viewerZ: number;
@@ -537,8 +596,10 @@ export function computeLodViewer(
 /**
  * Recompute the active chunk plan from pose + velocity.
  * Call once per frame after the player writes local pose.
- * Streaming uses arc radius + horizon cull around the look-ahead viewer —
- * not the chase-camera frustum (orbit must not remesh the world).
+ *
+ * Streaming (load set) uses arc + horizon around the look-ahead viewer so
+ * fast travel prefetches ahead. Tessellation density uses the finer of
+ * pup pose vs look-ahead — look-ahead alone left coarse mesh under the board.
  */
 export function updateChunkLod(
   x: number,
@@ -551,6 +612,7 @@ export function updateChunkLod(
   const speed = Math.hypot(vx, vy, vz);
   const speedScale = speedRingScale(speed);
   const lookAheadArc = computeLodViewer(x, y, z, vx, vy, vz, _viewer);
+  // computeLodViewer already normalized pose into _poseDir.
   const enterArc = CHUNK_ARC_RADIUS * speedScale;
   const exitArc = enterArc + CULL_EXIT_SLACK;
 
@@ -561,12 +623,14 @@ export function updateChunkLod(
   for (const id of _nextLoaded) _loadedIds.add(id);
 
   // Reuse stitch's id list — avoid allocating `near.map(...)` every frame.
+  // Density from pup (_poseDir); stream center from look-ahead (_viewer).
   const subdivs = stitchFaceSubdivs(
     _viewer,
     _nextLoaded,
     speedScale,
     _lodMap,
     _lodIds,
+    _poseDir,
   );
 
   const faces = getIcoFaces();
@@ -574,7 +638,7 @@ export function updateChunkLod(
   for (const id of _lodIds) {
     const face = faces[id];
     if (!face) continue;
-    const level = faceLodLevel(_viewer, face, speedScale);
+    const level = faceLodLevel(_viewer, face, speedScale, _poseDir);
     _entries.push({
       faceIndex: id,
       subdiv: subdivs.get(id) ?? ICO_FACE_SUBDIV,

@@ -3,6 +3,8 @@
  * sustained fps stability.
  */
 
+import { getPref, PREF_PERF_OVERRIDE, setPref } from "../platform/store";
+
 export type PerfTierId = 0 | 1 | 2 | 3;
 
 /** `"auto"` = adaptive scaler; otherwise lock to that tier. */
@@ -17,8 +19,8 @@ export type PerfSettings = {
   shadows: boolean;
   shadowMapSize: 512 | 1024;
   /**
-   * Multiplier on clipmap edge subdiv (1 = full quality).
-   * Applied after LOD ring selection so stitch still matches.
+   * Multiplier on mid/far clipmap edge subdiv (1 = full). Close ring is never
+   * scaled — tier climbs remesh the horizon, not the board underfoot.
    */
   lodSubdivScale: number;
   starCount: number;
@@ -35,9 +37,7 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1,
     shadows: false,
     shadowMapSize: 512,
-    // Tessellation is shared across tiers — changing scale remeshes the whole
-    // stream and made Low feel worse than Ultra (climb = remesh storm).
-    lodSubdivScale: 1,
+    lodSubdivScale: 0.55,
     starCount: 220,
     moonWidthSegs: 24,
     moonHeightSegs: 18,
@@ -49,11 +49,11 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 1.25,
     shadows: true,
     shadowMapSize: 512,
-    lodSubdivScale: 1,
+    lodSubdivScale: 0.75,
     starCount: 450,
     moonWidthSegs: 40,
     moonHeightSegs: 30,
-    maxChunkAttachPerFrame: 4,
+    maxChunkAttachPerFrame: 5,
   },
   {
     tier: 2,
@@ -65,7 +65,7 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     starCount: 700,
     moonWidthSegs: 56,
     moonHeightSegs: 42,
-    maxChunkAttachPerFrame: 4,
+    maxChunkAttachPerFrame: 6,
   },
   {
     tier: 3,
@@ -73,11 +73,11 @@ export const PERF_TIERS: readonly PerfSettings[] = [
     dpr: 2,
     shadows: true,
     shadowMapSize: 1024,
-    lodSubdivScale: 1,
+    lodSubdivScale: 1.15,
     starCount: 900,
     moonWidthSegs: 64,
     moonHeightSegs: 48,
-    maxChunkAttachPerFrame: 4,
+    maxChunkAttachPerFrame: 8,
   },
 ] as const;
 
@@ -100,7 +100,7 @@ export const PERF_COOLDOWN_MS = 1800;
 const listeners = new Set<() => void>();
 
 let settings: PerfSettings = PERF_TIERS[2]!;
-let override: PerfOverride = "auto";
+let override: PerfOverride = loadStoredOverride();
 let fpsEma = 60;
 let elapsedMs = 0;
 let upHoldMs = 0;
@@ -108,6 +108,18 @@ let downHoldMs = 0;
 let cooldownMs = 0;
 let maxTier: PerfTierId = 3;
 let hardwareCapped = false;
+
+function loadStoredOverride(): PerfOverride {
+  const raw = getPref(PREF_PERF_OVERRIDE);
+  if (raw == null || raw === "auto") return "auto";
+  const n = Number(raw);
+  if (n === 0 || n === 1 || n === 2 || n === 3) return n;
+  return "auto";
+}
+
+function persistOverride(next: PerfOverride): void {
+  setPref(PREF_PERF_OVERRIDE, String(next));
+}
 
 function emit(): void {
   for (const l of listeners) l();
@@ -210,6 +222,7 @@ export function setPerfOverride(next: PerfOverride): void {
     return;
   }
   override = next;
+  persistOverride(next);
   upHoldMs = 0;
   downHoldMs = 0;
   cooldownMs = 0;
@@ -247,8 +260,9 @@ export function resetPerformanceTier(): void {
 }
 
 /**
- * Apply the active tier's subdiv scale. Keeps a usable minimum so faces
- * don't collapse to degenerate tessellation.
+ * Apply the active tier's mid/far subdiv scale. Keeps a usable minimum so
+ * faces don't collapse to degenerate tessellation. Close-ring subdiv is
+ * applied unscaled in the clipmap planner.
  */
 export function scaleLodSubdiv(
   subdiv: number,

@@ -11,7 +11,7 @@ export function StaticMoon() {
     <mesh receiveShadow castShadow scale={0.9}>
       <sphereGeometry args={[MOON_RADIUS, 48, 36]} />
       <meshStandardMaterial
-        color="#242428"
+        color="#2c2c32"
         metalness={0}
         roughness={0.98}
         fog

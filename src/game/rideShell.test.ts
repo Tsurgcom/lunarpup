@@ -5,13 +5,13 @@ import { physics, resetPhysics } from "./physicsTuning";
 import {
   antiTunnel,
   applyRideShellField,
-  BOARD_CLEARANCE,
   contactRegime,
   createShellSample,
   G_LUNAR,
   JUMP_SPEED,
   MAX_PENETRATION,
   plantOnShell,
+  rideLift,
   rideRadius,
   SOFT_BAND,
   sampleRideShell,
@@ -38,20 +38,20 @@ describe("rideShell", () => {
     setTerrainGenerator(null);
   });
 
-  test("ride radius includes clearance", () => {
+  test("ride radius includes clearance and chord slack", () => {
     const dir = new THREE.Vector3(0, 0, 1);
-    expect(rideRadius(dir)).toBeCloseTo(MOON_RADIUS + BOARD_CLEARANCE, 5);
+    expect(rideRadius(dir)).toBeCloseTo(MOON_RADIUS + rideLift(), 5);
   });
 
   test("signed altitude is positive above the shell", () => {
-    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + BOARD_CLEARANCE + 3);
+    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + rideLift() + 3);
     expect(signedAltitude(pos)).toBeCloseTo(3, 5);
     expect(contactRegime(signedAltitude(pos))).toBe("airborne");
   });
 
   test("gravity pulls toward the shell", () => {
     const shell = createShellSample();
-    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + BOARD_CLEARANCE + 8);
+    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + rideLift() + 8);
     const vel = new THREE.Vector3(0, 0, 0);
     const mass = 18;
     applyRideShellField(pos, vel, mass, 1 / 60, shell);
@@ -65,7 +65,7 @@ describe("rideShell", () => {
     const pos = new THREE.Vector3(
       0,
       0,
-      MOON_RADIUS + BOARD_CLEARANCE - MAX_PENETRATION - 1,
+      MOON_RADIUS + rideLift() - MAX_PENETRATION - 1,
     );
     const vel = new THREE.Vector3(0, 0, -20);
     antiTunnel(pos, vel, shell);
@@ -83,16 +83,12 @@ describe("rideShell", () => {
     const softPos = new THREE.Vector3(
       0,
       0,
-      MOON_RADIUS + BOARD_CLEARANCE + SOFT_BAND * 0.5,
+      MOON_RADIUS + rideLift() + SOFT_BAND * 0.5,
     );
     sampleRideShell(softPos, shell);
     expect(contactRegime(shell.altitude)).toBe("soft");
 
-    const plantPos = new THREE.Vector3(
-      0,
-      0,
-      MOON_RADIUS + BOARD_CLEARANCE - 0.05,
-    );
+    const plantPos = new THREE.Vector3(0, 0, MOON_RADIUS + rideLift() - 0.05);
     sampleRideShell(plantPos, shell);
     expect(contactRegime(shell.altitude)).toBe("planted");
   });
@@ -116,7 +112,7 @@ describe("rideShell", () => {
   test("landing catch rejects outward loft past the gate", () => {
     resetPhysics();
     const shell = createShellSample();
-    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + BOARD_CLEARANCE - 0.02);
+    const pos = new THREE.Vector3(0, 0, MOON_RADIUS + rideLift() - 0.02);
     sampleRideShell(pos, shell);
     const rising = new THREE.Vector3(0, 0, physics.landingCatchSpeed + 0.2);
     const miss = updateContactState(false, 0.2, 0, shell, rising, 1 / 60);

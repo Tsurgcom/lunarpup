@@ -8,9 +8,10 @@ import { getLocalPose } from "./localPose";
  * Mount after {@link Player} so pose + velocity are fresh.
  * {@link ChunkTerrain} consumes the plan and rebuilds patches on workers.
  *
- * Streaming is pup/viewer-centric (arc + horizon) — intentionally ignores
- * the chase camera so orbiting never thrash-loads chunks. GPU draw culling
- * uses the real camera frustum in {@link ChunkTerrain}.
+ * Load set is pup/look-ahead-centric (arc + horizon) — intentionally ignores
+ * the chase camera so orbiting never thrash-loads chunks. Tessellation uses
+ * the finer of pose vs look-ahead so underfoot stays dense while skating.
+ * GPU draw culling uses the real camera frustum in {@link ChunkTerrain}.
  */
 export function ChunkLodDriver() {
   useEffect(() => () => resetChunkLod(), []);

@@ -49,7 +49,7 @@ const MAX_DISPOSE_PER_FRAME = 1;
  * Retain cold geometries so skating back over recent ground is free.
  * Map insertion order = LRU (re-touch moves to the end).
  */
-const GEO_CACHE_MAX = 128;
+const GEO_CACHE_MAX = 256;
 
 let debugQueue = 0;
 let debugWorkers = 0;
@@ -333,3 +333,29 @@ function enqueueAttach(
   while (i > 0 && queue[i - 1]!.priority < item.priority) i--;
   queue.splice(i, 0, item);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

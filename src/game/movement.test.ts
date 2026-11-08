@@ -9,12 +9,7 @@ import {
   stepPlayer,
 } from "./movement";
 import { physics, resetPhysics } from "./physicsTuning";
-import {
-  BOARD_CLEARANCE,
-  JUMP_SPEED,
-  SOFT_BAND,
-  signedAltitude,
-} from "./rideShell";
+import { JUMP_SPEED, rideLift, SOFT_BAND, signedAltitude } from "./rideShell";
 
 function idleInput(overrides: Partial<ControlInput> = {}): ControlInput {
   return {
@@ -45,7 +40,7 @@ describe("ride-shell movement", () => {
     const p = createPlayer();
     expect(signedAltitude(p.pos)).toBeGreaterThan(SOFT_BAND);
     expect(signedAltitude(p.pos)).toBeLessThan(SOFT_BAND + 3);
-    expect(p.pos.length()).toBeGreaterThan(MOON_RADIUS + BOARD_CLEARANCE);
+    expect(p.pos.length()).toBeGreaterThan(MOON_RADIUS + rideLift());
   });
 
   test("idle fall plants on the ride shell", () => {
@@ -222,7 +217,7 @@ describe("ride-shell movement", () => {
 
   test("does not tunnel through the shell at high inward speed", () => {
     const p = createPlayer();
-    p.pos.copy(p.up).multiplyScalar(MOON_RADIUS + BOARD_CLEARANCE + 2);
+    p.pos.copy(p.up).multiplyScalar(MOON_RADIUS + rideLift() + 2);
     p.vel.copy(p.up).multiplyScalar(-80);
     for (let i = 0; i < 30; i++) {
       stepPlayer(p, idleInput(), 1 / 60);

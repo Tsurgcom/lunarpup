@@ -114,6 +114,55 @@ function setDogCastShadow(root: THREE.Object3D, ghost: boolean): void {
   });
 }
 
+type SkateDogParts = {
+  wheels: THREE.Mesh[];
+  tail: THREE.Mesh | null;
+  accentMat: THREE.MeshLambertMaterial | null;
+};
+
+type SkateDogMotionCache = {
+  wheelAngle: number;
+  bobT: number;
+};
+
+export type SkateDogMotionInput = {
+  speed: number;
+  lean: number;
+  boosting: boolean;
+  grounded: boolean;
+  dt: number;
+};
+
+const WHEEL_RADIUS = 0.09;
+const TAIL_BASE_X = TAIL_ROTATION[0];
+
+function cacheSkateDogParts(root: THREE.Object3D): SkateDogParts {
+  const wheels: THREE.Mesh[] = [];
+  let tail: THREE.Mesh | null = null;
+  let accentMat: THREE.MeshLambertMaterial | null = null;
+  root.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    if (obj.userData.part === "wheel") wheels.push(obj);
+    else if (obj.userData.part === "tail") tail = obj;
+    const mat = obj.material;
+    if (
+      mat instanceof THREE.MeshLambertMaterial &&
+      mat.userData.role === "accent"
+    ) {
+      accentMat = mat;
+    }
+  });
+  const parts: SkateDogParts = { wheels, tail, accentMat };
+  root.userData.parts = parts;
+  if (!root.userData.motion) {
+    root.userData.motion = {
+      wheelAngle: 0,
+      bobT: 0,
+    } satisfies SkateDogMotionCache;
+  }
+  return parts;
+}
+
 /** Imperative style update — use from useFrame instead of setState. */
 export function applySkateDogStyle(
   root: THREE.Object3D,
@@ -138,6 +187,46 @@ export function applySkateDogStyle(
   });
 }
 
+/** Wheel spin, soft tail bob, boost accent glow — call each render frame. */
+export function tickSkateDogMotion(
+  root: THREE.Object3D,
+  { speed, lean, boosting, grounded, dt }: SkateDogMotionInput,
+): void {
+  let parts = root.userData.parts as SkateDogParts | undefined;
+  if (!parts) parts = cacheSkateDogParts(root);
+  let motion = root.userData.motion as SkateDogMotionCache | undefined;
+  if (!motion) {
+    motion = { wheelAngle: 0, bobT: 0 };
+    root.userData.motion = motion;
+  }
+
+  const spinScale = grounded ? 1 : 0.28;
+  motion.wheelAngle += (speed / WHEEL_RADIUS) * spinScale * dt;
+  for (const wheel of parts.wheels) {
+    wheel.rotation.x = motion.wheelAngle;
+    wheel.rotation.z = Math.PI / 2;
+  }
+
+  const speedAmt = Math.min(speed, 28);
+  motion.bobT += dt * (2.4 + speedAmt * 0.12);
+  if (parts.tail) {
+    const bobAmp = 0.06 + speedAmt * 0.005;
+    parts.tail.rotation.x = TAIL_BASE_X + Math.sin(motion.bobT) * bobAmp;
+    parts.tail.rotation.z = lean * 0.32;
+  }
+
+  const accent = parts.accentMat;
+  if (accent) {
+    if (boosting) {
+      accent.emissive.copy(accent.color);
+      accent.emissiveIntensity = 0.6;
+    } else {
+      accent.emissive.setRGB(0, 0, 0);
+      accent.emissiveIntensity = 0;
+    }
+  }
+}
+
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
   if (!ref) return;
   if (typeof ref === "function") ref(value);
@@ -157,7 +246,10 @@ export const SkateDog = forwardRef<Group, DogProps>(function SkateDog(
   useLayoutEffect(() => {
     tintDogMaterials(mats, fur, accent, ghost);
     const root = groupRef.current;
-    if (root) setDogCastShadow(root, ghost);
+    if (root) {
+      setDogCastShadow(root, ghost);
+      cacheSkateDogParts(root);
+    }
   }, [mats, fur, accent, ghost]);
 
   useLayoutEffect(
@@ -194,6 +286,7 @@ export const SkateDog = forwardRef<Group, DogProps>(function SkateDog(
           material={mats.wheel}
           position={p}
           rotation={WHEEL_ROTATION}
+          userData={{ part: "wheel" }}
           frustumCulled={frustumCulled}
         />
       ))}
@@ -270,6 +363,7 @@ export const SkateDog = forwardRef<Group, DogProps>(function SkateDog(
         material={mats.fur}
         position={[0, BODY0 + TAIL_OFF, -0.44]}
         rotation={TAIL_ROTATION}
+        userData={{ part: "tail" }}
         frustumCulled={frustumCulled}
       />
     </group>

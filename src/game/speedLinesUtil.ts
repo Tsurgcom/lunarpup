@@ -45,7 +45,7 @@ export function updateSpeedLines(
   const speedI = THREE.MathUtils.clamp((fx.speed - 0.32) / 0.68, 0, 1);
   const airI = fx.air * 0.55;
   const landI = Math.min(1, fx.land) * 0.9;
-  const boostI = fx.boosting ? 0.18 : 0;
+  const boostI = fx.boosting ? 0.4 : 0;
   const intensity = THREE.MathUtils.clamp(speedI + airI + landI + boostI, 0, 1);
 
   layer.style.opacity = (intensity * 0.88).toFixed(3);

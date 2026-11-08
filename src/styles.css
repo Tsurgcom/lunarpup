@@ -1013,7 +1013,13 @@ input {
 }
 
 #speed-lines[data-boost="1"] .speed-line {
-  filter: blur(0.45px) brightness(1.15);
+  filter: blur(0.45px) brightness(1.28) saturate(1.15);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 210, 170, 0.88),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 .speed-line {

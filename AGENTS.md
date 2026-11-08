@@ -5,7 +5,9 @@ Guidance for coding agents working in this repository.
 ## Project
 
 Lunar Pup is a browser skate game built with **React Three Fiber**, **Drei**,
-and (when needed) **Trystero** (`@trystero-p2p/nostr`).
+and (when needed) **Trystero** (`@trystero-p2p/nostr`). Desktop and mobile
+shells use **Tauri v2** (`src-tauri/`). Prefer [`.agents/skills/tauri-v2`](.agents/skills/tauri-v2)
+when changing Tauri config, capabilities, or plugins.
 
 **Root = v3** (active). Earlier attempts live as frozen archives for cherry-picking:
 
@@ -19,11 +21,16 @@ Each archive has its own `AGENTS.md` and `ARCHIVE_SOURCE.txt` (git commit).
 ## Commands
 
 ```bash
-bun install          # install deps
-bun run dev          # Vite dev server at http://localhost:3000
-bun run build        # typecheck + production build
-bun run preview      # preview dist/
-bunx tsc --noEmit    # typecheck only
+bun install                 # install deps
+bun run dev                 # Vite dev server at http://localhost:3000
+bun run build               # typecheck + production build
+bun run preview             # preview dist/
+bunx tsc --noEmit           # typecheck only
+bun run tauri:dev           # Tauri desktop + Vite
+bun run tauri:build         # Tauri production bundles
+bun run tauri:android:dev   # Android (needs SDK/NDK)
+bun run tauri:ios:dev       # iOS (macOS + Xcode only)
+./scripts/tauri-mobile-init.sh  # scaffold android/ios projects
 ```
 
 Use **Bun** as the package manager/runtime. Port **3000** is configured with
@@ -35,9 +42,11 @@ To run an archive: `cd v1` or `cd v2`, then `bun install && bun run dev`.
 
 ```
 src/
-  main.tsx    # React entry
-  App.tsx     # Empty Canvas shell — build the game here
-  styles.css  # Overlay / shell styles
+  main.tsx         # React entry
+  App.tsx          # Phase machine, Canvas, Tauri wiring
+  platform/        # Tauri/browser adapters (clipboard, store, deep links, …)
+  styles.css       # Overlay / shell styles
+src-tauri/         # Tauri v2 backend (lib.rs owns logic for mobile)
 ```
 
 Copy modules from `v1/` or `v2/` into `src/` (or `src/game/`) as you integrate
@@ -50,3 +59,5 @@ systems. Prefer small, focused ports over wholesale dumps.
 - **No commits** unless the user asks.
 - **Do not edit** `.agents/`, `skills-lock.json`, or generated `dist/` unless requested.
 - Treat `v1/` and `v2/` as **read-mostly reference** — do not “fix” archives unless asked.
+- **Tauri capabilities** — plugin features need explicit permissions in
+  `src-tauri/capabilities/`; missing perms fail silently at runtime.

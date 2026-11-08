@@ -38,15 +38,24 @@ describe("performanceTiers", () => {
     expect(scaleLodSubdiv(28, 1.2)).toBe(34);
   });
 
-  test("all tiers share tessellation scale so climbs do not remesh", () => {
-    expect(PERF_TIERS[0]!.lodSubdivScale).toBe(1);
-    expect(PERF_TIERS[1]!.lodSubdivScale).toBe(1);
+  test("far lod scale thins mid/far rings across tiers; close stays full", () => {
+    expect(PERF_TIERS[0]!.lodSubdivScale).toBeLessThan(1);
+    expect(PERF_TIERS[1]!.lodSubdivScale).toBeLessThan(1);
     expect(PERF_TIERS[2]!.lodSubdivScale).toBe(1);
-    expect(PERF_TIERS[3]!.lodSubdivScale).toBe(1);
+    expect(PERF_TIERS[3]!.lodSubdivScale).toBeGreaterThan(1);
   });
 
-  test("high uses full ring subdiv", () => {
+  test("high uses full mid/far ring subdiv", () => {
     expect(PERF_TIERS[2]!.lodSubdivScale).toBe(1);
+  });
+
+  test("higher tiers attach more faces per frame", () => {
+    expect(PERF_TIERS[0]!.maxChunkAttachPerFrame).toBeLessThan(
+      PERF_TIERS[2]!.maxChunkAttachPerFrame,
+    );
+    expect(PERF_TIERS[2]!.maxChunkAttachPerFrame).toBeLessThanOrEqual(
+      PERF_TIERS[3]!.maxChunkAttachPerFrame,
+    );
   });
 
   test("attach budget stays open so stream catch-up is not starved", () => {

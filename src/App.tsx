@@ -23,7 +23,9 @@ import {
 import { sanitizeWorldId } from "./game/party";
 import {
   getPerfSettings,
+  type PerfOverride,
   resetPerformanceTier,
+  setPerfOverride,
   subscribePerf,
 } from "./game/performanceTiers";
 import {
@@ -40,6 +42,19 @@ import {
   writeWorldToUrl,
 } from "./game/types";
 import { World } from "./game/World";
+import {
+  type DeepLinkTarget,
+  getLaunchDeepLinks,
+  hydratePrefs,
+  listenDeepLinks,
+  PREF_PERF_OVERRIDE,
+  PREF_PLAYER_NAME,
+  partyInviteUrl,
+  releaseWakeLock,
+  requestWakeLock,
+  setFullscreen,
+  writeText,
+} from "./platform";
 
 /** Near spawn, outside the decorative moon. */
 const SPAWN_CAM_R = MOON_RADIUS + SPAWN_ALTITUDE + 8;
@@ -124,6 +139,56 @@ export function App() {
     resetPerformanceTier();
   }, []);
 
+  // Hydrate prefs from Tauri store (localStorage is already sync-loaded).
+  useEffect(() => {
+    let cancelled = false;
+    void hydratePrefs().then((changed) => {
+      if (cancelled) return;
+      const name = changed[PREF_PLAYER_NAME];
+      if (name) {
+        const next = sanitizePlayerName(name, nameFallback);
+        setDraftName(next);
+        setPlayerName(next);
+        savePlayerName(next);
+      }
+      const perfRaw = changed[PREF_PERF_OVERRIDE];
+      if (perfRaw != null) {
+        let next: PerfOverride = "auto";
+        if (perfRaw !== "auto") {
+          const n = Number(perfRaw);
+          if (n === 0 || n === 1 || n === 2 || n === 3) next = n;
+        }
+        setPerfOverride(next);
+        resetPerformanceTier();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [nameFallback]);
+
+  const applyDeepLink = useCallback((target: DeepLinkTarget) => {
+    if (target.kind === "party") {
+      handledStartSeq.current = 0;
+      setPartyId(target.id);
+      setDraftParty(target.id);
+      setPartyIsCreator(false);
+      writePartyToUrl(target.id);
+      setMenuScreen("main");
+      setPhase("lobby");
+      return;
+    }
+    const world = sanitizeWorldId(target.id);
+    setPartyId(null);
+    setPartyIsCreator(false);
+    writePartyToUrl(null);
+    setWorldId(world);
+    setDraftWorld(world);
+    writeWorldToUrl(world);
+    setMenuScreen("main");
+    setPhase("playing");
+  }, []);
+
   // Deep link: ?party= opens lobby after boot.
   useEffect(() => {
     if (!initialParty) return;
@@ -135,6 +200,34 @@ export function App() {
     setMenuScreen("main");
     setPhase("lobby");
   }, [initialParty]);
+
+  // Tauri scheme deep links (launch + while running).
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      const launch = await getLaunchDeepLinks();
+      if (cancelled) return;
+      const first = launch[0];
+      if (first) applyDeepLink(first);
+      unlisten = await listenDeepLinks(applyDeepLink);
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [applyDeepLink]);
+
+  // Immersive play: native fullscreen + screen wake lock.
+  useEffect(() => {
+    const playing = phase === "playing";
+    void setFullscreen(playing);
+    if (playing) void requestWakeLock();
+    else void releaseWakeLock();
+    return () => {
+      void releaseWakeLock();
+    };
+  }, [phase]);
 
   // Host Start / late join → open world and skate (keyed by startSeq so re-starts work).
   useEffect(() => {
@@ -247,11 +340,8 @@ export function App() {
 
   const onCopyInvite = useCallback(async () => {
     if (!partyId) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("party", partyId);
-    url.searchParams.delete("room");
     try {
-      await navigator.clipboard.writeText(url.toString());
+      await writeText(partyInviteUrl(partyId));
     } catch {
       /* clipboard may be denied */
     }
@@ -369,8 +459,8 @@ export function App() {
           camera={CANVAS_CAMERA}
           gl={{
             alpha: false,
-            antialias: false,
-            toneMappingExposure: 0.92,
+            antialias: true,
+            toneMappingExposure: 1.1,
             powerPreference: "high-performance",
           }}
         >

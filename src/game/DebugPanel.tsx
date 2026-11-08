@@ -45,7 +45,7 @@ function paint(el: HTMLElement, f: DebugFrame): void {
     ),
     row(
       "quality",
-      `dpr≤${fmt(perf.dpr, 2)}  shadows ${perf.shadows ? perf.shadowMapSize : "off"}  tess×${fmt(perf.lodSubdivScale, 2)}`,
+      `dpr≤${fmt(perf.dpr, 2)}  shadows ${perf.shadows ? perf.shadowMapSize : "off"}  far×${fmt(perf.lodSubdivScale, 2)}`,
     ),
     row("speed", `${fmt(f.speed, 2)} m/s`),
     row("lean / pitch", `${fmt(f.lean, 2)} / ${fmt(f.pitch, 2)}`),

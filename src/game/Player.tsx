@@ -6,6 +6,7 @@ import { CameraRig } from "./CameraRig";
 import { isDebugEnabled, tickDebugFrame } from "./debugFrame";
 import { endGhostLine, tickGhostLine } from "./ghostLine";
 import { setHudSpeed } from "./hudSpeed";
+import { LandingDust } from "./LandingDust";
 import { setLocalPose } from "./localPose";
 import { SPAWN_DIR } from "./moon";
 import {
@@ -17,7 +18,7 @@ import {
 } from "./movement";
 import { physics } from "./physicsTuning";
 import { plantOnShell } from "./rideShell";
-import { SkateDog } from "./SkateDog";
+import { SkateDog, tickSkateDogMotion } from "./SkateDog";
 import { setSpeedFx } from "./speedLinesUtil";
 import { consumeTeleport } from "./teleport";
 import { getTouchInput } from "./touchInput";
@@ -219,6 +220,13 @@ export function Player({
     if (dog) {
       dog.position.copy(s.pos);
       dog.quaternion.copy(quat.current);
+      tickSkateDogMotion(dog, {
+        speed,
+        lean: paused || !active ? 0 : s.lean,
+        boosting: active && !paused && s.boosting,
+        grounded: active && !paused ? s.grounded : true,
+        dt,
+      });
     }
 
     setLocalPose(
@@ -303,6 +311,7 @@ export function Player({
   return (
     <>
       <SkateDog ref={group} fur={fur} accent={accent} ghost={paused} />
+      <LandingDust state={stateRef} enabled={active && !paused} />
       <CameraRig state={stateRef} />
     </>
   );

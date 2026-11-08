@@ -568,8 +568,9 @@ export type HeightSampleQuality = "near" | "mid" | "far";
 
 /** Map edge subdiv → sampler quality (far rings = cheaper FBM / craters). */
 export function heightQualityForSubdiv(subdiv: number): HeightSampleQuality {
-  if (subdiv <= 8) return "far";
-  if (subdiv <= 24) return "mid";
+  // Matches clipmap rings: close≈32 near, mid≈12, far≤5.
+  if (subdiv <= 5) return "far";
+  if (subdiv <= 14) return "mid";
   return "near";
 }
 

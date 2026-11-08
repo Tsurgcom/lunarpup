@@ -48,9 +48,10 @@ const _lightPos = new THREE.Vector3();
 const _side = new THREE.Vector3();
 
 /**
- * Soft overhead key that rides with the pup — contact shadows without a sun.
- * Kept mostly radial so yaw / camera orbit does not relight the ground.
- * Frustum extents are fixed; only position/target track the pup each frame.
+ * Grazing studio key that rides with the pup.
+ * Side axis is earthshine projected into the local tangent plane — camera
+ * orbit / pup yaw never flip which bowl wall is lit, but crater form still
+ * reads. Frustum extents are fixed; only position/target track each frame.
  */
 function StudioKey() {
   const light = useRef<DirectionalLight>(null);
@@ -87,13 +88,18 @@ function StudioKey() {
     if (_radial.lengthSq() < 1e-6) _radial.set(0, 1, 0);
     else _radial.normalize();
 
-    // Tiny side bias for readable contact shadows — mostly radial so turning
-    // the camera does not flip which bowl wall is lit.
-    _side.set(_radial.z, -_radial.x * 0.4, -_radial.x).normalize();
+    // Earthshine in the local horizon — stable under camera orbit.
+    _side.copy(EARTH_DIR).addScaledVector(_radial, -EARTH_DIR.dot(_radial));
+    if (_side.lengthSq() < 1e-4) {
+      _side.set(_radial.z, -_radial.x * 0.4, -_radial.x);
+    }
+    _side.normalize();
+
+    // Elevated + grazing (~40°) so bowl walls and slopes take clear N·L.
     _lightPos
       .copy(_target)
-      .addScaledVector(_radial, 56)
-      .addScaledVector(_side, 8);
+      .addScaledVector(_radial, 36)
+      .addScaledVector(_side, 36);
     L.position.copy(_lightPos);
     L.target.position.copy(_target);
     L.target.updateMatrixWorld();
@@ -115,13 +121,13 @@ function StudioKey() {
   return (
     <directionalLight
       ref={light}
-      intensity={1.25}
-      color="#c8d4ee"
+      intensity={2.15}
+      color="#e4ecf8"
       castShadow={perf.shadows}
       shadow-mapSize={[perf.shadowMapSize, perf.shadowMapSize]}
       shadow-bias={-0.00008}
       shadow-normalBias={0.025}
-      shadow-radius={1.5}
+      shadow-radius={2.2}
     >
       <object3D attach="target" />
     </directionalLight>
@@ -205,10 +211,10 @@ export function World({
       <color attach="background" args={[SPACE_COLOR]} />
       <fogExp2 attach="fog" args={[SPACE_COLOR, fogDensity]} />
 
-      {/* Cool fill baked into ambient/hemi — no fixed-direction earthshine
-          light, which made turning relight crater walls. */}
-      <ambientLight intensity={0.88} color="#243044" />
-      <hemisphereLight args={["#6a82a8", "#14161c", 0.45]} />
+      {/* Modest fill under a grazing earthshine key — dusty albedo needs some
+          lift, but ambient must stay low enough for crater walls to shade. */}
+      <ambientLight intensity={0.28} color="#1c2434" />
+      <hemisphereLight args={["#8aa0c4", "#0c0e14", 0.45]} />
       <StudioKey />
 
       <Starfield />

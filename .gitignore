@@ -33,3 +33,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Tauri (src-tauri/.gitignore covers /target/ and /gen/schemas)
+*.apk
+*.aab
+*.ipa
+*.keystore
+local.properties

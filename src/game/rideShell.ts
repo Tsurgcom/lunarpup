@@ -6,7 +6,8 @@ import { DEFAULT_PHYSICS, physics } from "./physicsTuning";
 /**
  * Board origin height above the terrain shell when planted (m).
  * SkateDog wheels sit ~0.05 below the group origin — keep this small so the
- * deck isn't a hoverboard, with a little slack for clipmap chord error.
+ * deck isn't a hoverboard. Clipmap bowl chords need extra lift via
+ * {@link physics}.meshChordSlack (`?tweaking`).
  * Live value: {@link physics}.boardClearance (`?tweaking`).
  */
 export const BOARD_CLEARANCE = DEFAULT_PHYSICS.boardClearance;
@@ -77,9 +78,14 @@ export function terrainRadius(dir: THREE.Vector3): number {
   return MOON_RADIUS + sampleTerrainHeight(dir);
 }
 
-/** Ride-shell radius (terrain + board clearance) along a unit direction. */
+/** Visual/contact lift above analytic terrain (clearance + clipmap chord slack). */
+export function rideLift(): number {
+  return physics.boardClearance + physics.meshChordSlack;
+}
+
+/** Ride-shell radius (terrain + clearance + chord slack) along a unit direction. */
 export function rideRadius(dir: THREE.Vector3): number {
-  return terrainRadius(dir) + physics.boardClearance;
+  return terrainRadius(dir) + rideLift();
 }
 
 /**
@@ -378,7 +384,10 @@ export function tryJump(
 export function createShellSample(): RideShellSample {
   return {
     dir: new THREE.Vector3(0, 0, 1),
-    radius: MOON_RADIUS + physics.boardClearance,
+    radius:
+      MOON_RADIUS +
+      DEFAULT_PHYSICS.boardClearance +
+      DEFAULT_PHYSICS.meshChordSlack,
     normal: new THREE.Vector3(0, 0, 1),
     altitude: 0,
   };

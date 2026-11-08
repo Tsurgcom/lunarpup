@@ -39,8 +39,9 @@ const indexTemplates = new Map<number, Uint16Array | Uint32Array>();
 type BuildHeightQuality = "near" | "mid" | "far";
 
 function heightQualityForSubdiv(subdiv: number): BuildHeightQuality {
-  if (subdiv <= 8) return "far";
-  if (subdiv <= 24) return "mid";
+  // Matches clipmap rings: close≈32 near, mid≈12, far≤5.
+  if (subdiv <= 5) return "far";
+  if (subdiv <= 14) return "mid";
   return "near";
 }
 

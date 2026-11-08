@@ -13,9 +13,11 @@ import {
   CLIPMAP_LODS,
   computeLodViewer,
   cullFaces,
+  faceArcDistance,
   faceBackCulled,
   faceLodLevel,
   faceOverHorizon,
+  faceSubdiv,
   facesNear,
   faceWithinArc,
   geodesicDistance,
@@ -33,8 +35,8 @@ import { MOON_RADIUS, SPAWN_DIR } from "./moon";
 describe("chunkLod", () => {
   test("icosphere chunks cover the sphere", () => {
     const faces = getIcoFaces();
-    // detail 1 → 20·4¹ = 80
-    expect(faces.length).toBe(80);
+    // detail 2 → 20·4² = 320
+    expect(faces.length).toBe(320);
     for (const f of faces) {
       expect(f.centroid.length()).toBeCloseTo(1, 5);
       expect(f.neighbors.length).toBeGreaterThanOrEqual(3);
@@ -52,8 +54,8 @@ describe("chunkLod", () => {
 
   test("corner-aware cull keeps faces the centroid test would drop", () => {
     const faces = getIcoFaces();
-    // Detail-1 faces are large — use a mid-ring arc so corner-only hits exist.
-    const tight = 90;
+    // Mid-ring arc so corner-only hits exist on detail-2 faces.
+    const tight = 70;
     const cos = Math.cos(tight / MOON_RADIUS);
     let found = false;
     for (const f of faces) {
@@ -108,9 +110,9 @@ describe("chunkLod", () => {
   test("hysteresis keeps a face after it leaves the enter arc", () => {
     resetChunkLod();
     const faces = getIcoFaces();
-    // Wider band for detail-1 faces (~170 m edges).
-    const enter = 110;
-    const exit = 170;
+    // Band sized for detail-2 faces (~85 m edges).
+    const enter = 70;
+    const exit = 110;
     // Must be outside enter by corners (not just centroid) so a cold cull
     // drops it, while exit arc still covers the centroid.
     const boundary = faces.find((f) => {
@@ -133,7 +135,7 @@ describe("chunkLod", () => {
     let minArc = Infinity;
     let maxArc = -Infinity;
     for (const f of faces) {
-      const arc = geodesicDistance(SPAWN_DIR, f.centroid);
+      const arc = faceArcDistance(SPAWN_DIR, f);
       if (arc < minArc) {
         minArc = arc;
         closest = f;
@@ -146,6 +148,50 @@ describe("chunkLod", () => {
     expect(faceLodLevel(SPAWN_DIR, closest)).toBeLessThan(
       faceLodLevel(SPAWN_DIR, farthest),
     );
+  });
+
+  test("close ring covers multiple detail-2 faces under the board", () => {
+    resetChunkLod();
+    const pos = SPAWN_DIR.clone().multiplyScalar(MOON_RADIUS + 2);
+    const snap = updateChunkLod(pos.x, pos.y, pos.z, 0, 0, 0);
+    const close = snap.chunks.filter((c) => c.level === 0);
+    expect(close.length).toBeGreaterThanOrEqual(3);
+    expect(close.every((c) => c.subdiv === CLIPMAP_LODS[0]!.subdiv)).toBe(true);
+  });
+
+  test("face under the board stays close-ring even at face edge", () => {
+    const faces = getIcoFaces();
+    // Stand on an edge midpoint — centroid-only distance used to miss the
+    // close ring on detail-1 faces (~170 m edges).
+    const face =
+      faces.find((f) => f.centroid.dot(SPAWN_DIR) > 0.85) ?? faces[0]!;
+    const onEdge = face.a.clone().add(face.b).normalize();
+    expect(faceArcDistance(onEdge, face)).toBeLessThan(5);
+    expect(faceLodLevel(onEdge, face)).toBe(0);
+    expect(faceSubdiv(onEdge, face)).toBe(CLIPMAP_LODS[0]!.subdiv);
+  });
+
+  test("look-ahead does not starve underfoot density", () => {
+    resetChunkLod();
+    const pos = SPAWN_DIR.clone().multiplyScalar(MOON_RADIUS + 2);
+    const east = new THREE.Vector3(0, 1, 0).cross(SPAWN_DIR).normalize();
+    const vel = east.clone().multiplyScalar(35);
+    const snap = updateChunkLod(pos.x, pos.y, pos.z, vel.x, vel.y, vel.z);
+    expect(snap.lookAheadArc).toBeGreaterThan(20);
+
+    // Closest streamed face to the pup must stay close-ring (not mid/far).
+    let underfoot = snap.chunks[0]!;
+    let bestArc = Infinity;
+    for (const c of snap.chunks) {
+      const arc = faceArcDistance(SPAWN_DIR, getIcoFaces()[c.faceIndex]!);
+      if (arc < bestArc) {
+        bestArc = arc;
+        underfoot = c;
+      }
+    }
+    expect(bestArc).toBeLessThan(CLIPMAP_LODS[0]!.maxArc);
+    expect(underfoot.level).toBe(0);
+    expect(underfoot.subdiv).toBe(CLIPMAP_LODS[0]!.subdiv);
   });
 
   test("velocity look-ahead shifts viewer along travel", () => {
@@ -201,6 +247,57 @@ describe("chunkLod", () => {
     expect(sampleTerrainHeight(new THREE.Vector3(0, 1, 0))).toBeCloseTo(10);
     setTerrainGenerator(null);
     expect(sampleTerrainHeight(new THREE.Vector3(0, 1, 0))).toBe(0);
+  });
+
+  test("close-ring chord error stays under ride lift", async () => {
+    const { sampleHeightDir } = await import("./lunarTerrain");
+    const { setChunkHeightSampler, createFaceGeometryData } = await import(
+      "./chunkGeometry"
+    );
+    const { physics } = await import("./physicsTuning");
+
+    setChunkHeightSampler(sampleHeightDir);
+    const faces = getIcoFaces();
+    let face = faces[0]!;
+    let best = Infinity;
+    for (const f of faces) {
+      const a = faceArcDistance(SPAWN_DIR, f);
+      if (a < best) {
+        best = a;
+        face = f;
+      }
+    }
+
+    const subdiv = CLIPMAP_LODS[0]!.subdiv;
+    const data = createFaceGeometryData(face, subdiv);
+    const pos = data.positions;
+    const idx = data.indices;
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const mid = new THREE.Vector3();
+    let maxSink = 0;
+    for (let t = 0; t < idx.length; t += 3) {
+      const i0 = idx[t]! * 3;
+      const i1 = idx[t + 1]! * 3;
+      const i2 = idx[t + 2]! * 3;
+      a.set(pos[i0]!, pos[i0 + 1]!, pos[i0 + 2]!);
+      b.set(pos[i1]!, pos[i1 + 1]!, pos[i1 + 2]!);
+      c.set(pos[i2]!, pos[i2 + 1]!, pos[i2 + 2]!);
+      mid
+        .copy(a)
+        .add(b)
+        .add(c)
+        .multiplyScalar(1 / 3);
+      const meshR = mid.length();
+      mid.normalize();
+      const trueR = MOON_RADIUS + sampleHeightDir(mid, "near");
+      // Positive → mesh shallower than analytic floor (clips if ride lift too small).
+      maxSink = Math.max(maxSink, meshR - trueR);
+    }
+
+    const lift = physics.boardClearance + physics.meshChordSlack;
+    expect(maxSink).toBeLessThan(lift);
   });
 });
 
